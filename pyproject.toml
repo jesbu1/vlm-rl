@@ -21,6 +21,7 @@ offline = ["minari[hdf5]"]
 lora = ["peft"]
 wandb = ["wandb"]
 smolvlm = ["num2words"]
+docs = ["mkdocs-material>=9.5"]
 dev = ["pytest"]
 
 [build-system]

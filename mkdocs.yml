@@ -1,0 +1,101 @@
+site_name: vlmrl
+site_description: Minimal multi-turn VLM-RL (PEAR-style) for any Hugging Face VLM, any environment, any reward
+site_url: https://jesbu1.github.io/vlm-rl/
+repo_url: https://github.com/jesbu1/vlm-rl
+repo_name: jesbu1/vlm-rl
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.indexes
+    - navigation.top
+    - navigation.footer
+    - navigation.instant
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - toc.follow
+  palette:
+    - scheme: default
+      primary: indigo
+      toggle: {icon: material/brightness-7, name: Switch to dark mode}
+    - scheme: slate
+      primary: indigo
+      toggle: {icon: material/brightness-4, name: Switch to light mode}
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - tables
+  - toc: {permalink: true}
+  - pymdownx.details
+  - pymdownx.tabbed: {alternate_style: true}
+  - pymdownx.arithmatex: {generic: true}
+  - pymdownx.highlight
+  - pymdownx.inlinehilite
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+
+extra_javascript:
+  - javascripts/mathjax.js
+  - https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js
+
+nav:
+  - Home: index.md
+  - Getting started:
+      - getting-started/index.md
+      - Installation: getting-started/installation.md
+      - Quickstart: getting-started/quickstart.md
+      - Your first real run: getting-started/first-run.md
+  - PEAR (the paper):
+      - pear/index.md
+      - The robot-use protocol: pear/protocol.md
+      - RL objective: pear/objective.md
+      - Training recipe & systems: pear/recipe.md
+      - Results: pear/results.md
+      - PEAR ↔ vlmrl: pear/mapping.md
+  - Concepts:
+      - concepts/index.md
+      - Architecture: concepts/architecture.md
+      - Rollouts & episodes: concepts/rollouts.md
+      - Algorithm: concepts/algorithm.md
+      - Rewards & preferences: concepts/rewards.md
+  - Environments:
+      - environments/index.md
+      - PointMaze: environments/pointmaze.md
+      - Prompts: environments/prompts.md
+      - World-action models: environments/world-models.md
+      - Adding an environment: environments/adding.md
+  - Models:
+      - models/index.md
+      - Qwen3-VL-4B: models/qwen3-vl-4b.md
+      - Qwen3-VL-2B: models/qwen3-vl-2b.md
+      - Qwen2.5-VL-3B: models/qwen2.5-vl-3b.md
+      - Qwen2.5-VL-7B (full FT): models/qwen2.5-vl-7b.md
+      - SmolVLM2-2.2B: models/smolvlm2-2.2b.md
+      - SmolVLM-256M: models/smolvlm-256m.md
+      - Adding a model: models/adding.md
+  - Training:
+      - training/index.md
+      - Configuration (Hydra): training/configuration.md
+      - Rollout backends: training/backends.md
+      - Sweeps: training/sweeps.md
+      - Weights & Biases: training/wandb.md
+      - Experiment log: training/experiments.md
+  - Development:
+      - development/index.md
+      - Testing: development/testing.md
+      - Performance: development/performance.md
+      - Writing docs: development/docs.md
+      - Roadmap & limitations: development/roadmap.md
+  - Reference:
+      - reference/index.md
+      - Configuration fields: reference/config.md
+      - Code layout: reference/layout.md

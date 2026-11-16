@@ -141,7 +141,8 @@ class HFPolicy:
         greedy = temperature <= 0
         out = self.model.generate(
             **enc, max_new_tokens=max_new_tokens, do_sample=not greedy, use_cache=True,
-            # override checkpoint generation_config (e.g. Qwen ships top_k=1): sample the full distribution
+            # override checkpoint generation_config (Qwen2.5-VL ships temperature=1e-6 + repetition_penalty=1.05,
+            # Qwen3-VL temperature=0.7/top_p=0.8/top_k=20): sample the full distribution, as PEAR does
             **({} if greedy else {"temperature": temperature, "top_p": top_p, "top_k": 0}),
             repetition_penalty=1.0, pad_token_id=self.tokenizer.pad_token_id)
         new = out[:, enc["input_ids"].shape[1]:]
