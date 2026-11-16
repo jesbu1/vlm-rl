@@ -13,7 +13,7 @@ Sweep file (YAML):
 
 Each grid point becomes Hydra overrides for scripts/train.py; the full config is composed up front
 (so typos fail before anything launches). Runs are ordered by model so each model's vLLM server
-(rollout_backend=vllm) is started once and reused. Finished runs are skipped => re-running resumes.
+(rollout_backend=vllm) is started once and reused; models keep their grid order. Finished runs are skipped => re-running resumes.
 Plain Hydra multirun (`train.py -m ...`) also works when no per-model vLLM server is needed.
 """
 from __future__ import annotations
@@ -60,7 +60,10 @@ def expand(sweep: dict) -> list[dict]:
         if "vllm_port" in sweep:
             ov.append(f"vllm_url=http://localhost:{sweep['vllm_port']}")
         runs.append({"name": name, "overrides": ov, "cfg": compose(ov)})
-    runs.sort(key=lambda r: r["cfg"].model)  # stable: keeps grid order within a model
+    first = {}
+    for r in runs:
+        first.setdefault(r["cfg"].model, len(first))
+    runs.sort(key=lambda r: first[r["cfg"].model])  # group by model, first-appearance order (stable)
     return runs
 
 

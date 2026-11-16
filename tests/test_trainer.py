@@ -256,11 +256,13 @@ def test_sweep_expansion(tmp_path):
                          "overrides": ["experiment=pointmaze_q3vl4b_vllm", "steps=3"],
                          "grid": {"reward": ["success", "success+0.5*neg_dist"], "policy": ["qwen3vl4b_lora", "qwen3vl2b_lora"]}})
     assert len(runs) == 4
-    assert [r["cfg"].model for r in runs] == ["Qwen/Qwen3-VL-2B-Instruct"] * 2 + ["Qwen/Qwen3-VL-4B-Instruct"] * 2
+    assert [r["cfg"].model for r in runs] == ["Qwen/Qwen3-VL-4B-Instruct"] * 2 + ["Qwen/Qwen3-VL-2B-Instruct"] * 2
     r0 = next(r for r in runs if r["name"] == "reward=success__policy=qwen3vl4b_lora")
     assert r0["cfg"].out_dir == "runs/g/reward=success__policy=qwen3vl4b_lora" and r0["cfg"].wandb_group == "g"
     assert all(r["cfg"].steps == 3 and r["cfg"].vllm_url == "http://localhost:9000" and r["cfg"].wandb_project == "p"
                for r in runs)
     assert {r["cfg"].reward for r in runs} == {"success", "success+0.5*neg_dist"}
     shipped = yaml.safe_load(open(f"{ROOT}/configs/sweeps/pointmaze_small.yaml"))
-    assert len(sweep.expand(shipped)) == 6
+    sh = sweep.expand(shipped)
+    assert len(sh) == 9 and sh[-1]["cfg"].model == "Qwen/Qwen2.5-VL-3B-Instruct"
+    assert all(r["cfg"].wandb_entity == "tri" and r["cfg"].wandb_tags == "pointmaze,medium,lora,sweep" for r in sh)

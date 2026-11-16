@@ -163,7 +163,7 @@ class HFPolicy:
                     if enc["input_ids"][b, :len(end_ids)].tolist() != list(end_ids):
                         raise RuntimeError(
                             "Chat template is not prefix-stable for this model (re-rendering the full chat "
-                            "changes earlier turns), so multi-turn masks are ambiguous. Use context='per_turn'.")
+                            "changes earlier turns), so multi-turn masks are ambiguous. Set max_images=<int> (per-turn samples).")
                 loss_mask[b, start:len(end_ids)] = 1
         self._prefix_checked = True
         enc = dict(enc)
