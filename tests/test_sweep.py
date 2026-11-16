@@ -34,10 +34,22 @@ def test_shipped_sweep_composes():
     import yaml
     shipped = yaml.safe_load(open(os.path.join(os.path.dirname(__file__), "..", "configs/sweeps/pointmaze_small.yaml")))
     runs = sweep.expand(shipped)
-    assert len(runs) == 9 and runs[-1]["cfg"].model == "HuggingFaceTB/SmolVLM2-2.2B-Instruct"
+    assert len(runs) == 12 and runs[-1]["cfg"].model == "HuggingFaceTB/SmolVLM-256M-Instruct"
+    assert [r["cfg"].model for r in runs[::3]] == ["google/gemma-4-E2B-it", "Qwen/Qwen3-VL-4B-Instruct",
+                                                   "openbmb/MiniCPM-V-4.6", "HuggingFaceTB/SmolVLM-256M-Instruct"]
+    assert all(r["cfg"].max_frames == 1 and r["cfg"].max_new_tokens == 512 for r in runs)
     assert all(r["cfg"].wandb_entity == "tri" and r["cfg"].wandb_tags == "pointmaze,medium,lora,sweep" for r in runs)
     assert all(r["cfg"].env_kwargs["maze"] == "medium" and r["cfg"].rollout_backend == "vllm" for r in runs)
-    assert "--max-model-len" in shipped["vllm_args"]["HuggingFaceTB/SmolVLM2-2.2B-Instruct"]
+    assert "--max-model-len" in shipped["vllm_args"]["HuggingFaceTB/SmolVLM-256M-Instruct"]
+
+
+def test_shipped_fft_sweep_composes():
+    import yaml
+    shipped = yaml.safe_load(open(os.path.join(os.path.dirname(__file__), "..", "configs/sweeps/pointmaze_small_fft.yaml")))
+    runs = sweep.expand(shipped)
+    assert len(runs) == 3 and all(r["cfg"].lora_rank == 0 and r["cfg"].rollout_backend == "hf" for r in runs)
+    assert shipped["group"] == yaml.safe_load(open(os.path.join(
+        os.path.dirname(__file__), "..", "configs/sweeps/pointmaze_small.yaml")))["group"]
 
 
 @pytest.mark.skipif(sys.platform == "win32", reason="process groups")

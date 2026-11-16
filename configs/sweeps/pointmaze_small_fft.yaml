@@ -1,0 +1,19 @@
+# Full fine-tuning of SmolVLM-256M, same task/settings and wandb group as pointmaze_small.yaml.
+# vLLM rollouts need LoRA (weight sync = adapter hot-swap), so these runs use in-process HF generation
+# on the training GPU (rollout=hf; no vLLM server is started).
+group: pointmaze-small-v4
+project: vlm-rl-pointmaze
+train_gpu: 0
+overrides:
+  - experiment=pointmaze_q3vl4b_vllm
+  - rollout=hf
+  - steps=30
+  - eval_every=5
+  - max_new_tokens=512
+  - wandb_entity=tri
+  - "wandb_tags='pointmaze,medium,fft,sweep'"
+  - env_kwargs.maze=medium
+  - env_kwargs.max_turns=15
+grid:
+  policy: [smolvlm256m]
+  reward: [success, "success+0.5*neg_dist", pref_oracle_dist]

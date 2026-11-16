@@ -1,7 +1,9 @@
 # Used by scripts/sweep.py (not loaded by Hydra directly). Each run = base overrides + one grid point.
 # Runs are grouped by model in first-appearance order. Per-model training settings come from the
 # policy presets; per-model vLLM server flags from `vllm_args`.
-group: pointmaze-small-v2
+# v4: models ordered by total parameter count, largest first (Gemma 4 E2B 5.1B, Qwen3-VL-4B 4.4B,
+# MiniCPM-V 4.6 1.3B, SmolVLM 0.26B); all LoRA. Full fine-tuning of SmolVLM: pointmaze_small_fft.yaml.
+group: pointmaze-small-v4
 project: vlm-rl-pointmaze
 train_gpu: 0
 vllm_gpu: 1
@@ -10,12 +12,14 @@ overrides:
   - experiment=pointmaze_q3vl4b_vllm
   - steps=30
   - eval_every=5
+  - max_new_tokens=512
   - wandb_entity=tri
   - "wandb_tags='pointmaze,medium,lora,sweep'"
   - env_kwargs.maze=medium
   - env_kwargs.max_turns=15
 grid:
-  policy: [qwen3vl2b_lora, qwen3vl4b_lora, smolvlm2_2b_lora]
+  policy: [gemma4_e2b_lora, qwen3vl4b_lora, minicpmv46_lora, smolvlm256m_lora]
   reward: [success, "success+0.5*neg_dist", pref_oracle_dist]
 vllm_args:
+  HuggingFaceTB/SmolVLM-256M-Instruct: [--max-model-len, "8192", --mm-processor-kwargs, '{"do_image_splitting": false}']
   HuggingFaceTB/SmolVLM2-2.2B-Instruct: [--max-model-len, "8192", --mm-processor-kwargs, '{"do_image_splitting": false}']
