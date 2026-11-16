@@ -11,7 +11,8 @@ launches. YAML files in `configs/` only set values. The full field list is in th
 configs/
   train.yaml        defaults: [train_schema, _self_, policy: qwen3vl4b_lora, task: pointmaze, rollout: hf, experiment: null]
   policy/           which VLM + finetuning mode   (qwen3vl4b_lora, qwen3vl2b_lora, qwen25vl3b_lora,
-                                                   qwen25vl7b_full, smolvlm2_2b_lora, smolvlm256m)
+                                                   qwen25vl7b_full, smolvlm2_2b_lora, smolvlm256m,
+                                                   smolvlm256m_lora, gemma4_e2b_lora, minicpmv46_lora)
   task/             env + env_kwargs + reward     (pointmaze, toy_wam)
   rollout/          generation backend            (hf, vllm)
   experiment/       full presets, applied last    (pointmaze_q3vl4b_vllm, pear_recipe, toy_wam_prefs, smoke)

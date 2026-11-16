@@ -6,13 +6,13 @@ models.
 ```bash
 python scripts/sweep.py configs/sweeps/pointmaze_small.yaml --dry_run    # list runs + their overrides
 nohup python scripts/sweep.py configs/sweeps/pointmaze_small.yaml > sweep.log 2>&1 &
-python scripts/make_wandb_report.py --group pointmaze-small-v2 --takeaways takeaways.md
+python scripts/make_wandb_report.py --group pointmaze-small-v4 --takeaways takeaways.md
 ```
 
 ## Sweep file
 
 ```yaml
-group: pointmaze-small-v2          # wandb group + runs/<group>/<run>/
+group: pointmaze-small-v4          # wandb group + runs/<group>/<run>/
 project: vlm-rl-pointmaze
 train_gpu: 0
 vllm_gpu: 1
@@ -20,13 +20,19 @@ vllm_port: 8011
 overrides:                          # Hydra overrides applied to every run
   - experiment=pointmaze_q3vl4b_vllm
   - steps=30
+  - max_new_tokens=512
   - env_kwargs.maze=medium
 grid:                               # cartesian product; any config key or group
-  policy: [qwen3vl2b_lora, qwen3vl4b_lora, smolvlm2_2b_lora]
+  policy: [gemma4_e2b_lora, qwen3vl4b_lora, minicpmv46_lora, smolvlm256m_lora]   # largest first
   reward: [success, "success+0.5*neg_dist", pref_oracle_dist]
 vllm_args:                          # extra `vllm serve` flags per model
-  HuggingFaceTB/SmolVLM2-2.2B-Instruct: [--max-model-len, "8192", --mm-processor-kwargs, '{"do_image_splitting": false}']
+  HuggingFaceTB/SmolVLM-256M-Instruct: [--max-model-len, "8192", --mm-processor-kwargs, '{"do_image_splitting": false}']
 ```
+
+**Full fine-tuning in a sweep.** vLLM weight sync is LoRA-only, so a full-FT sweep sets `rollout=hf`
+in its overrides. No server is started, and generation runs in-process on the training GPU.
+`configs/sweeps/pointmaze_small_fft.yaml` does this for `policy=smolvlm256m`, using the same wandb group as
+the LoRA sweep so one report covers both.
 
 ## What it does
 

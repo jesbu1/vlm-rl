@@ -16,7 +16,7 @@ can be grouped and filtered by `config.reward`, `config.model`, `config.env_kwar
 | `train/` | `loss`, `grad_norm`, `tokens`, `sequences`, `mean_logp`, `clipfrac` (ppo_clip only), `skipped` |
 | `eval/` | `success`, `turns`, `invalid_frac`, `end_*` (greedy by default, `eval_temperature`) |
 | `time/` | `rollout`, `train` |
-| media | `train/episode`, `eval/episode` (**MP4 video**, H.264, 2 fps = one frame per round, captioned with success / score / rounds / end reason; `video_format=gif` and `video_fps` to change) and `train/transcript`, `eval/transcript` (HTML), every `log_samples_every` / `eval_every` steps |
+| media | `train/episode`, `eval/episode` (**MP4 video**, H.264, 2 fps = one frame per round, captioned with success / score / rounds / end reason; `video_format=gif` and `video_fps` to change) and `train/transcript`, `eval/transcript` (HTML) for one episode, plus incremental tables **`train/samples`, `eval/samples`** with `samples_per_log` (4) episodes per dump: step, success, score, advantage, turns, invalid turns, end reason, mean reply chars, **full reasoning transcript**, video. Every `log_samples_every` / `eval_every` steps |
 
 Reading them:
 
@@ -24,6 +24,9 @@ Reading them:
   groups get filtered. Move to a harder task.
 - **`rollout/end_invalid` high** means format problems. Try a format reward, or check the model's page.
 - **`rollout/end_context` > 0** means episodes are hitting `max_context_tokens`.
+- **Reading reasoning chains**: open the `eval/samples` table and filter by `episode`. Eval rows come from
+  the same fixed start states every time, so one maze's reasoning can be followed across training. Train rows
+  mix successes and failures.
 
 ## Reports
 
@@ -34,7 +37,7 @@ takeaways from a markdown file.
 
 ```bash
 uv pip install -p .venv wandb-workspaces
-python scripts/make_wandb_report.py --group pointmaze-small-v2 --takeaways takeaways.md [--dry_run]
+python scripts/make_wandb_report.py --group pointmaze-small-v4 --takeaways takeaways.md [--dry_run]
 ```
 
 Offline logging works too (`WANDB_MODE=offline`), and is covered by a test.

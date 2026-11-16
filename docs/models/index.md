@@ -7,12 +7,14 @@ the settings it needs. Pick one with `policy=<name>`.
 
 | model | preset | params | tokens / 336-px frame | status |
 |---|---|---|---|---|
+| [Gemma 4 E2B-it](gemma-4-e2b.md) | `gemma4_e2b_lora` | 5.1B (≈2B effective) | 258 | smoke-tested; in the v4 sweep |
 | [Qwen3-VL-4B-Instruct](qwen3-vl-4b.md) | `qwen3vl4b_lora` (default) | 4B | 102 | **trained end-to-end**: UMaze 0.625 → 1.0 |
 | [Qwen3-VL-2B-Instruct](qwen3-vl-2b.md) | `qwen3vl2b_lora` | 2B | 102 | trains; zero-shot struggles with the PEAR action semantics |
 | [Qwen2.5-VL-3B-Instruct](qwen2.5-vl-3b.md) | `qwen25vl3b_lora` | 3B | 146 | processor + template checked; not trained yet |
 | [Qwen2.5-VL-7B-Instruct](qwen2.5-vl-7b.md) | `qwen25vl7b_full` | 7B | 146 | full-FT preset for `experiment=pear_recipe`; needs >60 GB |
-| [SmolVLM2-2.2B-Instruct](smolvlm2-2.2b.md) | `smolvlm2_2b_lora` | 2.2B | 84 (no tiling) | in the reward × model sweep |
-| [SmolVLM-256M-Instruct](smolvlm-256m.md) | `smolvlm256m` | 256M | 67 (no tiling) | tests and CPU smoke runs only |
+| [MiniCPM-V 4.6](minicpm-v-4.6.md) | `minicpmv46_lora` | 1.3B | 70 | smoke-tested; template needs per-turn samples; in the v4 sweep |
+| [SmolVLM2-2.2B-Instruct](smolvlm2-2.2b.md) | `smolvlm2_2b_lora` | 2.2B | 84 (no tiling) | preset + vLLM flags checked; was in the v1–v3 sweep grids |
+| [SmolVLM-256M-Instruct](smolvlm-256m.md) | `smolvlm256m` (full FT), `smolvlm256m_lora` | 256M | 67 (no tiling) | tests, CPU smoke runs; LoRA and full FT in the v4 sweep |
 
 Token counts are measured with each processor on a 336×336 frame, including the image delimiter
 tokens. A PointMaze episode adds one frame per round.
@@ -29,6 +31,8 @@ over the full distribution**, so `HFPolicy.generate` always passes `temperature`
 |---|---|
 | Qwen2.5-VL | `temperature=1e-6`, `repetition_penalty=1.05`, which is effectively greedy |
 | Qwen3-VL | `temperature=0.7`, `top_p=0.8`, `top_k=20` |
+| Gemma 4 | `temperature=1.0`, `top_k=64`, `top_p=0.95` |
+| MiniCPM-V 4.6 | `temperature=0.7`, `top_k=0`, `top_p=1.0` |
 | SmolVLM / SmolVLM2 | none |
 
 Without the override, Qwen2.5-VL would produce identical rollouts within a group, so every group would be
@@ -47,7 +51,7 @@ training batch, with a clear error if it fails. Templates that rewrite history (
 `lora_targets` is a PEFT `target_modules` value: `all-linear`, or a regex string. The presets restrict
 LoRA to the **language model's** linear layers, because vLLM cannot serve LoRA on the vision tower:
 
-- Qwen family: `.*language_model.*\.(q_proj|k_proj|v_proj|o_proj|gate_proj|up_proj|down_proj)`
+- Qwen family, Gemma 4, MiniCPM-V 4.6: `.*language_model.*\.(q_proj|k_proj|v_proj|o_proj|gate_proj|up_proj|down_proj)`
 - SmolVLM family: `.*text_model.*\.(…same…)`
 
 `all-linear` (which also adapts the vision tower) works with the HF backend only.

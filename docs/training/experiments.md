@@ -39,14 +39,49 @@ Qwen3-VL-2B LoRA, HF backend, PEAR protocol, z-score advantages, `on_invalid=ter
 - With `reward='success+0.5*neg_dist'`: finite losses (grad norm 0.6–1.0), 0% invalid actions, rollout
   success 0 → 0.19 at step 3. That's 16 episodes, so it only shows the code path works.
 
-## In progress · `pointmaze-small-v2` sweep
+## 2026-11-16 · `pointmaze-small-v1`–`v3`: stopped early (old code path)
 
-{Qwen3-VL-2B, Qwen3-VL-4B, SmolVLM2-2.2B} × {`success`, `success+0.5*neg_dist`, `pref_oracle_dist`} on
-PointMaze **medium**, 30 steps each, with `max_frames=1`. Results go to wandb group `pointmaze-small-v2`.
+All three ran **before** the PEAR-faithful defaults landed (`prompt_style=simple`, `adv_mode=center`,
+`on_invalid=noop`, fixed 40-substep actions) and were stopped after a few steps of their first run,
+Qwen3-VL-2B with `reward=success` on PointMaze **medium** (≤15 rounds, 8 groups × 8). None reached the
+other grid points. They are **not comparable** with v4, which runs the current code. Each was stopped to
+change one setting:
 
-!!! note "Which code it runs"
-    This sweep was launched from the puget checkout **before** the PEAR-faithful defaults landed, so it
-    uses `prompt_style=simple`, `adv_mode=center`, `on_invalid=noop` and fixed 40-substep actions. Its
-    results are comparable with each other and with the UMaze dev run, but not with runs on the current
-    defaults. `pointmaze-small-v1` was stopped after 2 steps and superseded by v2, which adds `max_frames=1`
-    and resumable training.
+| group | change | why it was stopped |
+|---|---|---|
+| v1 | full multi-turn history, `max_new_tokens=256` | switched to single-frame context (`max_frames=1`) and added resumable training |
+| v2 | `max_frames=1` | 2B replies truncated at 256 tokens before the action tag; raised the limit |
+| v3 | `max_new_tokens=512` | repo moved to Hydra + PEAR-faithful defaults; restarted as v4 |
+
+Partial results (rollout = temperature 1.0, 8 groups × 8 with DAPO resampling; eval = greedy, 32 fixed starts):
+
+| group | step | eval success | rollout success | rollout invalid frac | mean reply chars | s/step |
+|---|---|---|---|---|---|---|
+| v1 | 0 / 2 | 0.062 | 0.062 → 0.081 | 0.76 → 0.66 | 791 → 766 | 633 |
+| v2 | 0 / 4 | 0.062 | 0.025 → 0.364 | 0.82 → 0.32 | 870 → 707 | 280–380 |
+| v3 | 0 / 4 | **0.25** | 0.116 → **0.483** | 0.65 → **0.09** | 1448 → 788 | 460–585 |
+
+- **RL teaches brevity without a format reward.** Under `on_invalid=noop` a truncated reply wastes a round,
+  so episodes with more short, valid replies succeed more often and get positive advantage. In v3,
+  invalid actions fell from 65% to 9% and replies shrank by 45% in 4 steps.
+- **The token limit mattered more than context.** Raising `max_new_tokens` 256 → 512 lifted zero-shot eval
+  success from 0.06 to 0.25. Single-frame context (v1 → v2) halved step time but didn't change it.
+- Zero-shot Qwen3-VL-2B under greedy decoding falls into repetition loops ("The ball is in a dark cell,
+  so it cannot move…" ×12, although the ball is on free floor), which sampling at T=1 escapes more often.
+  So early on, eval lags rollouts.
+- wandb runs: v2 `5d6f2cac`, v3 `dcaba8b7` (state: crashed/killed). v2 also served as the live resume test:
+  the stack was hard-killed mid-step twice and continued from the last checkpointed step.
+
+## In progress · `pointmaze-small-v4` sweep (current code)
+
+`configs/sweeps/pointmaze_small.yaml`: {Gemma 4 E2B, Qwen3-VL-4B, MiniCPM-V 4.6, SmolVLM-256M} (LoRA r=64,
+largest model first) × {`success`, `success+0.5*neg_dist`, `pref_oracle_dist`}, plus
+`configs/sweeps/pointmaze_small_fft.yaml`: SmolVLM-256M **full fine-tuning** (HF rollouts) × the same
+rewards. PointMaze medium, ≤15 rounds, 30 steps, `max_frames=1`, `max_new_tokens=512`, current defaults
+(PEAR prompt, z-score advantages, settle-until-at-rest, `on_invalid=terminate`). wandb group
+`pointmaze-small-v4`.
+
+One-step smoke runs before launch (6 episodes each, PEAR prompt): Gemma 4 E2B produced valid, short
+actions. **MiniCPM-V 4.6 and SmolVLM-256M were 100% invalid** (unfenced or state-echo JSON). With
+`on_invalid=terminate` such groups have zero variance and are filtered, so these runs may not learn at
+all. That is reported as a finding; prompts and rewards are left unchanged.

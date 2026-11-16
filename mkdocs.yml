@@ -75,11 +75,13 @@ nav:
       - Adding an environment: environments/adding.md
   - Models:
       - models/index.md
+      - Gemma 4 E2B: models/gemma-4-e2b.md
       - Qwen3-VL-4B: models/qwen3-vl-4b.md
       - Qwen3-VL-2B: models/qwen3-vl-2b.md
       - Qwen2.5-VL-3B: models/qwen2.5-vl-3b.md
       - Qwen2.5-VL-7B (full FT): models/qwen2.5-vl-7b.md
       - SmolVLM2-2.2B: models/smolvlm2-2.2b.md
+      - MiniCPM-V 4.6: models/minicpm-v-4.6.md
       - SmolVLM-256M: models/smolvlm-256m.md
       - Adding a model: models/adding.md
   - Training:

@@ -43,5 +43,6 @@ CUDA_VISIBLE_DEVICES=0 python scripts/train.py experiment=pointmaze_q3vl4b_vllm 
 
 ## Status
 
-Part of the `pointmaze-small-v2` reward × model sweep. Results go to wandb group `pointmaze-small-v2`
-(see [Experiment log](../training/experiments.md)).
+Was the third model in the `pointmaze-small-v1`–`v3` sweep grids, but those sweeps were stopped before
+reaching it, so it has **no training results yet**. It is not in v4. One-step smoke runs on puget confirmed
+that the preset and vLLM flags work (see [Experiment log](../training/experiments.md)).

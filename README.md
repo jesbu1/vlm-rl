@@ -45,7 +45,7 @@ On 2×A6000, Qwen3-VL-4B + LoRA reaches PointMaze UMaze eval success **0.625 →
 | [PEAR (the paper)](docs/pear/index.md) | protocol · RL objective · recipe & systems · results · PEAR ↔ vlmrl |
 | [Concepts](docs/concepts/index.md) | architecture · rollouts & episodes · algorithm · rewards & preferences |
 | [Environments](docs/environments/index.md) | PointMaze · prompts · world-action models · adding an environment |
-| [Models](docs/models/index.md) | Qwen3-VL-4B · Qwen3-VL-2B · Qwen2.5-VL-3B · Qwen2.5-VL-7B · SmolVLM2-2.2B · SmolVLM-256M · adding a model |
+| [Models](docs/models/index.md) | Gemma 4 E2B · Qwen3-VL-4B · Qwen3-VL-2B · Qwen2.5-VL-3B · Qwen2.5-VL-7B · MiniCPM-V 4.6 · SmolVLM2-2.2B · SmolVLM-256M · adding a model |
 | [Training](docs/training/index.md) | configuration (Hydra) · rollout backends · sweeps · wandb · experiment log |
 | [Development](docs/development/index.md) | testing · performance · writing docs · roadmap |
 | [Reference](docs/reference/index.md) | configuration fields · code layout |
