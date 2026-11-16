@@ -1,0 +1,96 @@
+"""Optional fast rollout backend: a vLLM OpenAI-compatible server + LoRA hot-swapping.
+
+Why: multi-turn VLM episodes re-send the whole (multi-image) context every turn. HF ``generate``
+re-prefills it from scratch; vLLM's automatic prefix caching reuses the KV cache of the shared prefix
+(PEAR uses veRL + LMCache for the same reason) and continuous batching keeps the GPU busy.
+
+Why a *server*: it keeps vLLM's pinned torch/CUDA stack in its own venv/GPU, works for any model vLLM
+serves, and makes weight sync trivial for LoRA: after each update we save the adapter and call
+``/v1/load_lora_adapter``. Full fine-tuning would need an NCCL weight broadcast (see FeynRL /
+veRL); not implemented here.
+
+Launch (separate venv, separate GPU), then train with ``--rollout_backend vllm --vllm_url ...``:
+
+    VLLM_ALLOW_RUNTIME_LORA_UPDATING=True CUDA_VISIBLE_DEVICES=1 vllm serve Qwen/Qwen3-VL-4B-Instruct \
+        --enable-lora --max-lora-rank 64 --enable-prefix-caching --max-model-len 32768 \
+        --limit-mm-per-prompt '{"image": 32}' --port 8000
+"""
+from __future__ import annotations
+
+import base64
+import io
+import json
+import os
+import shutil
+import urllib.request
+from concurrent.futures import ThreadPoolExecutor
+
+
+def _post(url: str, payload: dict, timeout: float = 600.0) -> dict:
+    req = urllib.request.Request(url, data=json.dumps(payload).encode(), headers={"Content-Type": "application/json"})
+    with urllib.request.urlopen(req, timeout=timeout) as r:
+        body = r.read().decode()
+    return json.loads(body) if body.strip().startswith("{") else {"text": body}
+
+
+def _image_url(img) -> str:
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    return "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode()
+
+
+def to_openai_messages(messages: list[dict]) -> list[dict]:
+    """HF multimodal chat (PIL images inline) -> OpenAI chat format (data-URL images)."""
+    out = []
+    for m in messages:
+        parts = []
+        for c in m["content"]:
+            if c["type"] == "image":
+                parts.append({"type": "image_url", "image_url": {"url": _image_url(c["image"])}})
+            else:
+                parts.append({"type": "text", "text": c["text"]})
+        if m["role"] != "user" and all(p["type"] == "text" for p in parts):
+            out.append({"role": m["role"], "content": "".join(p["text"] for p in parts)})
+        else:
+            out.append({"role": m["role"], "content": parts})
+    return out
+
+
+class VLLMServerGenerator:
+    def __init__(self, url: str, base_model: str, adapter_dir: str, max_workers: int = 128):
+        self.url = url.rstrip("/")
+        self.base_model = base_model
+        self.adapter_dir = adapter_dir
+        self.current = base_model       # model name to request; becomes the LoRA name after first sync
+        self._prev_adapter: tuple[str, str] | None = None
+        self.pool = ThreadPoolExecutor(max_workers)
+
+    def _one(self, msgs, max_new_tokens, temperature, top_p):
+        greedy = temperature <= 0
+        payload = {"model": self.current, "messages": to_openai_messages(msgs), "max_tokens": max_new_tokens,
+                   "temperature": 0.0 if greedy else temperature, "top_p": 1.0 if greedy else top_p,
+                   "top_k": -1, "n": 1}
+        r = _post(f"{self.url}/v1/chat/completions", payload)
+        return (r["choices"][0]["message"].get("content") or "").strip()
+
+    def generate(self, convs, max_new_tokens=256, temperature=1.0, top_p=1.0, batch_size=None):
+        futs = [self.pool.submit(self._one, c, max_new_tokens, temperature, top_p) for c in convs]
+        return [f.result() for f in futs]
+
+    def sync(self, policy, step: int):
+        """Push the current LoRA weights to the server (save adapter -> hot-load -> unload previous)."""
+        if not hasattr(policy.model, "peft_config"):
+            raise NotImplementedError("vLLM server backend requires LoRA (lora_rank > 0) for weight sync")
+        name = f"policy_step{step}"
+        path = os.path.abspath(os.path.join(self.adapter_dir, name))
+        policy.model.save_pretrained(path)
+        _post(f"{self.url}/v1/load_lora_adapter", {"lora_name": name, "lora_path": path})
+        self.current = name
+        if self._prev_adapter:
+            old_name, old_path = self._prev_adapter
+            try:
+                _post(f"{self.url}/v1/unload_lora_adapter", {"lora_name": old_name})
+            except Exception as e:  # noqa: BLE001 - best effort
+                print(f"[vllm] unload {old_name} failed: {e}")
+            shutil.rmtree(old_path, ignore_errors=True)
+        self._prev_adapter = (name, path)

@@ -1,0 +1,23 @@
+{
+  "_comment": "Fast path: vLLM server (prefix caching) for rollouts on GPU1, LoRA trainer on GPU0. Start the server first (see README).",
+  "model": "Qwen/Qwen3-VL-4B-Instruct",
+  "lora_rank": 64,
+  "lora_alpha": 128,
+  "lora_targets": ".*language_model.*\\.(q_proj|k_proj|v_proj|o_proj|gate_proj|up_proj|down_proj)",
+  "lr": 2e-5,
+  "rollout_backend": "vllm",
+  "vllm_url": "http://localhost:8011",
+  "env": "pointmaze",
+  "env_kwargs": {"maze": "umaze", "max_turns": 10, "image_size": 336, "include_state": true},
+  "reward": "success",
+  "groups_per_step": 8,
+  "group_size": 8,
+  "adv_mode": "center",
+  "max_new_tokens": 256,
+  "temperature": 1.0,
+  "micro_batch_size": 2,
+  "eval_every": 5,
+  "eval_episodes": 32,
+  "save_every": 50,
+  "out_dir": "runs/pointmaze_q3vl4b_vllm"
+}

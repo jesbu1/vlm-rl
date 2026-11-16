@@ -155,3 +155,40 @@ def test_tiny_vlm_update_changes_weights(tiny_vlm, tmp_path, rng):
     before = p.detach().clone()
     m = tr.update([trajs])
     assert np.isfinite(m["train/loss"]) and not torch.equal(before, p.detach())
+
+
+def test_generator_sync_called_after_each_update(tmp_path):
+    cfg = TrainConfig(out_dir=str(tmp_path), steps=2, groups_per_step=1, group_size=3, eval_every=0,
+                      log_samples_every=0, save_every=0, lr=0.01, filter_groups=False, reward="neg_dist")
+    tr = Trainer(cfg, policy=FakePolicy(random_generate(0)), bundle=_bundle())
+
+    class Recorder:
+        synced = []
+        generate = staticmethod(lambda convs, *a: random_generate(1)(convs))
+
+        def sync(self, policy, step):
+            self.synced.append(step)
+    tr.generator = Recorder()
+    tr.train()
+    assert Recorder.synced == [1, 2]
+
+
+def test_unknown_rollout_backend(tmp_path):
+    with pytest.raises(ValueError):
+        Trainer(TrainConfig(out_dir=str(tmp_path), rollout_backend="nope"), policy=FakePolicy(random_generate()),
+                bundle=_bundle())
+
+
+def test_wandb_offline_logging(tmp_path, monkeypatch):
+    wandb = pytest.importorskip("wandb")
+    monkeypatch.setenv("WANDB_MODE", "offline")
+    monkeypatch.setenv("WANDB_SILENT", "true")
+    cfg = TrainConfig(out_dir=str(tmp_path), steps=1, groups_per_step=1, group_size=3, eval_every=1,
+                      eval_episodes=2, log_samples_every=1, save_every=0, filter_groups=False, reward="neg_dist",
+                      wandb_project="vlmrl-test", wandb_run_name="unit", wandb_group="g", wandb_tags="a,b")
+    tr = Trainer(cfg, policy=FakePolicy(random_generate(0)), bundle=_bundle())
+    run = tr.wandb
+    assert run.name == "unit" and run.group == "g" and set(run.tags) == {"a", "b"}
+    tr.train()
+    hist = list((tmp_path / "wandb").glob("offline-run-*/files/media/videos/**/*.gif"))
+    assert hist, "episode GIFs should be logged as wandb media"

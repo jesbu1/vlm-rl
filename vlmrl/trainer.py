@@ -36,6 +36,10 @@ class TrainConfig:
     gradient_checkpointing: bool = True
     lora_rank: int = 0                                  # 0 = full fine-tuning
     lora_alpha: int = 32
+    lora_targets: str = "all-linear"                    # PEFT target_modules; a regex string also works
+    # rollout backend
+    rollout_backend: str = "hf"                         # "hf" (in-process generate) | "vllm" (server, LoRA only)
+    vllm_url: str = "http://localhost:8000"
     # task
     env: str = "pointmaze"                              # registry name or "module:factory"
     env_kwargs: dict = field(default_factory=dict)
@@ -70,6 +74,10 @@ class TrainConfig:
     out_dir: str = "runs/debug"
     seed: int = 0
     wandb_project: str | None = None
+    wandb_entity: str | None = None
+    wandb_run_name: str | None = None
+    wandb_group: str | None = None                      # e.g. the sweep / comparison name
+    wandb_tags: str = ""                                # comma-separated
 
 
 ENV_REGISTRY = {"pointmaze": "vlmrl.envs.pointmaze:make_pointmaze"}
@@ -96,7 +104,15 @@ class Trainer:
         self.policy = policy or HFPolicy(
             cfg.model, dtype=cfg.dtype, attn_implementation=cfg.attn_implementation,
             gradient_checkpointing=cfg.gradient_checkpointing, lora_rank=cfg.lora_rank,
-            lora_alpha=cfg.lora_alpha, processor_kwargs=cfg.processor_kwargs)
+            lora_alpha=cfg.lora_alpha, lora_targets=cfg.lora_targets, processor_kwargs=cfg.processor_kwargs)
+        if cfg.rollout_backend == "vllm":
+            from vlmrl.vllm_client import VLLMServerGenerator
+            self.generator = VLLMServerGenerator(cfg.vllm_url, cfg.model, f"{cfg.out_dir}/adapters")
+            self.generator.sync(self.policy, 0)  # serve the (freshly initialised) LoRA policy from step 0
+        elif cfg.rollout_backend == "hf":
+            self.generator = self.policy
+        else:
+            raise ValueError(f"unknown rollout_backend {cfg.rollout_backend!r}")
         params = [p for p in self.policy.model.parameters() if p.requires_grad]
         self.opt = torch.optim.AdamW(params, lr=cfg.lr, weight_decay=cfg.weight_decay, betas=(0.9, 0.999))
         self.params = params
@@ -104,12 +120,14 @@ class Trainer:
         self.wandb = None
         if cfg.wandb_project:
             import wandb
-            self.wandb = wandb.init(project=cfg.wandb_project, config=dataclasses.asdict(cfg), dir=cfg.out_dir)
+            self.wandb = wandb.init(project=cfg.wandb_project, entity=cfg.wandb_entity, name=cfg.wandb_run_name,
+                                    group=cfg.wandb_group, tags=[t for t in cfg.wandb_tags.split(",") if t],
+                                    config=dataclasses.asdict(cfg), dir=cfg.out_dir)
 
     # ------------------------------------------------------------------ rollouts
     def _gen(self, temperature):
         c = self.cfg
-        return lambda convs: self.policy.generate(convs, c.max_new_tokens, temperature, c.top_p, c.gen_batch_size)
+        return lambda convs: self.generator.generate(convs, c.max_new_tokens, temperature, c.top_p, c.gen_batch_size)
 
     def collect(self):
         c, kept, all_trajs, rounds = self.cfg, [], [], 0
@@ -185,17 +203,28 @@ class Trainer:
                 "eval/turns": float(np.mean([len(t.turns) for t in trajs])),
                 "eval/invalid_frac": float(np.mean([t.num_invalid / max(1, len(t.turns)) for t in trajs]))}, trajs
 
-    def dump_episode(self, tr, tag):
+    def dump_episode(self, tr, tag, step=None):
+        """Write a GIF + transcript to out_dir/episodes (and to wandb as media, if enabled)."""
         import imageio.v2 as imageio
         d = f"{self.cfg.out_dir}/episodes"
         os.makedirs(d, exist_ok=True)
+        gif = f"{d}/{tag}.gif"
         if tr.frames:
-            imageio.mimsave(f"{d}/{tag}.gif", tr.frames, duration=0.5)
+            imageio.mimsave(gif, tr.frames, duration=0.5, loop=0)
+        lines = [f"success={tr.success} score={tr.score:.3f} adv={tr.advantage:.3f}", ""]
+        for m in tr.messages:
+            lines += [f"--- {m['role']}", " ".join(c.get("text", "<image>") for c in m["content"])]
+        text = "\n".join(lines)
         with open(f"{d}/{tag}.txt", "w") as f:
-            f.write(f"success={tr.success} score={tr.score:.3f} adv={tr.advantage:.3f}\n\n")
-            for m in tr.messages:
-                txt = " ".join(c.get("text", "<image>") for c in m["content"])
-                f.write(f"--- {m['role']}\n{txt}\n")
+            f.write(text)
+        if self.wandb:
+            import html
+            import wandb
+            kind = tag.split("_")[0]
+            media = {f"{kind}/transcript": wandb.Html(f"<pre>{html.escape(text)}</pre>")}
+            if tr.frames:
+                media[f"{kind}/episode"] = wandb.Video(gif, format="gif")
+            self.wandb.log(media, step=step, commit=False)
 
     def log(self, step, metrics):
         line = {"step": step, **{k: (round(v, 4) if isinstance(v, float) else v) for k, v in metrics.items()}}
@@ -211,7 +240,7 @@ class Trainer:
         if c.eval_every:
             m, trajs = self.evaluate()
             self.log(0, m)
-            self.dump_episode(trajs[0], "eval_step0")
+            self.dump_episode(trajs[0], "eval_step0", 0)
         for step in range(1, c.steps + 1):
             t0 = time.time()
             groups, all_trajs, rounds = self.collect()
@@ -219,6 +248,8 @@ class Trainer:
             if self.policy.device == "cuda":
                 torch.cuda.empty_cache()
             m = self.update(groups) if groups else {"train/skipped": 1.0}
+            if self.generator is not self.policy and "train/loss" in m:
+                self.generator.sync(self.policy, step)  # push new weights to the rollout engine
             t2 = time.time()
             m.update({
                 "rollout/success": float(np.mean([t.success for t in all_trajs])),
@@ -230,12 +261,14 @@ class Trainer:
                 "time/rollout": t1 - t0, "time/train": t2 - t1,
             })
             if c.log_samples_every and step % c.log_samples_every == 0:
-                self.dump_episode(all_trajs[0], f"train_step{step}")
+                self.dump_episode(all_trajs[0], f"train_step{step}", step)
             if c.eval_every and step % c.eval_every == 0:
                 em, trajs = self.evaluate()
                 m.update(em)
-                self.dump_episode(trajs[0], f"eval_step{step}")
+                self.dump_episode(trajs[0], f"eval_step{step}", step)
             self.log(step, m)
             if c.save_every and step % c.save_every == 0:
                 self.policy.save(f"{c.out_dir}/ckpt_step{step}")
         self.env.close()
+        if self.wandb:
+            self.wandb.finish()
