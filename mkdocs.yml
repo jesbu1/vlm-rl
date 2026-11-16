@@ -1,6 +1,6 @@
 site_name: vlmrl
 site_description: Minimal multi-turn VLM-RL (PEAR-style) for any Hugging Face VLM, any environment, any reward
-site_url: https://jesbu1.github.io/vlm-rl/
+site_url: https://www.jessezhang.net/vlm-rl/
 repo_url: https://github.com/jesbu1/vlm-rl
 repo_name: jesbu1/vlm-rl
 edit_uri: edit/main/docs/

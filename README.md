@@ -3,7 +3,7 @@
 **Minimal multi-turn VLM reinforcement learning, PEAR-style, for any Hugging Face VLM, any
 environment and any reward.**
 
-📖 **Documentation: <https://jesbu1.github.io/vlm-rl/>** (source in [`docs/`](docs/index.md))
+📖 **Documentation: <https://www.jessezhang.net/vlm-rl/>** (source in [`docs/`](docs/index.md))
 
 vlmrl is a small (~1.8k-line), readable reproduction of the training recipe from
 [PEAR: *Training Reasoning Models in Simulation to Natively Use Real Robots*](https://arxiv.org/abs/2611.18562).

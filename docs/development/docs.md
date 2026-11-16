@@ -41,4 +41,10 @@ make docs-gen          # = python scripts/gen_docs.py
 
 `.github/workflows/docs.yml` builds the site (strict) on every push to `main` and deploys it to
 **GitHub Pages**. One-time setup in the repository: *Settings → Pages → Build and deployment →
-Source: GitHub Actions*. The site is then served at `https://jesbu1.github.io/vlm-rl/`.
+Source: GitHub Actions*. The site is then served at `https://www.jessezhang.net/vlm-rl/` (the account's
+custom Pages domain; `jesbu1.github.io/vlm-rl/` redirects there).
+
+!!! warning "Actions must be able to run"
+    If every workflow run ends in *startup failure* with *"recent account payments have failed or your
+    spending limit needs to be increased"*, GitHub is blocking all Actions jobs on the account. Fix it
+    under *Settings → Billing & plans*, then re-run the workflow (*Actions → docs → Run workflow*).
