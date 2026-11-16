@@ -5,6 +5,7 @@ description = "Minimal multi-turn VLM-RL (PEAR-style GRPO) for arbitrary HF VLMs
 requires-python = ">=3.10"
 dependencies = [
   "torch>=2.4",
+  "torchvision",
   "transformers>=4.57",
   "accelerate",
   "numpy",
@@ -25,3 +26,12 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 include = ["vlmrl*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q -p no:cacheprovider"
+markers = [
+  "slow: loads a real (tiny) HF VLM; enable with --run-slow",
+  "gpu: needs CUDA; enable with --run-gpu",
+]
+filterwarnings = ["ignore::DeprecationWarning", "ignore::UserWarning"]

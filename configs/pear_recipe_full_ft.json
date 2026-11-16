@@ -1,0 +1,17 @@
+{
+  "_comment": "Closest to the PEAR blog recipe: full FT, lr 1e-6, 128 groups x 8, temp 1.0, REINFORCE, token-mean, no KL/entropy, 1 update/step, full image history. Needs big GPUs.",
+  "model": "Qwen/Qwen2.5-VL-7B-Instruct",
+  "lora_rank": 0,
+  "lr": 1e-6,
+  "env": "pointmaze",
+  "env_kwargs": {"maze": "medium", "max_turns": 20},
+  "reward": "success",
+  "groups_per_step": 128,
+  "group_size": 8,
+  "filter_groups": true,
+  "adv_mode": "center",
+  "ppo_epochs": 1,
+  "temperature": 1.0,
+  "max_images": null,
+  "out_dir": "runs/pear_recipe"
+}

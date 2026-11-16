@@ -89,22 +89,37 @@ class HFPolicy:
     @torch.no_grad()
     def generate(self, convs: list[list[dict]], max_new_tokens: int = 256, temperature: float = 1.0,
                  top_p: float = 1.0, batch_size: int = 16) -> list[str]:
+        """Sample one reply per conversation. Adaptive batching: on CUDA OOM the batch is halved and
+        retried, and the smaller size is remembered (multi-image KV caches grow every turn)."""
         self.model.eval()
-        texts = []
-        for s in range(0, len(convs), batch_size):
-            enc = self._apply(convs[s:s + batch_size], add_generation_prompt=True, padding_side="left")
-            enc = {k: v.to(self.device) for k, v in enc.items()}
-            if "pixel_values" in enc:
-                enc["pixel_values"] = enc["pixel_values"].to(self.dtype)
-            greedy = temperature <= 0
-            out = self.model.generate(
-                **enc, max_new_tokens=max_new_tokens, do_sample=not greedy, use_cache=True,
-                # override checkpoint generation_config (e.g. Qwen ships top_k=1): sample the full distribution
-                **({} if greedy else {"temperature": temperature, "top_p": top_p, "top_k": 0}),
-                repetition_penalty=1.0, pad_token_id=self.tokenizer.pad_token_id)
-            new = out[:, enc["input_ids"].shape[1]:]
-            texts += self.tokenizer.batch_decode(new, skip_special_tokens=True)
-        return [t.strip() for t in texts]
+        self._gen_bs = min(getattr(self, "_gen_bs", batch_size), batch_size)
+        texts, s = [], 0
+        while s < len(convs):
+            bs = self._gen_bs
+            try:
+                texts += self._generate_chunk(convs[s:s + bs], max_new_tokens, temperature, top_p)
+                s += bs
+            except torch.OutOfMemoryError:
+                if bs == 1:
+                    raise
+                self._gen_bs = max(1, bs // 2)
+                torch.cuda.empty_cache()
+                print(f"[policy] OOM in generate; generation batch size -> {self._gen_bs}")
+        return texts
+
+    def _generate_chunk(self, convs, max_new_tokens, temperature, top_p):
+        enc = self._apply(convs, add_generation_prompt=True, padding_side="left")
+        enc = {k: v.to(self.device) for k, v in enc.items()}
+        if "pixel_values" in enc:
+            enc["pixel_values"] = enc["pixel_values"].to(self.dtype)
+        greedy = temperature <= 0
+        out = self.model.generate(
+            **enc, max_new_tokens=max_new_tokens, do_sample=not greedy, use_cache=True,
+            # override checkpoint generation_config (e.g. Qwen ships top_k=1): sample the full distribution
+            **({} if greedy else {"temperature": temperature, "top_p": top_p, "top_k": 0}),
+            repetition_penalty=1.0, pad_token_id=self.tokenizer.pad_token_id)
+        new = out[:, enc["input_ids"].shape[1]:]
+        return [t.strip() for t in self.tokenizer.batch_decode(new, skip_special_tokens=True)]
 
     # ------------------------------------------------------------------ training
     def build_batch(self, samples: list[Sample]) -> dict[str, Any]:

@@ -1,0 +1,10 @@
+{
+  "_comment": "World-model mode: toy kinematic WAM for dynamics, preference rewards, offline start states.",
+  "model": "Qwen/Qwen3-VL-4B-Instruct",
+  "lora_rank": 64,
+  "lr": 2e-5,
+  "env": "examples.toy_wam:make_bundle",
+  "env_kwargs": {"maze": "umaze", "start_states": "D4RL/pointmaze/umaze-v2", "max_turns": 8, "include_state": false},
+  "reward": "examples.toy_wam:make_reward",
+  "out_dir": "runs/toy_wam_prefs"
+}

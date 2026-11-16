@@ -13,6 +13,7 @@ import os
 import sys
 import typing
 
+os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")  # less fragmentation
 sys.path.insert(0, os.getcwd())  # allow --env/--reward "examples.foo:bar" from the repo root
 
 from vlmrl.trainer import TrainConfig, Trainer
@@ -38,7 +39,7 @@ def parse() -> TrainConfig:
     base = {}
     if args.get("config"):
         with open(args.pop("config")) as fh:
-            base = json.load(fh)
+            base = {k: v for k, v in json.load(fh).items() if not k.startswith("_")}  # "_comment" etc.
     args.pop("config", None)
     base.update(args)
     return TrainConfig(**base)
