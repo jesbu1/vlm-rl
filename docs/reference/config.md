@@ -84,6 +84,7 @@ Every field of `vlmrl.trainer.TrainConfig`, the Hydra schema. Set any of them on
 | `resume` | `bool` | `True` | continue from out_dir/resume/state.pt if it exists |
 | `resume_every` | `int` | `1` | steps between resume checkpoints (0 = off) |
 | `log_samples_every` | `int` | `5` |  |
+| `samples_per_log` | `int` | `4` | episodes (transcript + video) per train/eval sample dump |
 | `video_format` | `str` | `'mp4'` | episode media: mp4 (H.264, wandb video player) \| gif |
 | `video_fps` | `float` | `2.0` | one frame per round |
 | `out_dir` | `str` | `'runs/debug'` |  |

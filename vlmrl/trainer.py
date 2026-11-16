@@ -80,6 +80,7 @@ class TrainConfig:
     resume: bool = True                                 # continue from out_dir/resume/state.pt if it exists
     resume_every: int = 1                               # steps between resume checkpoints (0 = off)
     log_samples_every: int = 5
+    samples_per_log: int = 4                            # episodes (transcript + video) per train/eval sample dump
     video_format: str = "mp4"                           # episode media: mp4 (H.264, wandb video player) | gif
     video_fps: float = 2.0                              # one frame per round
     out_dir: str = "runs/debug"
@@ -264,7 +265,7 @@ class Trainer:
                        last_tokens=lambda: getattr(self.generator, "last_num_tokens", []), max_frames=c.max_frames)
 
     def dump_episode(self, tr, tag, step=None):
-        """Write a video (mp4 or gif) + transcript to out_dir/episodes, and to wandb as media if enabled."""
+        """Write a video (mp4 or gif) + transcript to out_dir/episodes; returns (transcript, video path or None)."""
         d = f"{self.cfg.out_dir}/episodes"
         os.makedirs(d, exist_ok=True)
         video = f"{d}/{tag}.{self.cfg.video_format}"
@@ -276,15 +277,42 @@ class Trainer:
         text = "\n".join(lines)
         with open(f"{d}/{tag}.txt", "w") as f:
             f.write(text)
-        if self.wandb:
-            import html
-            import wandb
-            kind = tag.split("_")[0]
-            media = {f"{kind}/transcript": wandb.Html(f"<pre>{html.escape(text)}</pre>")}
-            if tr.frames:
-                caption = f"success={tr.success} score={tr.score:.3f} rounds={len(tr.turns)} end={tr.end_reason}"
-                media[f"{kind}/episode"] = wandb.Video(video, caption=caption, format=self.cfg.video_format)
-            self.wandb.log(media, step=step, commit=False)
+        return text, (video if tr.frames else None)
+
+    def log_episodes(self, split, step, trajs):
+        """Dump up to `samples_per_log` episodes (full reasoning chains + videos) to out_dir/episodes and
+        wandb: `{split}/transcript` + `{split}/episode` for the first, and one row per episode in the
+        incremental `{split}/samples` table (filterable across steps). Train picks a success/failure mix;
+        eval uses the first fixed eval start states, so the same mazes can be compared across steps."""
+        n = self.cfg.samples_per_log
+        if split == "train":
+            wins, losses = [t for t in trajs if t.success], [t for t in trajs if not t.success]
+            picked = wins[:n // 2]
+            picked += losses[:n - len(picked)]
+            trajs = picked + wins[n // 2:][:n - len(picked)]  # top up with more wins if few failures
+        trajs = trajs[:n]
+        dumped = [self.dump_episode(tr, f"{split}_step{step}" + (f"_{i}" if i else ""), step)
+                  for i, tr in enumerate(trajs)]
+        if not self.wandb or not trajs:
+            return
+        import html
+        import wandb
+        if not hasattr(self, "_tables"):
+            self._tables = {}
+        table = self._tables.setdefault(split, wandb.Table(
+            columns=["step", "episode", "success", "score", "advantage", "turns", "invalid_turns", "end_reason",
+                     "mean_reply_chars", "transcript", "video"], log_mode="INCREMENTAL"))
+        fmt = self.cfg.video_format
+        for i, (tr, (text, video)) in enumerate(zip(trajs, dumped)):
+            table.add_data(step, i, bool(tr.success), tr.score, tr.advantage, len(tr.turns), tr.num_invalid,
+                           tr.end_reason, float(np.mean([len(x.response) for x in tr.turns])) if tr.turns else 0.0,
+                           text, wandb.Video(video, format=fmt) if video else None)
+        tr, (text, video) = trajs[0], dumped[0]
+        media = {f"{split}/transcript": wandb.Html(f"<pre>{html.escape(text)}</pre>"), f"{split}/samples": table}
+        if video:
+            caption = f"success={tr.success} score={tr.score:.3f} rounds={len(tr.turns)} end={tr.end_reason}"
+            media[f"{split}/episode"] = wandb.Video(video, caption=caption, format=fmt)
+        self.wandb.log(media, step=step, commit=False)
 
     # ------------------------------------------------------------------ resume
     def save_resume(self, step, metrics):
@@ -354,7 +382,7 @@ class Trainer:
         if c.eval_every and self.start_step == 0:
             m, trajs = self.evaluate()
             self.log(0, m)
-            self.dump_episode(trajs[0], "eval_step0", 0)
+            self.log_episodes("eval", 0, trajs)
         for step in range(self.start_step + 1, c.steps + 1):
             t0 = time.time()
             groups, all_trajs, rounds = self.collect()
@@ -376,11 +404,11 @@ class Trainer:
                 "time/rollout": t1 - t0, "time/train": t2 - t1,
             })
             if c.log_samples_every and step % c.log_samples_every == 0:
-                self.dump_episode(all_trajs[0], f"train_step{step}", step)
+                self.log_episodes("train", step, all_trajs)
             if c.eval_every and step % c.eval_every == 0:
                 em, trajs = self.evaluate()
                 m.update(em)
-                self.dump_episode(trajs[0], f"eval_step{step}", step)
+                self.log_episodes("eval", step, trajs)
             if c.resume_every and (step % c.resume_every == 0 or step == c.steps):
                 self.save_resume(step, m)
             self.log(step, m)

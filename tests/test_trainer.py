@@ -246,6 +246,10 @@ def test_wandb_offline_logging(tmp_path, monkeypatch):
     tr.train()
     vids = list((tmp_path / "wandb").glob("offline-run-*/files/media/videos/**/*.mp4"))
     assert vids, "episode videos should be logged as wandb media (mp4)"
+    tables = list((tmp_path / "wandb").glob("offline-run-*/files/media/table/**/*.json"))
+    assert any("train/samples" in str(p) for p in tables) and any("eval/samples" in str(p) for p in tables)
+    row = json.loads(next(p for p in tables if "eval/samples" in str(p)).read_text())
+    assert "transcript" in row["columns"] and "--- assistant" in row["data"][0][row["columns"].index("transcript")]
 
 
 @pytest.mark.parametrize("size", [(64, 64), (33, 47)])
@@ -347,3 +351,16 @@ def test_backfill_wandb_resends_rows_the_server_lacks(tmp_path):
     t.backfill_wandb()
     assert [s for s, _ in FakeRun.logged] == [2, 3] and "rollout/success" in FakeRun.logged[0][1]
     assert "step" not in FakeRun.logged[0][1]
+
+
+def test_log_episodes_mixes_train_successes_and_failures(tmp_path):
+    from conftest import make_traj
+    t = Trainer(_resume_cfg(tmp_path, 1, samples_per_log=4), policy=FakePolicy(random_generate(0)), bundle=_bundle())
+    trajs = [make_traj(success=False, group_id=i) for i in range(5)] + [make_traj(success=True, group_id=9)] * 3
+    t.log_episodes("train", 7, trajs)
+    files = sorted(p.name for p in (tmp_path / "episodes").glob("train_step7*.txt"))
+    assert files == ["train_step7.txt", "train_step7_1.txt", "train_step7_2.txt", "train_step7_3.txt"]
+    heads = [(tmp_path / "episodes" / f).read_text().split()[0] for f in files]
+    assert heads == ["success=True", "success=True", "success=False", "success=False"]
+    t.log_episodes("train", 8, [make_traj(success=True)] * 5)  # no failures: fill with wins
+    assert len(list((tmp_path / "episodes").glob("train_step8*.txt"))) == 4
