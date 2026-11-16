@@ -259,7 +259,7 @@ def test_write_video_mp4_is_h264_and_readable(tmp_path, size):
     from vlmrl.trainer import write_video
     frames = [np.full((*size, 3), v, np.uint8) for v in (0, 120, 250)]
     p = str(tmp_path / "ep.mp4")
-    write_video(frames, p, fps=2)
+    write_video(frames, p, fps=2, min_size=0)            # native size: only even-padding
     r = imageio.get_reader(p)
     meta = r.get_meta_data()
     got = [f for f in r]
@@ -267,6 +267,26 @@ def test_write_video_mp4_is_h264_and_readable(tmp_path, size):
     assert len(got) == 4                                  # 3 frames + held last frame
     assert got[0].shape[:2] == (size[0] + size[0] % 2, size[1] + size[1] % 2)   # padded to even
     assert abs(int(got[-1].mean()) - 250) < 6
+
+
+def test_write_video_upscales_and_beats_native_fidelity(tmp_path):
+    """Flat maze renders: nearest-neighbour upscale + crf keeps edges/dots sharp under yuv420p."""
+    import imageio.v2 as imageio
+    from vlmrl.envs.pointmaze import get_maze_map, render_topdown
+    from vlmrl.trainer import write_video
+    mm = get_maze_map("medium")
+    frames = [render_topdown(mm, (-2.4 + 0.5 * t, -2.4), (1.6, 1.4), 336) for t in range(4)]
+
+    def psnr(path, k):
+        got = [g for g in imageio.get_reader(path)][:len(frames)]
+        back = [g[k // 2::k, k // 2::k] for g in got]       # sample block centres back to native res
+        mse = np.mean([np.mean((a.astype(float) - b.astype(float)) ** 2) for a, b in zip(frames, back)])
+        return 10 * np.log10(255 ** 2 / mse)
+    hi, lo = str(tmp_path / "hi.mp4"), str(tmp_path / "lo.mp4")
+    write_video(frames, hi)                               # defaults: 336 -> 672 (x2), crf 18
+    write_video(frames, lo, min_size=0, crf=28)
+    assert imageio.get_reader(hi).get_meta_data()["size"] == (672, 672)
+    assert psnr(hi, 2) > 45 and psnr(hi, 2) > psnr(lo, 1) + 5
 
 
 def test_write_video_gif(tmp_path):

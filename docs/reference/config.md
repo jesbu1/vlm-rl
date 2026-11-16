@@ -87,6 +87,8 @@ Every field of `vlmrl.trainer.TrainConfig`, the Hydra schema. Set any of them on
 | `samples_per_log` | `int` | `4` | episodes (transcript + video) per train/eval sample dump |
 | `video_format` | `str` | `'mp4'` | episode media: mp4 (H.264, wandb video player) \| gif |
 | `video_fps` | `float` | `2.0` | one frame per round |
+| `video_min_size` | `int` | `672` | mp4: nearest-neighbour upscale until long side >= this (0 = native) |
+| `video_crf` | `int` | `18` | mp4: H.264 quality (lower = better, 18 ~ visually lossless) |
 | `out_dir` | `str` | `'runs/debug'` |  |
 | `seed` | `int` | `0` |  |
 | `wandb_project` | `str \| None` | `null` |  |

@@ -83,6 +83,8 @@ class TrainConfig:
     samples_per_log: int = 4                            # episodes (transcript + video) per train/eval sample dump
     video_format: str = "mp4"                           # episode media: mp4 (H.264, wandb video player) | gif
     video_fps: float = 2.0                              # one frame per round
+    video_min_size: int = 672                           # mp4: nearest-neighbour upscale until long side >= this (0 = native)
+    video_crf: int = 18                                 # mp4: H.264 quality (lower = better, 18 ~ visually lossless)
     out_dir: str = "runs/debug"
     seed: int = 0
     wandb_project: str | None = None
@@ -101,9 +103,15 @@ def make_env_bundle(name: str, kwargs: dict) -> EnvBundle:
     return getattr(importlib.import_module(mod), fn)(**kwargs)
 
 
-def write_video(frames, path: str, fps: float = 2.0) -> None:
-    """Encode HxWx3 uint8 frames. ``.mp4``: H.264 / yuv420p (plays in browsers and wandb), frames padded
-    to even sizes; the last frame is held for one extra beat so the final state is visible. ``.gif``: looping."""
+def write_video(frames, path: str, fps: float = 2.0, min_size: int = 672, crf: int = 18) -> None:
+    """Encode HxWx3 uint8 frames.
+
+    ``.mp4``: H.264 / yuv420p (plays in browsers and wandb). yuv420p stores colour at half resolution,
+    which smears thin lines and small coloured dots in flat renders, so frames are first upscaled with
+    nearest-neighbour by an integer factor until the long side is >= ``min_size`` (0 = native size), and
+    encoded at quality ``crf`` (lower = better; 18 is visually lossless) with ``-tune animation``.
+    Sizes are padded to even; the last frame is held for one extra beat so the final state is visible.
+    ``.gif``: looping, native size (palette GIFs are already lossless for flat renders)."""
     import imageio.v2 as imageio
     import numpy as np
     frames = [np.asarray(f, dtype=np.uint8) for f in frames]
@@ -111,9 +119,14 @@ def write_video(frames, path: str, fps: float = 2.0) -> None:
         imageio.mimsave(path, frames, duration=1.0 / fps, loop=0)
         return
     h, w = frames[0].shape[:2]
+    k = max(1, -(-min_size // max(h, w))) if min_size else 1     # ceil(min_size / long side)
+    if k > 1:
+        frames = [f.repeat(k, 0).repeat(k, 1) for f in frames]
+        h, w = h * k, w * k
     ph, pw = h % 2, w % 2
     with imageio.get_writer(path, fps=fps, codec="libx264", pixelformat="yuv420p", macro_block_size=1,
-                            ffmpeg_log_level="error") as wr:
+                            quality=None, ffmpeg_log_level="error",
+                            output_params=["-crf", str(crf), "-preset", "slow", "-tune", "animation"]) as wr:
         for f in frames + frames[-1:]:
             wr.append_data(np.pad(f, ((0, ph), (0, pw), (0, 0)), mode="edge") if (ph or pw) else f)
 
@@ -270,7 +283,7 @@ class Trainer:
         os.makedirs(d, exist_ok=True)
         video = f"{d}/{tag}.{self.cfg.video_format}"
         if tr.frames:
-            write_video(tr.frames, video, self.cfg.video_fps)
+            write_video(tr.frames, video, self.cfg.video_fps, self.cfg.video_min_size, self.cfg.video_crf)
         lines = [f"success={tr.success} score={tr.score:.3f} adv={tr.advantage:.3f} end={tr.end_reason}", ""]
         for m in tr.messages:
             lines += [f"--- {m['role']}", " ".join(c.get("text", "<image>") for c in m["content"])]

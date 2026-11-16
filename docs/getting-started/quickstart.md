@@ -5,7 +5,7 @@ Everything on this page runs on a laptop CPU.
 ## 1. Tests
 
 ```bash
-make test        # 151 fast tests (~10 s)
+make test        # 157 fast tests (~10 s)
 make test-slow   # + 6 tests that load SmolVLM-256M (downloads ~500 MB once)
 ```
 

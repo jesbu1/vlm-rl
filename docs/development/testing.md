@@ -1,7 +1,7 @@
 # Testing
 
 ```bash
-make test        # pytest                        151 fast tests: CPU, no downloads, ~10 s
+make test        # pytest                        157 fast tests: CPU, no downloads, ~10 s
 make test-slow   # pytest --run-slow             + 6 tests with a real SmolVLM-256M
 make test-all    # pytest --run-slow --run-gpu   + CUDA-only tests
 ```
