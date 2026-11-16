@@ -277,8 +277,10 @@ class Trainer:
         return step, None if logged else state["metrics"]
 
     def backfill_wandb(self):
-        """A hard kill can lose the last rows before wandb uploads them. A resumed wandb run reports
-        the next step it expects, so re-send the metrics.jsonl rows it doesn't have (scalars only)."""
+        """A hard kill can lose the last rows before wandb uploads them, so on resume re-send the
+        metrics.jsonl rows from the resumed run's step on (scalars only). Some servers report step 0
+        for resumed runs (seen on forge.coreweave.com), so this may re-send every row; the server
+        keeps one history row per step, so that is harmless (verified: 4 rows for steps 0-3)."""
         path = f"{self.cfg.out_dir}/metrics.jsonl"
         if not os.path.exists(path):
             return
