@@ -1,0 +1,27 @@
+[project]
+name = "vlmrl"
+version = "0.1.0"
+description = "Minimal multi-turn VLM-RL (PEAR-style GRPO) for arbitrary HF VLMs and arbitrary (sim / world-model) environments"
+requires-python = ">=3.10"
+dependencies = [
+  "torch>=2.4",
+  "transformers>=4.57",
+  "accelerate",
+  "numpy",
+  "pillow",
+  "imageio",
+]
+
+[project.optional-dependencies]
+pointmaze = ["gymnasium>=1.0", "gymnasium-robotics>=1.3", "mujoco>=3.0"]
+offline = ["minari[hdf5]"]
+lora = ["peft"]
+wandb = ["wandb"]
+dev = ["pytest"]
+
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["vlmrl*"]
