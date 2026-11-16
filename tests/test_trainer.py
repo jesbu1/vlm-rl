@@ -264,3 +264,19 @@ def test_wandb_resume_reuses_run_id(tmp_path, monkeypatch):
     t2 = Trainer(_resume_cfg(tmp_path, 2, **kw), policy=FakePolicy(random_generate(0)), bundle=_bundle())
     assert t2.wandb.id == rid and t2.start_step == 1
     t2.train()
+
+
+def test_backfill_wandb_resends_rows_the_server_lacks(tmp_path):
+    t = Trainer(_resume_cfg(tmp_path, 3), policy=FakePolicy(random_generate(0)), bundle=_bundle())
+    t.train()
+
+    class FakeRun:
+        step = 2  # server has steps 0..1 (e.g. step 2+ were buffered when the process was killed)
+        logged = []
+
+        def log(self, data, step=None, commit=None):
+            self.logged.append((step, data))
+    t.wandb = FakeRun()
+    t.backfill_wandb()
+    assert [s for s, _ in FakeRun.logged] == [2, 3] and "rollout/success" in FakeRun.logged[0][1]
+    assert "step" not in FakeRun.logged[0][1]

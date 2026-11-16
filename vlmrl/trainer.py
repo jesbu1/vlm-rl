@@ -132,6 +132,7 @@ class Trainer:
             self.wandb = wandb.init(project=cfg.wandb_project, entity=cfg.wandb_entity, name=cfg.wandb_run_name,
                                     group=cfg.wandb_group, tags=[t for t in cfg.wandb_tags.split(",") if t],
                                     config=dataclasses.asdict(cfg), dir=cfg.out_dir, id=run_id, resume="allow")
+            self.backfill_wandb()
         if pending is not None:  # crashed after checkpointing this step but before logging it
             self.log(self.start_step, pending)
 
@@ -275,13 +276,27 @@ class Trainer:
         print(f"[resume] continuing after step {step} from {path}", flush=True)
         return step, None if logged else state["metrics"]
 
+    def backfill_wandb(self):
+        """A hard kill can lose the last rows before wandb uploads them. A resumed wandb run reports
+        the next step it expects, so re-send the metrics.jsonl rows it doesn't have (scalars only)."""
+        path = f"{self.cfg.out_dir}/metrics.jsonl"
+        if not os.path.exists(path):
+            return
+        with open(path) as f:
+            rows = [json.loads(l) for l in f if l.strip()]
+        missing = [r for r in rows if r["step"] >= self.wandb.step]
+        for r in missing:
+            self.wandb.log({k: v for k, v in r.items() if k != "step"}, step=r["step"], commit=True)
+        if missing:
+            print(f"[resume] re-sent {len(missing)} metrics rows to wandb (steps {missing[0]['step']}..)", flush=True)
+
     def log(self, step, metrics):
         line = {"step": step, **{k: (round(v, 4) if isinstance(v, float) else v) for k, v in metrics.items()}}
         print(json.dumps(line), flush=True)
         with open(f"{self.cfg.out_dir}/metrics.jsonl", "a") as f:
             f.write(json.dumps(line) + "\n")
         if self.wandb:
-            self.wandb.log(metrics, step=step)
+            self.wandb.log(metrics, step=step, commit=True)  # don't hold the row open until the next step
 
     # ------------------------------------------------------------------ main loop
     def train(self):
