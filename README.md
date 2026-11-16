@@ -309,6 +309,10 @@ Things to know when switching models:
   vision tower. With the vLLM backend, restrict LoRA to the language model, e.g.
   `".*language_model.*\.(q_proj|k_proj|v_proj|o_proj|gate_proj|up_proj|down_proj)"` (see `configs/pointmaze_qwen3vl4b_vllm.json`).
 - **Qwen3-VL processors need `torchvision`** (a declared dependency).
+- **SmolVLM2 processors need `num2words`** (`uv pip install num2words`, in the vLLM venv too). SmolVLM's
+  LoRA targets are `.*text_model.*` (not `language_model`), its context is 8k (`--max-model-len 8192`), and
+  the vLLM server must not split images either: `--mm-processor-kwargs '{"do_image_splitting": false}'`
+  (`configs/sweeps/pointmaze_small.json` shows per-model sweep overrides for all of this).
 - **Memory.** Full FT of a 4B model with AdamW needs ~48 GB+ before activations. Use LoRA on a single
   48 GB GPU. `gradient_checkpointing=True` by default. `micro_batch_size` sequences per backward.
 

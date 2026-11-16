@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Start a vLLM OpenAI-compatible server for rollouts (separate venv, separate GPU).
 #   scripts/launch_vllm.sh Qwen/Qwen3-VL-4B-Instruct 8011 1        # model, port, GPU
+#   scripts/launch_vllm.sh HuggingFaceTB/SmolVLM2-2.2B-Instruct 8011 1 --max-model-len 8192   # extra args -> vllm serve
 # Env: VLLM_BIN (default ~/venvs/vllm/bin/vllm), MAX_LORA_RANK (64), GPU_UTIL (0.85), MAX_LEN (32768)
 set -euo pipefail
 MODEL=${1:?model}; PORT=${2:-8000}; GPU=${3:-1}
@@ -10,4 +11,4 @@ export VLLM_USE_FLASHINFER_SAMPLER=0           # avoid FlashInfer JIT (needs nvc
 CUDA_VISIBLE_DEVICES=$GPU exec "$VLLM_BIN" serve "$MODEL" --port "$PORT" \
   --enable-lora --max-lora-rank "${MAX_LORA_RANK:-64}" --max-loras 2 \
   --enable-prefix-caching --max-model-len "${MAX_LEN:-32768}" \
-  --limit-mm-per-prompt '{"image": 32}' --gpu-memory-utilization "${GPU_UTIL:-0.85}"
+  --limit-mm-per-prompt '{"image": 32}' --gpu-memory-utilization "${GPU_UTIL:-0.85}" "${@:4}"

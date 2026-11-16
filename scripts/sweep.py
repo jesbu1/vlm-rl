@@ -9,7 +9,13 @@ Sweep file:
      "train_gpu": 0, "vllm_gpu": 1, "vllm_port": 8011,
      "grid": {"model": ["Qwen/Qwen3-VL-2B-Instruct", "Qwen/Qwen3-VL-4B-Instruct"],
               "reward": ["success", "success+0.5*neg_dist", "pref_oracle_dist"]},
-     "overrides": {"steps": 30}}
+     "overrides": {"steps": 30},
+     "model_overrides": {"HuggingFaceTB/SmolVLM2-2.2B-Instruct": {"lora_targets": "...", "processor_kwargs": {...}}},
+     "vllm_args": {"HuggingFaceTB/SmolVLM2-2.2B-Instruct": ["--max-model-len", "8192"]}}
+
+`model_overrides` are TrainConfig fields applied after the grid for runs of that model (e.g. LoRA target
+names or processor kwargs that differ between architectures); `vllm_args` are extra `vllm serve` flags
+for that model's server (later flags override launch_vllm.sh's defaults).
 
 Runs are ordered model-major so each model's vLLM server (rollout_backend == "vllm") is started
 once, reused for all of that model's runs, then stopped. Runs whose metrics.jsonl already reached
@@ -22,6 +28,7 @@ import itertools
 import json
 import os
 import re
+import signal
 import subprocess
 import sys
 import time
@@ -48,6 +55,7 @@ def expand(sweep: dict) -> list[dict]:
     runs = []
     for combo in itertools.product(*[sweep["grid"][k] for k in keys]):
         cfg = {**base, **dict(zip(keys, combo))}
+        cfg.update(sweep.get("model_overrides", {}).get(cfg.get("model"), {}))
         if "env_kwargs" in sweep.get("grid", {}):
             cfg["env_kwargs"] = {**base.get("env_kwargs", {}), **dict(zip(keys, combo))["env_kwargs"]}
         name = "__".join(f"{k}={slug(v)}" for k, v in zip(keys, combo)) or "base"
@@ -83,6 +91,23 @@ def wait_ready(url, proc, timeout=1200):
     raise TimeoutError("vLLM server not ready")
 
 
+def stop_server(proc, timeout=60):
+    """Stop the vLLM server and its children (EngineCore etc.). vLLM can ignore SIGTERM while it is
+    still starting up, and SIGKILLing only the parent orphans the GPU-holding engine process, so the
+    server runs in its own process group and the whole group is SIGTERMed, then SIGKILLed."""
+    if proc.poll() is None:
+        try:
+            os.killpg(proc.pid, signal.SIGTERM)
+            proc.wait(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            pass
+    try:
+        os.killpg(proc.pid, signal.SIGKILL)  # also reaps children left behind by a clean parent exit
+    except ProcessLookupError:
+        pass
+    proc.wait()
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("sweep")
@@ -104,12 +129,14 @@ def main():
                 continue
             if cfg.get("rollout_backend") == "vllm" and server_model != cfg["model"]:
                 if server:
-                    server.terminate(); server.wait()
+                    stop_server(server)
                 log = open(os.path.join(ROOT, "runs", sweep["group"], f"vllm_{slug(cfg['model'])}.log"), "w")
                 env = {**os.environ, "MAX_LORA_RANK": str(max(16, cfg.get("lora_rank", 64)))}
                 server = subprocess.Popen([os.path.join(ROOT, "scripts/launch_vllm.sh"), cfg["model"],
-                                           str(sweep.get("vllm_port", 8011)), str(sweep.get("vllm_gpu", 1))],
-                                          stdout=log, stderr=subprocess.STDOUT, env=env, cwd=ROOT)
+                                           str(sweep.get("vllm_port", 8011)), str(sweep.get("vllm_gpu", 1)),
+                                           *sweep.get("vllm_args", {}).get(cfg["model"], [])],
+                                          stdout=log, stderr=subprocess.STDOUT, env=env, cwd=ROOT,
+                                          start_new_session=True)
                 server_model = cfg["model"]
                 wait_ready(cfg["vllm_url"], server)
             os.makedirs(os.path.join(ROOT, cfg["out_dir"]), exist_ok=True)
@@ -124,7 +151,7 @@ def main():
             print(f"    exit {rc}", flush=True)
     finally:
         if server:
-            server.terminate(); server.wait()
+            stop_server(server)
 
 
 if __name__ == "__main__":
