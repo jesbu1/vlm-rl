@@ -76,6 +76,8 @@ class TrainConfig:
     eval_temperature: float = 0.0
     save_every: int = 50
     log_samples_every: int = 5
+    video_format: str = "mp4"                           # episode media: mp4 (H.264, wandb video player) | gif
+    video_fps: float = 2.0                              # one frame per round
     out_dir: str = "runs/debug"
     seed: int = 0
     wandb_project: str | None = None
@@ -92,6 +94,23 @@ def make_env_bundle(name: str, kwargs: dict) -> EnvBundle:
     path = ENV_REGISTRY.get(name, name)
     mod, fn = path.split(":")
     return getattr(importlib.import_module(mod), fn)(**kwargs)
+
+
+def write_video(frames, path: str, fps: float = 2.0) -> None:
+    """Encode HxWx3 uint8 frames. ``.mp4``: H.264 / yuv420p (plays in browsers and wandb), frames padded
+    to even sizes; the last frame is held for one extra beat so the final state is visible. ``.gif``: looping."""
+    import imageio.v2 as imageio
+    import numpy as np
+    frames = [np.asarray(f, dtype=np.uint8) for f in frames]
+    if path.endswith(".gif"):
+        imageio.mimsave(path, frames, duration=1.0 / fps, loop=0)
+        return
+    h, w = frames[0].shape[:2]
+    ph, pw = h % 2, w % 2
+    with imageio.get_writer(path, fps=fps, codec="libx264", pixelformat="yuv420p", macro_block_size=1,
+                            ffmpeg_log_level="error") as wr:
+        for f in frames + frames[-1:]:
+            wr.append_data(np.pad(f, ((0, ph), (0, pw), (0, 0)), mode="edge") if (ph or pw) else f)
 
 
 END_REASONS = ("success", "invalid", "max_turns", "context", "terminated", "truncated")
@@ -233,14 +252,13 @@ class Trainer:
                        last_tokens=lambda: getattr(self.generator, "last_num_tokens", []))
 
     def dump_episode(self, tr, tag, step=None):
-        """Write a GIF + transcript to out_dir/episodes (and to wandb as media, if enabled)."""
-        import imageio.v2 as imageio
+        """Write a video (mp4 or gif) + transcript to out_dir/episodes, and to wandb as media if enabled."""
         d = f"{self.cfg.out_dir}/episodes"
         os.makedirs(d, exist_ok=True)
-        gif = f"{d}/{tag}.gif"
+        video = f"{d}/{tag}.{self.cfg.video_format}"
         if tr.frames:
-            imageio.mimsave(gif, tr.frames, duration=0.5, loop=0)
-        lines = [f"success={tr.success} score={tr.score:.3f} adv={tr.advantage:.3f}", ""]
+            write_video(tr.frames, video, self.cfg.video_fps)
+        lines = [f"success={tr.success} score={tr.score:.3f} adv={tr.advantage:.3f} end={tr.end_reason}", ""]
         for m in tr.messages:
             lines += [f"--- {m['role']}", " ".join(c.get("text", "<image>") for c in m["content"])]
         text = "\n".join(lines)
@@ -252,7 +270,8 @@ class Trainer:
             kind = tag.split("_")[0]
             media = {f"{kind}/transcript": wandb.Html(f"<pre>{html.escape(text)}</pre>")}
             if tr.frames:
-                media[f"{kind}/episode"] = wandb.Video(gif, format="gif")
+                caption = f"success={tr.success} score={tr.score:.3f} rounds={len(tr.turns)} end={tr.end_reason}"
+                media[f"{kind}/episode"] = wandb.Video(video, caption=caption, format=self.cfg.video_format)
             self.wandb.log(media, step=step, commit=False)
 
     def log(self, step, metrics):

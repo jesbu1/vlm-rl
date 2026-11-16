@@ -26,8 +26,8 @@ and 8 groups × 8 rollouts per step. See [Configuration](../training/configurati
 ## 3. Watch it
 
 - `runs/pointmaze_q3vl4b_vllm/metrics.jsonl`: one JSON line per step (`eval/success` every 5 steps).
-- `runs/pointmaze_q3vl4b_vllm/episodes/*.gif|txt`: sample episodes with full transcripts.
-- wandb: success curves, episode GIFs, transcripts. See [Weights & Biases](../training/wandb.md).
+- `runs/pointmaze_q3vl4b_vllm/episodes/*.mp4|txt`: sample episode videos with full transcripts.
+- wandb: success curves, episode videos, transcripts. See [Weights & Biases](../training/wandb.md).
 
 ## No second GPU?
 

@@ -5,7 +5,7 @@ Everything on this page runs on a laptop CPU.
 ## 1. Tests
 
 ```bash
-make test        # 139 fast tests (~10 s)
+make test        # 143 fast tests (~10 s)
 make test-slow   # + 6 tests that load SmolVLM-256M (downloads ~500 MB once)
 ```
 
@@ -30,7 +30,7 @@ make smoke       # = python scripts/train.py experiment=smoke
 ```
 
 This runs one GRPO step on SmolVLM-256M: rollouts, rewards, advantages, a gradient step, an eval,
-and a GIF + transcript in `runs/smoke/episodes/`. The 256M model can't follow the action format
+and an MP4 + transcript in `runs/smoke/episodes/`. The 256M model can't follow the action format
 (so the smoke config uses `on_invalid=noop` and a dense reward). It only checks the plumbing.
 
 ## 4. Look at what you can configure

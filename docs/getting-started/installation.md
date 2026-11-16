@@ -41,5 +41,5 @@ uv pip install -p ~/venvs/vllm/bin/python vllm
 ## Check the install
 
 ```bash
-make test     # 139 fast tests, CPU only, no downloads, ~10 s
+make test     # 143 fast tests, CPU only, no downloads, ~10 s
 ```

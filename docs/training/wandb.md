@@ -16,7 +16,7 @@ can be grouped and filtered by `config.reward`, `config.model`, `config.env_kwar
 | `train/` | `loss`, `grad_norm`, `tokens`, `sequences`, `mean_logp`, `clipfrac` (ppo_clip only), `skipped` |
 | `eval/` | `success`, `turns`, `invalid_frac`, `end_*` (greedy by default, `eval_temperature`) |
 | `time/` | `rollout`, `train` |
-| media | `train/episode`, `eval/episode` (GIF) and `train/transcript`, `eval/transcript` (HTML), every `log_samples_every` / `eval_every` steps |
+| media | `train/episode`, `eval/episode` (**MP4 video**, H.264, 2 fps = one frame per round, captioned with success / score / rounds / end reason; `video_format=gif` and `video_fps` to change) and `train/transcript`, `eval/transcript` (HTML), every `log_samples_every` / `eval_every` steps |
 
 Reading them:
 

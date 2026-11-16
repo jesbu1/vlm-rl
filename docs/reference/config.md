@@ -81,6 +81,8 @@ Every field of `vlmrl.trainer.TrainConfig`, the Hydra schema. Set any of them on
 | `eval_temperature` | `float` | `0.0` |  |
 | `save_every` | `int` | `50` |  |
 | `log_samples_every` | `int` | `5` |  |
+| `video_format` | `str` | `'mp4'` | episode media: mp4 (H.264, wandb video player) \| gif |
+| `video_fps` | `float` | `2.0` | one frame per round |
 | `out_dir` | `str` | `'runs/debug'` |  |
 | `seed` | `int` | `0` |  |
 | `wandb_project` | `str \| None` | `null` |  |

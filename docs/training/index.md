@@ -13,5 +13,5 @@ python scripts/train.py experiment=pointmaze_q3vl4b_vllm steps=40 wandb_project=
 ```
 
 Outputs go to `out_dir/`: `.hydra/` (the resolved config and overrides), `config.json`,
-`metrics.jsonl` (one JSON line per step), `episodes/*.gif|txt` (sample episodes with full transcripts),
+`metrics.jsonl` (one JSON line per step), `episodes/*.mp4|txt` (sample episode videos with full transcripts; `video_format=gif` for GIFs),
 `ckpt_step*/` (`save_pretrained` adapter or full weights + processor) and `adapters/` (vLLM sync).

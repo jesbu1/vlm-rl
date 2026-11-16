@@ -121,7 +121,7 @@ def test_full_train_loop_logs_evaluates_saves(tmp_path):
     for k in ("rollout/success", "rollout/invalid_frac", "time/rollout", "eval/success"):
         assert k in lines[1]
     assert (tmp_path / "config.json").exists()
-    assert (tmp_path / "episodes" / "train_step1.gif").exists()
+    assert (tmp_path / "episodes" / "train_step1.mp4").exists()
     assert "--- assistant" in (tmp_path / "episodes" / "eval_step0.txt").read_text()
     assert pol.saved == [f"{tmp_path}/ckpt_step2"]
 
@@ -244,5 +244,35 @@ def test_wandb_offline_logging(tmp_path, monkeypatch):
     run = tr.wandb
     assert run.name == "unit" and run.group == "g" and set(run.tags) == {"a", "b"}
     tr.train()
-    hist = list((tmp_path / "wandb").glob("offline-run-*/files/media/videos/**/*.gif"))
-    assert hist, "episode GIFs should be logged as wandb media"
+    vids = list((tmp_path / "wandb").glob("offline-run-*/files/media/videos/**/*.mp4"))
+    assert vids, "episode videos should be logged as wandb media (mp4)"
+
+
+@pytest.mark.parametrize("size", [(64, 64), (33, 47)])
+def test_write_video_mp4_is_h264_and_readable(tmp_path, size):
+    import imageio.v2 as imageio
+    from vlmrl.trainer import write_video
+    frames = [np.full((*size, 3), v, np.uint8) for v in (0, 120, 250)]
+    p = str(tmp_path / "ep.mp4")
+    write_video(frames, p, fps=2)
+    r = imageio.get_reader(p)
+    meta = r.get_meta_data()
+    got = [f for f in r]
+    assert meta["codec"] == "h264" and meta["fps"] == 2
+    assert len(got) == 4                                  # 3 frames + held last frame
+    assert got[0].shape[:2] == (size[0] + size[0] % 2, size[1] + size[1] % 2)   # padded to even
+    assert abs(int(got[-1].mean()) - 250) < 6
+
+
+def test_write_video_gif(tmp_path):
+    import imageio.v2 as imageio
+    from vlmrl.trainer import write_video
+    write_video([np.full((8, 8, 3), v, np.uint8) for v in (0, 200)], str(tmp_path / "ep.gif"))
+    assert len(imageio.mimread(str(tmp_path / "ep.gif"))) == 2
+
+
+def test_gif_video_format_option(tmp_path):
+    cfg = TrainConfig(out_dir=str(tmp_path), steps=1, groups_per_step=1, group_size=2, eval_every=0,
+                      log_samples_every=1, save_every=0, filter_groups=False, reward="neg_dist", video_format="gif")
+    Trainer(cfg, policy=FakePolicy(random_generate(0)), bundle=_bundle()).train()
+    assert (tmp_path / "episodes" / "train_step1.gif").exists()

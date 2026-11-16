@@ -36,7 +36,7 @@ images, reasons in text, and writes a JSON action. It is trained with GRPO from 
 !!! success "Verified"
     On 2×A6000 with Qwen3-VL-4B + LoRA (HF and vLLM backends, wandb logging), PointMaze UMaze eval
     success went **0.625 → 1.0 within 20 RL steps**. See the [experiment log](training/experiments.md).
-    145 tests (139 fast CPU + 6 real-VLM) pass locally and on the GPU machine. See [Testing](development/testing.md).
+    149 tests (143 fast CPU + 6 real-VLM) pass locally and on the GPU machine. See [Testing](development/testing.md).
 
 ```mermaid
 flowchart LR
