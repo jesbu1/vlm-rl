@@ -87,10 +87,21 @@ def test_sync_hot_swaps_lora(server, tmp_path):
     g.sync(pol, 1)
     paths = [p for p, _ in _Handler.log]
     assert paths == ["/v1/load_lora_adapter", "/v1/load_lora_adapter", "/v1/unload_lora_adapter"]
-    assert _Handler.log[1][1]["lora_name"] == "policy_step1" and _Handler.log[2][1]["lora_name"] == "policy_step0"
-    assert g.current == "policy_step1"
-    assert not (tmp_path / "policy_step0").exists() and (tmp_path / "policy_step1").exists()
-    assert g.generate([_conv()[:2]])[0].startswith("policy_step1|")
+    s0, s1 = f"policy_{g.tag}_step0", f"policy_{g.tag}_step1"
+    assert _Handler.log[1][1]["lora_name"] == s1 and _Handler.log[2][1]["lora_name"] == s0
+    assert g.current == s1
+    assert not (tmp_path / s0).exists() and (tmp_path / s1).exists()
+    assert g.generate([_conv()[:2]])[0].startswith(f"{s1}|")
+
+
+def test_adapter_names_unique_across_generators(server, tmp_path):
+    """Sweep runs share one server and each starts at step 0 (or a resumed step): names must not collide."""
+    pol = _FakePeft()
+    a, b = VLLMServerGenerator(server, "base", str(tmp_path / "a")), VLLMServerGenerator(server, "base", str(tmp_path / "b"))
+    a.sync(pol, 30)
+    b.sync(pol, 30)
+    loaded = [body["lora_name"] for p, body in _Handler.log if p == "/v1/load_lora_adapter"]
+    assert len(loaded) == 2 and loaded[0] != loaded[1]
 
 
 def test_sync_requires_lora(server, tmp_path):

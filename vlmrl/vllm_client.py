@@ -23,6 +23,7 @@ import json
 import os
 import shutil
 import urllib.request
+import uuid
 from concurrent.futures import ThreadPoolExecutor
 
 
@@ -63,6 +64,9 @@ class VLLMServerGenerator:
         self.adapter_dir = adapter_dir
         self.current = base_model       # model name to request; becomes the LoRA name after first sync
         self._prev_adapter: tuple[str, str] | None = None
+        # adapter names must be unique per server: a sweep reuses one server across runs (and resumed runs
+        # restart at an old step), and vLLM refuses to load a name that is still loaded from an earlier run
+        self.tag = uuid.uuid4().hex[:8]
         self.pool = ThreadPoolExecutor(max_workers)
 
     def _one(self, msgs, max_new_tokens, temperature, top_p):
@@ -81,7 +85,7 @@ class VLLMServerGenerator:
         """Push the current LoRA weights to the server (save adapter -> hot-load -> unload previous)."""
         if not hasattr(policy.model, "peft_config"):
             raise NotImplementedError("vLLM server backend requires LoRA (lora_rank > 0) for weight sync")
-        name = f"policy_step{step}"
+        name = f"policy_{self.tag}_step{step}"
         path = os.path.abspath(os.path.join(self.adapter_dir, name))
         policy.model.save_pretrained(path)
         _post(f"{self.url}/v1/load_lora_adapter", {"lora_name": name, "lora_path": path})
