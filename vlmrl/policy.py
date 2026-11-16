@@ -42,6 +42,31 @@ def chunked_token_logprobs(logits: torch.Tensor, targets: torch.Tensor, chunk: i
     return torch.cat(out, dim=1)
 
 
+def chunked_token_stats(logits: torch.Tensor, targets: torch.Tensor, chunk: int = 1024, topk: int = 0,
+                        gather_ids: torch.Tensor | None = None):
+    """Like ``chunked_token_logprobs`` but can also return, per position,
+    * ``topk`` > 0: the top-k token ids and their (true, unnormalised) probabilities -- no grad;
+    * ``gather_ids`` [B, T, k]: log-probs of those ids (with grad) -- used by score centering."""
+    lp, tk_ids, tk_p, g = [], [], [], []
+    for s in range(0, logits.shape[1], chunk):
+        lg = logits[:, s:s + chunk].float()
+        lse = torch.logsumexp(lg, dim=-1, keepdim=True)
+        lp.append(lg.gather(-1, targets[:, s:s + chunk].unsqueeze(-1)).squeeze(-1) - lse.squeeze(-1))
+        if topk:
+            with torch.no_grad():
+                v, i = lg.topk(topk, dim=-1)
+                tk_ids.append(i)
+                tk_p.append((v - lse).exp())
+        if gather_ids is not None:
+            g.append(lg.gather(-1, gather_ids[:, s:s + chunk]) - lse)
+    out = {"logp": torch.cat(lp, 1)}
+    if topk:
+        out["topk_ids"], out["topk_probs"] = torch.cat(tk_ids, 1), torch.cat(tk_p, 1)
+    if gather_ids is not None:
+        out["logp_at_ids"] = torch.cat(g, 1)
+    return out
+
+
 class HFPolicy:
     def __init__(self, model_name: str, device: str | None = None, dtype: str = "auto",
                  attn_implementation: str | None = None, gradient_checkpointing: bool = True,
@@ -94,6 +119,7 @@ class HFPolicy:
         self.model.eval()
         self._gen_bs = min(getattr(self, "_gen_bs", batch_size), batch_size)
         texts, s = [], 0
+        self.last_num_tokens: list[int] = []   # context length (prompt + reply) per item, for token budgets
         while s < len(convs):
             bs = self._gen_bs
             try:
@@ -119,6 +145,8 @@ class HFPolicy:
             **({} if greedy else {"temperature": temperature, "top_p": top_p, "top_k": 0}),
             repetition_penalty=1.0, pad_token_id=self.tokenizer.pad_token_id)
         new = out[:, enc["input_ids"].shape[1]:]
+        n_new = (new != self.tokenizer.pad_token_id).sum(1)
+        self.last_num_tokens += (enc["attention_mask"].sum(1) + n_new).tolist()
         return [t.strip() for t in self.tokenizer.batch_decode(new, skip_special_tokens=True)]
 
     # ------------------------------------------------------------------ training
@@ -143,8 +171,9 @@ class HFPolicy:
         enc["advantages"] = torch.tensor([s.advantage for s in samples], dtype=torch.float32)
         return enc
 
-    def token_logprobs(self, batch: dict[str, Any]) -> tuple[torch.Tensor, torch.Tensor]:
-        """Return (logp, mask) over positions [first_response_token, T). Grad flows through logp."""
+    def token_logprobs(self, batch: dict[str, Any], topk: int = 0, gather_ids: torch.Tensor | None = None):
+        """Return (logp, mask) over positions [first_response_token, T); grad flows through logp.
+        With ``topk``/``gather_ids`` returns (logp, mask, stats) -- see ``chunked_token_stats``."""
         self.model.train()
         mask = batch["loss_mask"]
         first = int(mask.any(0).nonzero().min())
@@ -156,8 +185,12 @@ class HFPolicy:
         out = self.model(**inputs, use_cache=False, logits_to_keep=T - first + 1)
         logits = out.logits[:, :-1]
         targets = inputs["input_ids"][:, first:]
-        logp = chunked_token_logprobs(logits, targets, self.logprob_chunk)
-        return logp, mask[:, first:].to(self.device)
+        mask = mask[:, first:].to(self.device)
+        if not topk and gather_ids is None:
+            return chunked_token_logprobs(logits, targets, self.logprob_chunk), mask
+        st = chunked_token_stats(logits, targets, self.logprob_chunk, topk,
+                                 None if gather_ids is None else gather_ids.to(self.device))
+        return st.pop("logp"), mask, st
 
     def save(self, path: str):
         self.model.save_pretrained(path)

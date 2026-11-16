@@ -1,49 +1,32 @@
-"""Train a HF VLM with multi-turn GRPO on any registered env.
+"""Train a HF VLM with multi-turn GRPO on any registered env (Hydra CLI).
 
-    python scripts/train.py --config configs/pointmaze_qwen3b.json --steps 100
-    python scripts/train.py --model HuggingFaceTB/SmolVLM-256M-Instruct \
-        --env_kwargs '{"maze": "umaze"}' --reward success+0.2*format
+    python scripts/train.py                                        # defaults: Qwen3-VL-4B LoRA, PointMaze UMaze, HF rollouts
+    python scripts/train.py experiment=pointmaze_q3vl4b_vllm steps=40 wandb_project=vlm-rl-pointmaze
+    python scripts/train.py policy=qwen3vl2b_lora env_kwargs.maze=medium reward='success+0.5*neg_dist'
+    python scripts/train.py experiment=smoke                       # 1-step CPU smoke test
+    python scripts/train.py -m reward=success,neg_dist out_dir='runs/sweep/${hydra:job.num}'   # multirun
+    python scripts/train.py --cfg job                              # print the resolved config and exit
 
-Every TrainConfig field is a flag; dict fields take JSON. CLI flags override --config.
+Config groups live in configs/ (policy/, task/, rollout/, experiment/); every TrainConfig field is a
+type-checked key. The resolved config + overrides are saved to <out_dir>/.hydra/.
 """
-import argparse
-import dataclasses
-import json
 import os
 import sys
-import typing
 
 os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")  # less fragmentation
-sys.path.insert(0, os.getcwd())  # allow --env/--reward "examples.foo:bar" from the repo root
+sys.path.insert(0, os.getcwd())  # allow env="examples.foo:bar" / reward="mod:fn" from the repo root
 
-from vlmrl.trainer import TrainConfig, Trainer
+import hydra  # noqa: E402
+from omegaconf import DictConfig  # noqa: E402
+
+from vlmrl.config import CONFIG_DIR, to_train_config  # noqa: E402  (also registers the schema)
 
 
-def parse() -> TrainConfig:
-    p = argparse.ArgumentParser()
-    p.add_argument("--config", default=None, help="JSON file with TrainConfig fields")
-    hints = typing.get_type_hints(TrainConfig)
-    for f in dataclasses.fields(TrainConfig):
-        t = hints[f.name]
-        if t is bool:
-            conv = lambda s: s.lower() in ("1", "true", "yes")
-        elif t is dict:
-            conv = json.loads
-        elif t in (int, float, str):
-            conv = t
-        else:  # Optional[...]
-            inner = [a for a in typing.get_args(t) if a is not type(None)][0]
-            conv = (lambda s, inner=inner: None if s.lower() == "none" else inner(s))
-        p.add_argument(f"--{f.name}", type=conv, default=argparse.SUPPRESS)
-    args = vars(p.parse_args())
-    base = {}
-    if args.get("config"):
-        with open(args.pop("config")) as fh:
-            base = {k: v for k, v in json.load(fh).items() if not k.startswith("_")}  # "_comment" etc.
-    args.pop("config", None)
-    base.update(args)
-    return TrainConfig(**base)
+@hydra.main(version_base=None, config_path=CONFIG_DIR, config_name="train")
+def main(cfg: DictConfig) -> None:
+    from vlmrl.trainer import Trainer
+    Trainer(to_train_config(cfg)).train()
 
 
 if __name__ == "__main__":
-    Trainer(parse()).train()
+    main()

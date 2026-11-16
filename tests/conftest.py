@@ -7,6 +7,7 @@ Tiers
 """
 from __future__ import annotations
 
+import json
 import os
 import re
 import sys
@@ -66,21 +67,38 @@ def make_traj(dist: float = 1.0, success: bool = False, n_turns: int = 1, invali
 # ----------------------------------------------------------------------------- scripted "policies"
 
 _FLOAT = re.compile(r"[-+]?\d+\.\d+")
+_GOAL = re.compile(r"centred at x=([-+]?\d+(?:\.\d+)?), y=([-+]?\d+(?:\.\d+)?)")
 
 
-def oracle_generate(maze_map):
+def _fmt(d, style):
+    if style == "pear":
+        return f'Going.\n```json\n{{"ball": {{"x": {d[0]:.3f}, "y": {d[1]:.3f}}}}}\n```'
+    return f'Going. <action>{{"dx": {d[0]:.3f}, "dy": {d[1]:.3f}}}</action>'
+
+
+def _pos_goal(conv):
+    """Read ball position + goal from a PointMaze conversation (either prompt style)."""
+    texts = [c["text"] for c in conv[-1]["content"] if c["type"] == "text"]
+    m = _GOAL.search(conv[0]["content"][0]["text"])
+    if m:  # pear: state JSON in the last user message, goal in the system prompt
+        st = json.loads(texts[-1].splitlines()[-1])
+        return np.array([st["ball"]["x"], st["ball"]["y"]]), np.array([float(m.group(1)), float(m.group(2))])
+    nums = [float(x) for x in _FLOAT.findall(texts[-1])]
+    return np.array(nums[0:2]), np.array(nums[4:6])
+
+
+def oracle_generate(maze_map, style: str = "pear"):
     """Text policy that reads position/goal from the prompt and answers with the BFS oracle."""
     def gen(convs):
         out = []
         for c in convs:
-            nums = [float(x) for x in _FLOAT.findall(c[-1]["content"][-1]["text"])]
-            d = oracle_delta(maze_map, np.array(nums[0:2]), np.array(nums[4:6]))
-            out.append(f'Going. <action>{{"dx": {d[0]:.3f}, "dy": {d[1]:.3f}}}</action>')
+            pos, goal = _pos_goal(c)
+            out.append(_fmt(oracle_delta(maze_map, pos, goal), style))
         return out
     return gen
 
 
-def random_generate(seed: int = 0, p_invalid: float = 0.0):
+def random_generate(seed: int = 0, p_invalid: float = 0.0, style: str = "pear"):
     r = np.random.default_rng(seed)
 
     def gen(convs):
@@ -89,10 +107,13 @@ def random_generate(seed: int = 0, p_invalid: float = 0.0):
             if r.random() < p_invalid:
                 out.append("I am not sure.")
             else:
-                d = r.uniform(-1, 1, 2)
-                out.append(f'<action>{{"dx": {d[0]:.3f}, "dy": {d[1]:.3f}}}</action>')
+                out.append(_fmt(r.uniform(-1, 1, 2), style))
         return out
     return gen
+
+
+def const_generate(d=(0.0, 0.0), style: str = "pear"):
+    return lambda convs: [_fmt(d, style)] * len(convs)
 
 
 class FakePolicy:
@@ -117,9 +138,21 @@ class FakePolicy:
         return {"loss_mask": mask, "advantages": torch.tensor([s.advantage for s in samples]),
                 "group": torch.tensor([s.meta["group"] % 4 for s in samples])}
 
-    def token_logprobs(self, batch):
+    def token_logprobs(self, batch, topk=0, gather_ids=None):
         logp = -torch.nn.functional.softplus(self.model.theta[batch["group"]])[:, None].expand(-1, 4)
-        return logp, batch["loss_mask"][:, 4:]
+        mask = batch["loss_mask"][:, 4:]
+        if not topk and gather_ids is None:
+            return logp, mask
+        st = {}
+        if topk:  # fake 2-token vocabulary: p(target) and 1 - p(target)
+            p = logp.detach().exp()
+            st["topk_ids"] = torch.zeros(*logp.shape, 2, dtype=torch.long)
+            st["topk_ids"][..., 1] = 1
+            st["topk_probs"] = torch.stack([p, 1 - p], -1)
+        if gather_ids is not None:
+            lp1 = torch.log1p(-logp.exp().clamp(max=1 - 1e-6))
+            st["logp_at_ids"] = torch.stack([logp, lp1], -1)
+        return logp, mask, st
 
     def save(self, path):
         self.saved.append(path)

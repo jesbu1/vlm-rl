@@ -1,0 +1,5 @@
+# @package _global_
+# Full fine-tuning at PEAR's learning rate. Needs >80 GB (AdamW states); single-process trainer.
+model: Qwen/Qwen2.5-VL-7B-Instruct
+lora_rank: 0
+lr: 1.0e-6

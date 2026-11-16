@@ -76,11 +76,39 @@ def test_update_skips_zero_advantage(tmp_path):
 
 
 def test_ppo_epochs_path(tmp_path):
-    tr = _trainer(tmp_path, random_generate(0), ppo_epochs=3,
+    tr = _trainer(tmp_path, random_generate(0), ppo_epochs=3, policy_loss="ppo_clip",
                   reward_fn=lambda gs: [[float(i) for i in range(len(g))] for g in gs])
     kept, _, _ = tr.collect()
     m = tr.update(kept)
     assert "train/clipfrac" in m and 0 <= m["train/clipfrac"] <= 1
+
+
+def test_multi_epoch_reinforce_with_score_centering(tmp_path, monkeypatch):
+    """Epochs >1 are off-policy w.r.t. the rollout policy: score centering must be computed from the
+    snapshot (topk) and applied (gather_ids) -- and must not change epoch-1 (on-policy) gradients."""
+    calls = []
+    tr = _trainer(tmp_path, random_generate(0), ppo_epochs=2, policy_loss="reinforce", score_centering=True,
+                  reward_fn=lambda gs: [[float(i) for i in range(len(g))] for g in gs])
+    orig = tr.policy.token_logprobs
+
+    def spy(batch, topk=0, gather_ids=None):
+        calls.append(("topk" if topk else "") + ("gather" if gather_ids is not None else ""))
+        return orig(batch, topk, gather_ids)
+    monkeypatch.setattr(tr.policy, "token_logprobs", spy)
+    kept, _, _ = tr.collect()
+    m = tr.update(kept)
+    nb = len(calls) // 3
+    assert calls == ["topk"] * nb + ["gather"] * (2 * nb) and np.isfinite(m["train/loss"])
+    assert "train/clipfrac" not in m
+
+
+def test_score_centering_off_when_single_epoch(tmp_path, monkeypatch):
+    tr = _trainer(tmp_path, random_generate(0), reward_fn=lambda gs: [[float(i) for i in range(len(g))] for g in gs])
+    seen = []
+    orig = tr.policy.token_logprobs
+    monkeypatch.setattr(tr.policy, "token_logprobs", lambda b, topk=0, gather_ids=None: (seen.append((topk, gather_ids)), orig(b))[1])
+    tr.update(tr.collect()[0])
+    assert all(t == 0 and g is None for t, g in seen)  # on-policy: correction is exactly zero, skipped
 
 
 def test_full_train_loop_logs_evaluates_saves(tmp_path):
@@ -106,35 +134,61 @@ def test_eval_with_oracle_policy_is_perfect(tmp_path):
     assert m["eval/success"] == 1.0 and m["eval/invalid_frac"] == 0.0
 
 
-def test_cli_parsing(tmp_path, monkeypatch):
-    sys.path.insert(0, f"{ROOT}/scripts")
-    import train as train_cli
-    cfgf = tmp_path / "c.json"
-    cfgf.write_text(json.dumps({"_comment": "ignored", "lr": 3e-5, "steps": 7, "env_kwargs": {"maze": "large"}}))
-    monkeypatch.setattr(sys, "argv", ["train.py", "--config", str(cfgf), "--steps", "9", "--lora_rank", "8",
-                                      "--filter_groups", "false", "--max_images", "none",
-                                      "--processor_kwargs", '{"max_pixels": 100}', "--attn_implementation", "sdpa"])
-    c = train_cli.parse()
-    assert (c.lr, c.steps, c.lora_rank, c.filter_groups, c.max_images) == (3e-5, 9, 8, False, None)
-    assert c.env_kwargs == {"maze": "large"} and c.processor_kwargs == {"max_pixels": 100}
-    assert c.attn_implementation == "sdpa"
+def test_hydra_defaults_and_overrides():
+    from vlmrl.config import compose
+    c = compose()
+    assert c.model == "Qwen/Qwen3-VL-4B-Instruct" and c.env == "pointmaze" and c.rollout_backend == "hf"
+    assert c.adv_mode == "zscore" and c.on_invalid == "terminate" and c.env_kwargs["prompt_style"] == "pear"
+    c = compose(["policy=qwen3vl2b_lora", "steps=9", "filter_groups=false", "max_images=3",
+                 "env_kwargs.maze=large", "reward='success+0.5*neg_dist'", "+processor_kwargs.max_pixels=100",
+                 "attn_implementation=sdpa", "max_context_tokens=null"])
+    assert (c.model, c.steps, c.filter_groups, c.max_images) == ("Qwen/Qwen3-VL-2B-Instruct", 9, False, 3)
+    assert c.env_kwargs["maze"] == "large" and c.env_kwargs["max_turns"] == 10      # merged, not replaced
+    assert c.reward == "success+0.5*neg_dist" and c.processor_kwargs == {"max_pixels": 100}
+    assert c.attn_implementation == "sdpa" and c.max_context_tokens is None
 
 
-@pytest.mark.parametrize("path", ["configs/pointmaze_qwen3vl4b_lora.json", "configs/pear_recipe_full_ft.json",
-                                  "configs/pointmaze_toy_wam_prefs.json"])
-def test_shipped_configs_are_valid(path):
-    cfg = {k: v for k, v in json.load(open(f"{ROOT}/{path}")).items() if not k.startswith("_")}
-    TrainConfig(**cfg)
+def test_hydra_type_checking():
+    from hydra.errors import ConfigCompositionException
+    from vlmrl.config import compose
+    with pytest.raises(ConfigCompositionException):
+        compose(["steps=abc"])
+    with pytest.raises(ConfigCompositionException):
+        compose(["not_a_field=1"])
+
+
+@pytest.mark.parametrize("exp", ["pointmaze_q3vl4b_vllm", "pear_recipe", "toy_wam_prefs", "smoke"])
+def test_shipped_experiments_compose(exp):
+    from vlmrl.config import compose
+    c = compose([f"experiment={exp}"])
+    assert c.out_dir.startswith("runs/")
+    if exp == "pear_recipe":
+        assert (c.groups_per_step, c.group_size, c.lr, c.lora_rank, c.adv_mode, c.policy_loss) == \
+            (128, 8, 1e-6, 0, "zscore", "reinforce")
+        assert c.env_kwargs["maze"] == "medium" and c.env_kwargs["prompt_style"] == "pear"
+    if exp == "pointmaze_q3vl4b_vllm":
+        assert c.rollout_backend == "vllm" and c.lora_rank == 64
+
+
+@pytest.mark.parametrize("policy", ["qwen3vl4b_lora", "qwen3vl2b_lora", "qwen25vl3b_lora", "smolvlm256m",
+                                    "qwen25vl7b_full"])
+def test_policy_presets_compose(policy):
+    from vlmrl.config import compose
+    assert compose([f"policy={policy}"]).model
+
+
+def test_train_cli_prints_config(tmp_path):
+    r = subprocess.run([sys.executable, "scripts/train.py", "--cfg", "job", "experiment=smoke", "steps=3"],
+                       cwd=ROOT, capture_output=True, text=True, timeout=120)
+    assert r.returncode == 0, r.stderr[-2000:]
+    assert "steps: 3" in r.stdout and "SmolVLM-256M" in r.stdout
 
 
 @pytest.mark.slow
 def test_cli_end_to_end_tiny_vlm(tmp_path):
     """Real HF model through the real CLI: 1 step, tiny everything."""
-    cmd = [sys.executable, "scripts/train.py", "--model", TINY_VLM, "--processor_kwargs", '{"do_image_splitting": false}',
-           "--env_kwargs", '{"maze": "umaze", "max_turns": 2, "image_size": 64}', "--steps", "1",
-           "--groups_per_step", "1", "--group_size", "2", "--max_new_tokens", "8", "--eval_every", "1",
-           "--eval_episodes", "2", "--filter_groups", "false", "--reward", "neg_dist", "--out_dir", str(tmp_path),
-           "--gradient_checkpointing", "false", "--dtype", "float32"]
+    cmd = [sys.executable, "scripts/train.py", "experiment=smoke", f"out_dir={tmp_path}",
+           "gradient_checkpointing=false", "dtype=float32"]
     r = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True, timeout=900)
     assert r.returncode == 0, r.stderr[-3000:]
     lines = [json.loads(l) for l in open(tmp_path / "metrics.jsonl")]
@@ -195,17 +249,18 @@ def test_wandb_offline_logging(tmp_path, monkeypatch):
 
 
 def test_sweep_expansion(tmp_path):
+    import yaml
     sys.path.insert(0, f"{ROOT}/scripts")
     import sweep
-    runs = sweep.expand({"base": "configs/pointmaze_qwen3vl4b_vllm.json", "group": "g", "project": "p",
-                         "vllm_port": 9000, "grid": {"reward": ["success", "neg_dist"], "model": ["a/m1", "b/m2"]},
-                         "overrides": {"steps": 3}})
+    runs = sweep.expand({"group": "g", "project": "p", "vllm_port": 9000,
+                         "overrides": ["experiment=pointmaze_q3vl4b_vllm", "steps=3"],
+                         "grid": {"reward": ["success", "success+0.5*neg_dist"], "policy": ["qwen3vl4b_lora", "qwen3vl2b_lora"]}})
     assert len(runs) == 4
-    assert [r["model"] for r in runs] == ["a/m1", "a/m1", "b/m2", "b/m2"]   # model-major
-    assert runs[0]["wandb_run_name"] == "model=m1__reward=success" and runs[0]["out_dir"] == "runs/g/model=m1__reward=success"
-    assert all(r["steps"] == 3 and r["wandb_group"] == "g" and r["vllm_url"] == "http://localhost:9000" for r in runs)
-    for r in runs:
-        TrainConfig(**r)
-    shipped = json.load(open(f"{ROOT}/configs/sweeps/pointmaze_small.json"))
-    for r in sweep.expand(shipped):
-        TrainConfig(**r)
+    assert [r["cfg"].model for r in runs] == ["Qwen/Qwen3-VL-2B-Instruct"] * 2 + ["Qwen/Qwen3-VL-4B-Instruct"] * 2
+    r0 = next(r for r in runs if r["name"] == "reward=success__policy=qwen3vl4b_lora")
+    assert r0["cfg"].out_dir == "runs/g/reward=success__policy=qwen3vl4b_lora" and r0["cfg"].wandb_group == "g"
+    assert all(r["cfg"].steps == 3 and r["cfg"].vllm_url == "http://localhost:9000" and r["cfg"].wandb_project == "p"
+               for r in runs)
+    assert {r["cfg"].reward for r in runs} == {"success", "success+0.5*neg_dist"}
+    shipped = yaml.safe_load(open(f"{ROOT}/configs/sweeps/pointmaze_small.yaml"))
+    assert len(sweep.expand(shipped)) == 6

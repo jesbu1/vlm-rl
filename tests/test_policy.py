@@ -55,7 +55,7 @@ def _traj_with_texts(umaze, rng, texts):
     env = umaze.make_vec_env()
     it = iter(texts)
     return rollout(lambda convs: [next(it) for _ in convs], env, umaze.interface,
-                   umaze.train_sampler.sample(1, rng), [0], len(texts))[0]
+                   umaze.train_sampler.sample(1, rng), [0], len(texts), on_invalid="noop")[0]
 
 
 @pytest.mark.slow

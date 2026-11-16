@@ -78,3 +78,40 @@ def test_token_sum_normalised_globally_equals_concatenated_mean():
     split = sum(algo.policy_loss_sum(l, a, m)[0] for l, a, m in zip(lps, advs, masks)) / n
     full = (-(torch.cat(advs, 1) * torch.cat(lps, 1))).mean()
     assert torch.isclose(split, full)
+
+
+def test_score_centering_zero_on_policy():
+    """mu == pi  =>  E_mu[grad log pi] = 0, so the correction contributes no gradient (any top-k)."""
+    torch.manual_seed(0)
+    logits = torch.randn(1, 3, 10, requires_grad=True)
+    lp = logits.log_softmax(-1)
+    mu_ids = lp.detach().topk(4, -1).indices
+    mu_p = lp.detach().exp().gather(-1, mu_ids)
+    algo.score_centering_term(lp.gather(-1, mu_ids), mu_p).sum().backward()
+    assert torch.allclose(logits.grad, torch.zeros_like(logits.grad), atol=1e-7)
+
+
+def test_score_centering_matches_expected_score_full_support():
+    """With full support, grad of the surrogate == E_{v~mu} grad log pi(v)."""
+    torch.manual_seed(1)
+    V = 6
+    logits = torch.randn(1, 1, V, requires_grad=True)
+    mu = torch.softmax(torch.randn(1, 1, V), -1)
+    ids = torch.arange(V).view(1, 1, V)
+    lp = logits.log_softmax(-1)
+    algo.score_centering_term(lp.gather(-1, ids), mu.gather(-1, ids)).sum().backward()
+    # E_mu grad_logits log pi(v) = mu - pi
+    want = (mu - logits.detach().softmax(-1))
+    assert torch.allclose(logits.grad, want, atol=1e-6)
+
+
+def test_reinforce_with_centering_subtracts_term():
+    logp = torch.tensor([[-1.0]], requires_grad=True)
+    cent = torch.tensor([[0.25]], requires_grad=True)
+    loss, _ = algo.policy_loss_sum(logp, torch.tensor([[2.0]]), torch.ones(1, 1), centering=cent)
+    loss.backward()
+    assert np.isclose(loss.item(), -2.0 * (-1.0 - 0.25)) and cent.grad.item() == 2.0
+
+
+def test_default_advantage_is_grpo_zscore():
+    assert np.allclose(algo.group_advantages([[1, 0, 0, 1]])[0], [1, -1, -1, 1], atol=1e-4)

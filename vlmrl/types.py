@@ -50,6 +50,7 @@ class Trajectory:
     messages: list[dict] = field(default_factory=list)
     turns: list[Turn] = field(default_factory=list)
     done: bool = False
+    end_reason: str = ""      # success | invalid | max_turns | context | terminated | truncated
     # filled in by reward fn / algorithm
     score: float = 0.0
     advantage: float = 0.0

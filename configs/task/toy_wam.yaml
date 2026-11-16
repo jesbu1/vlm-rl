@@ -1,0 +1,9 @@
+# @package _global_
+# World-model mode: toy kinematic WAM dynamics + preference rewards + offline start states.
+env: examples.toy_wam:make_bundle
+env_kwargs:
+  maze: umaze
+  start_states: D4RL/pointmaze/umaze-v2
+  max_turns: 8
+  include_state: false
+reward: examples.toy_wam:make_reward

@@ -98,11 +98,19 @@ class PointMazeSimVecEnv:
 
     def __init__(self, maze: str = "umaze", action_mode: str = "delta", action_repeat: int = 40,
                  kp: float = 10.0, kd: float = 1.0, max_delta: float = 1.0, image_size: int = 336,
-                 draw_trail: bool = False, seed: int = 0):
+                 draw_trail: bool = False, seed: int = 0, settle: bool = True, max_substeps: int = 200,
+                 pos_tol: float = 0.05, vel_tol: float = 0.1, blocked_window: int = 20, blocked_eps: float = 0.01):
+        """``settle=True`` (PEAR's EXECUTION semantics, delta mode): run the controller until the target
+        is reached and the ball is at rest, or until it is blocked (moved < ``blocked_eps`` over the last
+        ``blocked_window`` physics steps), capped at ``max_substeps``. ``settle=False``: exactly
+        ``action_repeat`` physics steps per action (always the case in force mode)."""
         assert action_mode in ("delta", "force")
         self.maze_name, self.maze_map = maze, get_maze_map(maze)
         self.action_mode, self.action_repeat = action_mode, action_repeat
         self.kp, self.kd, self.max_delta = kp, kd, max_delta
+        self.settle = settle and action_mode == "delta"
+        self.max_substeps, self.pos_tol, self.vel_tol = max_substeps, pos_tol, vel_tol
+        self.blocked_window, self.blocked_eps = blocked_window, blocked_eps
         self.image_size, self.draw_trail = image_size, draw_trail
         self.seed = seed
         self._envs: list = []
@@ -120,7 +128,8 @@ class PointMazeSimVecEnv:
         pos, vel, goal = d.qpos[:2].copy(), d.qvel[:2].copy(), self._goals[k]
         img = render_topdown(self.maze_map, pos, goal, self.image_size,
                              trail=self._trails[k] if self.draw_trail else None)
-        return Obs(image=img, state=np.concatenate([pos, vel]), extras={"goal": goal.copy()})
+        return Obs(image=img, state=np.concatenate([pos, vel]),
+                   extras={"goal": goal.copy(), "dist": float(np.linalg.norm(pos - goal))})
 
     def reset(self, start_states):
         while len(self._envs) < len(start_states):
@@ -148,22 +157,32 @@ class PointMazeSimVecEnv:
                 if n > self.max_delta:
                     delta *= self.max_delta / n
                 target = d.qpos[:2] + delta
-            low, success = [], False
-            for _ in range(self.action_repeat):
+            low, success, stop = [], False, "steps"
+            hist = [d.qpos[:2].copy()]
+            for i in range(self.max_substeps if self.settle else self.action_repeat):
                 if self.action_mode == "delta":
                     u = np.clip(self.kp * (target - d.qpos[:2]) - self.kd * d.qvel[:2], -1, 1)
                 else:
                     u = np.clip(a, -1, 1)
                 _, _, term, _, info = env.step(u)
                 low.append(u)
-                self._trails[k].append(d.qpos[:2].copy())
+                pos = d.qpos[:2].copy()
+                self._trails[k].append(pos)
+                hist.append(pos)
                 if term or info["success"]:
-                    success = True
+                    success, stop = True, "success"
                     break
+                if self.settle:
+                    if (np.linalg.norm(target - pos) < self.pos_tol and np.linalg.norm(d.qvel[:2]) < self.vel_tol):
+                        stop = "reached"
+                        break
+                    if i >= self.blocked_window and np.linalg.norm(pos - hist[-1 - self.blocked_window]) < self.blocked_eps:
+                        stop = "blocked"
+                        break
             dist = float(np.linalg.norm(d.qpos[:2] - self._goals[k]))
             out.append(StepResult(
                 obs=self._obs(k), reward=float(success), terminated=success,
-                info={"success": success, "dist": dist, "low_level_actions": np.stack(low)}))
+                info={"success": success, "dist": dist, "low_level_actions": np.stack(low), "stop": stop}))
         return out
 
     def close(self):
@@ -179,14 +198,53 @@ _NUM = r"[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?"
 
 
 class PointMazeTextInterface:
+    """Agent-facing protocol for PointMaze.
+
+    ``prompt_style="pear"`` (default) uses PEAR's protocol verbatim (``vlmrl.envs.protocol``): the robot
+    is one part ``ball`` with quantities ``x, y``; each turn starts with the state JSON, then the
+    image; the action is the *change* ``{"ball": {"x": dx, "y": dy}}`` in a final fenced json block.
+    ``prompt_style="simple"`` is a shorter custom prompt with ``<action>{"dx":..,"dy":..}</action>``.
+    """
+
+    SCHEMA = {"ball": ["x", "y"]}
+
     def __init__(self, maze_map, action_mode: str = "delta", include_state: bool = True,
-                 max_delta: float = 1.0, image_size: int = 336):
+                 max_delta: float = 1.0, image_size: int = 336, prompt_style: str = "pear"):
+        assert prompt_style in ("pear", "simple")
+        if prompt_style == "pear":
+            assert action_mode == "delta", "PEAR protocol actions are changes of quantities (delta mode)"
         self.maze_map, self.action_mode = maze_map, action_mode
         self.include_state, self.max_delta = include_state, max_delta
         self.keys = ("dx", "dy") if action_mode == "delta" else ("fx", "fy")
-        self.image_size = image_size
+        self.image_size, self.prompt_style = image_size, prompt_style
+
+    # ---------------------------------------------------------------- prompts
+    def environment_section(self) -> str:
+        h, w = len(self.maze_map), len(self.maze_map[0])
+        return (
+            "Robot and frame:\n"
+            f"- The robot is a ball (the BLUE dot) rolling on the floor of a 2D maze {w} cells wide and {h} cells tall.\n"
+            "- x points to the right of the image and y points up; (0, 0) is the centre of the image. Each cell has length 1.\n"
+            f"- Each action moves the ball by at most {self.max_delta} in total; longer changes are shortened.\n"
+            "- Dark cells are walls and block the ball; light cells are free floor. Thin grid lines mark the cell borders.\n"
+            "Cameras:\n"
+            "- top: fixed directly above the maze, showing the whole maze.\n"
+            "Ending:\n"
+            "- The episode ends by itself as soon as the task is done: while observations keep coming, the task is not done yet."
+        )
+
+    def instruction(self, start_state) -> str:
+        text = "Move the ball into the GREEN circle."
+        if self.include_state and "goal" in start_state:
+            g = np.asarray(start_state["goal"], dtype=float)
+            text += f" The circle is centred at x={g[0]:.2f}, y={g[1]:.2f}."
+        return text
 
     def system_prompt(self, start_state):
+        if self.prompt_style == "pear":
+            from vlmrl.envs import protocol
+            return protocol.system_prompt(self.environment_section(), self.instruction(start_state),
+                                          length_unit="maze cells")
         h, w = len(self.maze_map), len(self.maze_map[0])
         if self.action_mode == "delta":
             act = (f'a relative waypoint {{"dx": <float>, "dy": <float>}} in maze units; the robot moves by '
@@ -209,6 +267,16 @@ class PointMazeTextInterface:
         )
 
     def observation_message(self, obs, turn, last, parse_error):
+        img = {"type": "image", "image": Image.fromarray(obs.image)}
+        if self.prompt_style == "pear":
+            from vlmrl.envs import protocol
+            parts = []
+            if parse_error:
+                parts.append("Your previous response contained no valid action, so the robot did not move.")
+            if self.include_state and obs.state is not None:
+                parts.append(protocol.format_state(self.SCHEMA, obs.state[:2]))
+            # PEAR: the state JSON comes first, followed by the camera images
+            return ([{"type": "text", "text": "\n".join(parts)}] if parts else []) + [img]
         text = []
         if parse_error:
             text.append("Your previous reply had no valid <action> tag, so the ball did nothing.")
@@ -218,9 +286,13 @@ class PointMazeTextInterface:
             text.append(f"Ball position: ({p[0]:.2f}, {p[1]:.2f}), velocity: ({v[0]:.2f}, {v[1]:.2f}). "
                         f"Goal position: ({g[0]:.2f}, {g[1]:.2f}).")
         text.append("Choose your next action.")
-        return [{"type": "image", "image": Image.fromarray(obs.image)}, {"type": "text", "text": " ".join(text)}]
+        return [img, {"type": "text", "text": " ".join(text)}]
 
+    # ---------------------------------------------------------------- actions
     def parse_action(self, text):
+        if self.prompt_style == "pear":
+            from vlmrl.envs import protocol
+            return protocol.parse_action(text, self.SCHEMA)
         m = _ACTION_RE.findall(text)
         if not m:
             return None
@@ -237,6 +309,13 @@ class PointMazeTextInterface:
             return None
         a = np.array(vals, dtype=np.float64)
         return np.clip(a, -1, 1) if self.action_mode == "force" else a
+
+    def format_action(self, a) -> str:
+        """Inverse of parse_action (for scripted policies / SFT data)."""
+        if self.prompt_style == "pear":
+            from vlmrl.envs import protocol
+            return protocol.example_action(self.SCHEMA, a)
+        return f'<action>{{"{self.keys[0]}": {a[0]:.3f}, "{self.keys[1]}": {a[1]:.3f}}}</action>'
 
     def noop_action(self):
         return np.zeros(2)
@@ -356,6 +435,8 @@ class PointMazeConfig:
     max_delta: float = 1.0
     image_size: int = 336
     include_state: bool = True
+    prompt_style: str = "pear"        # "pear" (paper Appendix H protocol) | "simple"
+    settle: bool = True               # PEAR execution: act until target reached & at rest, or blocked
     max_turns: int = 12
     start_states: str = "random"      # "random" | minari dataset id | path.npz
     eval_start_states: str = "random"
@@ -373,9 +454,10 @@ def make_pointmaze(cfg: PointMazeConfig | None = None, **kw) -> EnvBundle:
 
     return EnvBundle(
         make_vec_env=lambda: PointMazeSimVecEnv(cfg.maze, cfg.action_mode, cfg.action_repeat,
-                                                max_delta=cfg.max_delta, image_size=cfg.image_size),
+                                                max_delta=cfg.max_delta, image_size=cfg.image_size,
+                                                settle=cfg.settle),
         interface=PointMazeTextInterface(maze_map, cfg.action_mode, cfg.include_state, cfg.max_delta,
-                                         cfg.image_size),
+                                         cfg.image_size, cfg.prompt_style),
         train_sampler=sampler(cfg.start_states),
         eval_sampler=sampler(cfg.eval_start_states),
         max_turns=cfg.max_turns,

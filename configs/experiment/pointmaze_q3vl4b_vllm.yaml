@@ -1,0 +1,14 @@
+# @package _global_
+# The verified small-scale run: Qwen3-VL-4B LoRA, vLLM rollouts, UMaze, success reward.
+defaults:
+  - override /policy: qwen3vl4b_lora
+  - override /task: pointmaze
+  - override /rollout: vllm
+groups_per_step: 8
+group_size: 8
+micro_batch_size: 2
+max_new_tokens: 256
+eval_every: 5
+eval_episodes: 32
+save_every: 50
+out_dir: runs/pointmaze_q3vl4b_vllm

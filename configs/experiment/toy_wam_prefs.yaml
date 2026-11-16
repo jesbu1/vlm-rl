@@ -1,0 +1,5 @@
+# @package _global_
+defaults:
+  - override /policy: qwen3vl4b_lora
+  - override /task: toy_wam
+out_dir: runs/toy_wam_prefs

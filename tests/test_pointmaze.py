@@ -1,3 +1,5 @@
+import json
+
 import numpy as np
 import pytest
 
@@ -69,7 +71,7 @@ def test_reset_to_exact_state():
 
 
 def test_delta_controller_tracks_waypoint():
-    env = PointMazeSimVecEnv("open", image_size=32)
+    env = PointMazeSimVecEnv("open", image_size=32, settle=False)
     env.reset([_start((0, 0), (2.4, 1.4))])
     r = env.step([0], [np.array([1.0, 0.0])])[0]
     assert np.linalg.norm(r.obs.state[:2] - [1.0, 0.0]) < 0.1
@@ -78,7 +80,7 @@ def test_delta_controller_tracks_waypoint():
 
 
 def test_delta_is_clipped_to_max_delta():
-    env = PointMazeSimVecEnv("open", image_size=32, max_delta=0.5)
+    env = PointMazeSimVecEnv("open", image_size=32, max_delta=0.5, settle=False)
     env.reset([_start((-1, 0), (2.4, 1.4))])
     r = env.step([0], [np.array([5.0, 0.0])])[0]
     assert abs(r.obs.state[0] - (-0.5)) < 0.1
@@ -104,8 +106,37 @@ def test_success_terminates_early_with_reward():
     env.reset([_start((0, 0), (0.6, 0.0))])
     r = env.step([0], [np.array([0.6, 0.0])])[0]
     assert r.terminated and r.reward == 1.0 and r.info["success"]
-    assert r.info["dist"] <= GOAL_RADIUS
+    assert r.info["dist"] <= GOAL_RADIUS and r.info["stop"] == "success"
     assert len(r.info["low_level_actions"]) < 40
+
+
+def test_settle_runs_until_at_rest():
+    env = PointMazeSimVecEnv("open", image_size=32, settle=True)
+    env.reset([_start((0, 0), (2.4, 1.4))])
+    r = env.step([0], [np.array([0.8, 0.4])])[0]       # |d| < max_delta, so no clipping
+    assert r.info["stop"] == "reached"
+    assert np.linalg.norm(r.obs.state[:2] - [0.8, 0.4]) < 0.05 and np.linalg.norm(r.obs.state[2:]) < 0.1
+
+
+def test_settle_stops_when_blocked():
+    env = PointMazeSimVecEnv("umaze", image_size=32, settle=True)
+    env.reset([_start((1.0, 0.0), (-1, -1))])
+    r = env.step([0], [np.array([-1.0, 0.0])])[0]   # wall cell spans x in [-0.5, 0.5] on this row
+    assert r.info["stop"] == "blocked" and 0.5 < r.obs.state[0] < 0.7
+    assert len(r.info["low_level_actions"]) < 200
+
+
+def test_settle_capped_by_max_substeps():
+    env = PointMazeSimVecEnv("open", image_size=32, settle=True, max_substeps=5)
+    env.reset([_start((0, 0), (2.4, 1.4))])
+    r = env.step([0], [np.array([1.0, 0.0])])[0]
+    assert r.info["stop"] == "steps" and len(r.info["low_level_actions"]) == 5
+
+
+def test_obs_extras_include_distance():
+    env = PointMazeSimVecEnv("open", image_size=32)
+    o = env.reset([_start((0, 0), (0.3, 0.4))])[0]
+    assert np.isclose(o.extras["dist"], 0.5)
 
 
 def test_step_subset_of_slots_leaves_others_untouched():
@@ -134,7 +165,12 @@ def test_oracle_solves_maze(maze, rng):
 
 @pytest.fixture
 def itf():
-    return PointMazeTextInterface(get_maze_map("umaze"))
+    return PointMazeTextInterface(get_maze_map("umaze"), prompt_style="simple")
+
+
+@pytest.fixture
+def pear():
+    return PointMazeTextInterface(get_maze_map("umaze"))  # default = PEAR protocol
 
 
 @pytest.mark.parametrize("text,want", [
@@ -156,7 +192,7 @@ def test_parse_invalid(itf, text):
 
 
 def test_force_mode_parse_clips():
-    f = PointMazeTextInterface(get_maze_map("umaze"), action_mode="force")
+    f = PointMazeTextInterface(get_maze_map("umaze"), action_mode="force", prompt_style="simple")
     assert np.allclose(f.parse_action('<action>{"fx": 4, "fy": -0.5}</action>'), [1, -0.5])
     assert f.parse_action('<action>{"dx": 4, "dy": -0.5}</action>') is not None  # numeric fallback
     assert "fx" in f.system_prompt({})
@@ -171,7 +207,7 @@ def test_prompt_and_observation_message(itf):
     assert msg[0]["type"] == "image" and msg[0]["image"].size == (8, 8)
     assert "Round 3" in msg[1]["text"] and "(1.00, 2.00)" in msg[1]["text"] and "(-1.00, 0.50)" in msg[1]["text"]
     assert "no valid <action>" in msg[1]["text"]
-    no_state = PointMazeTextInterface(get_maze_map("umaze"), include_state=False)
+    no_state = PointMazeTextInterface(get_maze_map("umaze"), include_state=False, prompt_style="simple")
     assert "position" not in no_state.observation_message(obs, 0, None, False)[1]["text"]
     assert np.array_equal(itf.noop_action(), [0, 0])
 
@@ -213,3 +249,51 @@ def test_factory_bundle(rng):
     env = b.make_vec_env()
     obs = env.reset(b.train_sampler.sample(3, rng))
     assert obs[0].image.shape == (48, 48, 3)
+
+
+# ----------------------------------------------------------------------------- PEAR protocol interface
+
+def test_pear_prompt_follows_paper_template(pear):
+    sp = pear.system_prompt({"goal": np.array([1.0, -1.25])})
+    for section in ("## OBSERVATION", "## ACTION", "## EXECUTION", "## RESPONSE FORMAT", "## ENVIRONMENT", "## TASK"):
+        assert section in sp
+    assert sp.startswith("You are controlling a robot.")
+    assert "Lengths are in maze cells" in sp and "```json" in sp
+    assert "centred at x=1.00, y=-1.25" in sp
+    assert "centred" not in PointMazeTextInterface(get_maze_map("umaze"), include_state=False).system_prompt({"goal": [0, 0]})
+
+
+def test_pear_observation_state_json_then_image(pear):
+    obs = Obs(image=np.zeros((8, 8, 3), np.uint8), state=np.array([1.0, 2.0, 0.3, 0.0]), extras={"goal": np.zeros(2)})
+    msg = pear.observation_message(obs, 0, None, parse_error=False)
+    assert [c["type"] for c in msg] == ["text", "image"]
+    assert json.loads(msg[0]["text"]) == {"ball": {"x": 1.0, "y": 2.0}}
+    msg = pear.observation_message(obs, 1, None, parse_error=True)
+    assert "no valid action" in msg[0]["text"]
+
+
+@pytest.mark.parametrize("text,want", [
+    ('I will go right.\n```json\n{"ball": {"x": 0.5, "y": -1}}\n```', [0.5, -1]),
+    ('```json\n{"ball": {"x": 9, "y": 9}}\n``` then ```json\n{"ball": {"y": 0.2, "x": 0.1}}\n```', [0.1, 0.2]),
+    ('<action>{"ball": {"x": 0.3, "y": 0}}</action>', [0.3, 0]),          # tag fallback, same schema
+])
+def test_pear_parse_valid(pear, text, want):
+    assert np.allclose(pear.parse_action(text), want)
+
+
+@pytest.mark.parametrize("text", ['```json\n{"ball": {"x": 1}}\n```',      # missing quantity
+                                  '```json\n{"dx": 1, "dy": 0}\n```',      # wrong schema
+                                  '```json\n{"ball": {"x": 1, "y": }}\n```',
+                                  "no action at all", '```json\n{"ball": {"x": NaN, "y": 0}}\n```'])
+def test_pear_parse_invalid(pear, text):
+    assert pear.parse_action(text) is None
+
+
+def test_format_action_roundtrip(pear, itf):
+    for interface in (pear, itf):
+        assert np.allclose(interface.parse_action(interface.format_action(np.array([0.25, -0.5]))), [0.25, -0.5])
+
+
+def test_pear_requires_delta_mode():
+    with pytest.raises(AssertionError):
+        PointMazeTextInterface(get_maze_map("umaze"), action_mode="force", prompt_style="pear")

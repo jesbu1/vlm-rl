@@ -10,15 +10,15 @@ import numpy as np
 import torch
 
 
-def group_advantages(scores: list[list[float]], mode: str = "center", eps: float = 1e-6) -> list[list[float]]:
+def group_advantages(scores: list[list[float]], mode: str = "zscore", eps: float = 1e-6) -> list[list[float]]:
     """Per-group baselines.
 
-    * ``center`` : A = s - mean(s)              (score centering; Dr.GRPO-style, no std division)
-    * ``zscore`` : A = (s - mean) / (std + eps) (original GRPO)
-    * ``rloo``   : A = s - mean of the *other* G-1 members (unbiased leave-one-out baseline)
+    * ``zscore`` : A = (s - mean) / (std + eps)   GRPO; PEAR Eq. (1) -- the default
+    * ``center`` : A = s - mean(s)                 Dr.GRPO-style (no std division)
+    * ``rloo``   : A = s - mean of the *other* G-1 members (leave-one-out baseline)
 
-    NOTE: the PEAR blog cites "Score Centering" (Marek & Ryabinin) without spelling it out; ``center``
-    is the plain mean-centering reading of that name. Swap in the exact form here if needed.
+    (PEAR's "score centering" is *not* an advantage baseline; it is a gradient correction for
+    rollout/learner policy mismatch -- see ``score_centering_term``.)
     """
     out = []
     for g in scores:
@@ -41,22 +41,38 @@ def keep_group(scores: list[float], eps: float = 1e-6) -> bool:
     return float(np.std(scores)) > eps
 
 
+def score_centering_term(logp_at_ids: torch.Tensor, mu_probs: torch.Tensor) -> torch.Tensor:
+    """Score centering (Marek & Ryabinin; PEAR Eq. 2): a per-token surrogate whose gradient is
+    E_{v~mu}[grad log pi_theta(v|c)], the expected score under the *rollout* policy mu.
+
+    PEAR's estimator is  g = 1/N sum_i A_i sum_t [grad log pi(y_t|c_t) - E_{v~mu(.|c_t)} grad log pi(v|c_t)].
+    Since sum_v pi(v) grad log pi(v) = 0, the expectation equals sum_v (mu_v - pi_v) grad log pi_v; we
+    evaluate it on mu's top-k tokens, so the term is *exactly zero when mu == pi* (on-policy) for any k,
+    and the only approximation is the tail mass outside the top-k.
+
+    logp_at_ids [B,T,k]: log pi_theta at mu's top-k ids (with grad); mu_probs [B,T,k]: their mu probs.
+    """
+    pi = logp_at_ids.detach().exp()
+    return ((mu_probs - pi) * logp_at_ids).sum(-1)
+
+
 def policy_loss_sum(logp: torch.Tensor, adv: torch.Tensor, mask: torch.Tensor,
-                    old_logp: torch.Tensor | None = None, clip: tuple[float, float] | None = None
-                    ) -> tuple[torch.Tensor, dict]:
+                    old_logp: torch.Tensor | None = None, clip: tuple[float, float] | None = None,
+                    centering: torch.Tensor | None = None) -> tuple[torch.Tensor, dict]:
     """Summed (not averaged) per-token loss; the caller divides by the *global* token count.
 
     Summing per micro-batch and normalising once by the total number of response tokens in the
     whole step (FeynRL-style) gives the exact token-mean gradient regardless of how sequences were
     split into micro-batches. A per-micro-batch mean would overweight short micro-batches.
 
-    * ``old_logp is None`` -> REINFORCE (PEAR "bypass"): L = -A * log pi. On-policy with one update
-      per step this has the same gradient as the PPO surrogate at ratio=1.
+    * ``old_logp is None`` -> REINFORCE (PEAR "bypass"): L = -A * (log pi - centering), where
+      ``centering`` is the optional score-centering surrogate (``score_centering_term``). On-policy
+      with one update per step this has the same gradient as the PPO surrogate at ratio=1.
     * otherwise PPO/DAPO clipped surrogate with asymmetric (clip-higher) bounds.
     """
     mask = mask.to(logp.dtype)
     if old_logp is None:
-        per_tok = -adv * logp
+        per_tok = -adv * (logp - centering) if centering is not None else -adv * logp
         stats = {}
     else:
         ratio = torch.exp(logp - old_logp)

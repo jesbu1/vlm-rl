@@ -51,8 +51,13 @@ class TrainConfig:
     group_size: int = 8                                 # PEAR: 8
     filter_groups: bool = True                          # DAPO group filter
     max_resample_rounds: int = 3
-    adv_mode: str = "center"                            # center | zscore | rloo
-    ppo_epochs: int = 1                                 # 1 = PEAR (REINFORCE, no clipping)
+    adv_mode: str = "zscore"                            # zscore (GRPO, PEAR Eq. 1) | center | rloo
+    policy_loss: str = "reinforce"                      # reinforce (PEAR "bypass", no clipping) | ppo_clip
+    ppo_epochs: int = 1                                 # updates per batch; 1 = PEAR
+    score_centering: bool = True                        # PEAR: correct rollout/learner mismatch (active when off-policy)
+    score_centering_topk: int = 32                      # rollout-policy support used for the correction
+    on_invalid: str = "terminate"                       # PEAR: an invalid action ends the episode | "noop"
+    max_context_tokens: int | None = None               # PEAR: episode ends when the context budget is reached
     clip_low: float = 0.2
     clip_high: float = 0.28
     # optim
@@ -87,6 +92,13 @@ def make_env_bundle(name: str, kwargs: dict) -> EnvBundle:
     path = ENV_REGISTRY.get(name, name)
     mod, fn = path.split(":")
     return getattr(importlib.import_module(mod), fn)(**kwargs)
+
+
+END_REASONS = ("success", "invalid", "max_turns", "context", "terminated", "truncated")
+
+
+def end_reason_fracs(trajs, prefix):
+    return {f"{prefix}/end_{r}": float(np.mean([t.end_reason == r for t in trajs])) for r in END_REASONS}
 
 
 class Trainer:
@@ -139,8 +151,7 @@ class Trainer:
             rep = [s for s in starts for _ in range(c.group_size)]
             gids = [gid + i for i in range(n) for _ in range(c.group_size)]
             gid += n
-            trajs = rollout(self._gen(c.temperature), self.env, self.bundle.interface, rep, gids,
-                            self.bundle.max_turns, c.max_images)
+            trajs = self._rollout(c.temperature, rep, gids)
             groups = [trajs[i * c.group_size:(i + 1) * c.group_size] for i in range(n)]
             scores = self.reward_fn(groups)
             advs = algo.group_advantages(scores, c.adv_mode)
@@ -163,18 +174,30 @@ class Trainer:
         batches = [pol.build_batch(samples[i:i + c.micro_batch_size])
                    for i in range(0, len(samples), c.micro_batch_size)]
         n_tok = sum(float(b["loss_mask"].sum()) for b in batches)  # global token-mean denominator
+        # snapshot of the rollout policy mu (needed only when updating more than once per batch)
+        sc = c.score_centering and c.policy_loss == "reinforce" and c.ppo_epochs > 1
         old = None
         if c.ppo_epochs > 1:
             with torch.no_grad():
-                old = [pol.token_logprobs(b)[0].detach() for b in batches]
+                old = []
+                for b in batches:
+                    r = pol.token_logprobs(b, topk=c.score_centering_topk) if sc else pol.token_logprobs(b)
+                    old.append({"logp": r[0].detach(), **({k: v.detach() for k, v in r[2].items()} if sc else {})})
         stats = {"loss": 0.0, "clipfrac_sum": 0.0, "logp_sum": 0.0}
         for _ in range(c.ppo_epochs):
             self.opt.zero_grad(set_to_none=True)
             for bi, b in enumerate(batches):
-                logp, mask = pol.token_logprobs(b)
+                centering, old_logp = None, None
+                if sc:
+                    logp, mask, st = pol.token_logprobs(b, gather_ids=old[bi]["topk_ids"])
+                    centering = algo.score_centering_term(st["logp_at_ids"], old[bi]["topk_probs"])
+                else:
+                    logp, mask = pol.token_logprobs(b)
+                if c.policy_loss == "ppo_clip":
+                    old_logp = old[bi]["logp"] if old is not None else logp.detach()
                 adv = b["advantages"].to(logp.device)[:, None].expand_as(logp)
-                loss_sum, st = algo.policy_loss_sum(logp, adv, mask, None if old is None else old[bi],
-                                                    (c.clip_low, c.clip_high))
+                loss_sum, st = algo.policy_loss_sum(logp, adv, mask, old_logp, (c.clip_low, c.clip_high),
+                                                    centering=centering)
                 loss = loss_sum / n_tok
                 if not torch.isfinite(loss):
                     print("[warn] non-finite loss, skipping micro-batch")
@@ -191,17 +214,23 @@ class Trainer:
         return {"train/loss": stats["loss"] / c.ppo_epochs, "train/grad_norm": float(gn),
                 "train/tokens": n_tok, "train/sequences": len(samples),
                 "train/mean_logp": stats["logp_sum"] / max(n_tok, 1) / c.ppo_epochs,
-                **({"train/clipfrac": stats["clipfrac_sum"] / n_tok / c.ppo_epochs} if c.ppo_epochs > 1 else {})}
+                **({"train/clipfrac": stats["clipfrac_sum"] / n_tok / c.ppo_epochs}
+                   if c.policy_loss == "ppo_clip" else {})}
 
     # ------------------------------------------------------------------ eval / logging
     @torch.no_grad()
     def evaluate(self):
-        trajs = rollout(self._gen(self.cfg.eval_temperature), self.env, self.bundle.interface,
-                        self.eval_starts, list(range(len(self.eval_starts))), self.bundle.max_turns,
-                        self.cfg.max_images)
+        trajs = self._rollout(self.cfg.eval_temperature, self.eval_starts, list(range(len(self.eval_starts))))
         return {"eval/success": float(np.mean([t.success for t in trajs])),
                 "eval/turns": float(np.mean([len(t.turns) for t in trajs])),
-                "eval/invalid_frac": float(np.mean([t.num_invalid / max(1, len(t.turns)) for t in trajs]))}, trajs
+                "eval/invalid_frac": float(np.mean([t.num_invalid / max(1, len(t.turns)) for t in trajs])),
+                **end_reason_fracs(trajs, "eval")}, trajs
+
+    def _rollout(self, temperature, starts, gids):
+        c = self.cfg
+        return rollout(self._gen(temperature), self.env, self.bundle.interface, starts, gids, self.bundle.max_turns,
+                       c.max_images, on_invalid=c.on_invalid, max_context_tokens=c.max_context_tokens,
+                       last_tokens=lambda: getattr(self.generator, "last_num_tokens", []))
 
     def dump_episode(self, tr, tag, step=None):
         """Write a GIF + transcript to out_dir/episodes (and to wandb as media, if enabled)."""
@@ -258,6 +287,7 @@ class Trainer:
                 "rollout/invalid_frac": float(np.mean([t.num_invalid / max(1, len(t.turns)) for t in all_trajs])),
                 "rollout/resp_chars": float(np.mean([len(x.response) for t in all_trajs for x in t.turns])),
                 "rollout/groups_kept": len(groups), "rollout/rounds": rounds,
+                **end_reason_fracs(all_trajs, "rollout"),
                 "time/rollout": t1 - t0, "time/train": t2 - t1,
             })
             if c.log_samples_every and step % c.log_samples_every == 0:

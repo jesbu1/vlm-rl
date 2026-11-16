@@ -1,19 +1,20 @@
-"""Run a small grid of training runs (e.g. reward fns x models) and log them to one wandb group.
+"""Run a small grid of training runs (e.g. reward fns x models) into one wandb group.
 
-    python scripts/sweep.py configs/sweeps/pointmaze_small.json [--dry_run]
+    python scripts/sweep.py configs/sweeps/pointmaze_small.yaml [--dry_run]
 
-Sweep file:
-    {"base": "configs/pointmaze_qwen3vl4b_vllm.json",      # TrainConfig JSON (or inline dict)
-     "group": "pointmaze-small-v1",                         # wandb group + output subdir
-     "project": "vlm-rl-pointmaze",
-     "train_gpu": 0, "vllm_gpu": 1, "vllm_port": 8011,
-     "grid": {"model": ["Qwen/Qwen3-VL-2B-Instruct", "Qwen/Qwen3-VL-4B-Instruct"],
-              "reward": ["success", "success+0.5*neg_dist", "pref_oracle_dist"]},
-     "overrides": {"steps": 30}}
+Sweep file (YAML):
+    group: pointmaze-small-v1            # wandb group + runs/<group>/<run>/
+    project: vlm-rl-pointmaze
+    train_gpu: 0
+    vllm_gpu: 1
+    vllm_port: 8011
+    overrides: [experiment=pointmaze_q3vl4b_vllm, steps=30]     # Hydra overrides for every run
+    grid: {policy: [qwen3vl2b_lora, qwen3vl4b_lora], reward: [success, "success+0.5*neg_dist"]}
 
-Runs are ordered model-major so each model's vLLM server (rollout_backend == "vllm") is started
-once, reused for all of that model's runs, then stopped. Runs whose metrics.jsonl already reached
-`steps` are skipped, so re-running the sweep resumes it.
+Each grid point becomes Hydra overrides for scripts/train.py; the full config is composed up front
+(so typos fail before anything launches). Runs are ordered by model so each model's vLLM server
+(rollout_backend=vllm) is started once and reused. Finished runs are skipped => re-running resumes.
+Plain Hydra multirun (`train.py -m ...`) also works when no per-model vLLM server is needed.
 """
 from __future__ import annotations
 
@@ -27,47 +28,49 @@ import sys
 import time
 import urllib.request
 
+import yaml
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, ROOT)
 
 
 def slug(v) -> str:
-    s = v.split("/")[-1] if isinstance(v, str) else json.dumps(v, sort_keys=True)
+    s = str(v).split("/")[-1]
     return re.sub(r"[^A-Za-z0-9.+-]+", "_", s).strip("_")[:40]
 
 
+def _q(v) -> str:
+    """Quote override values containing Hydra-grammar characters."""
+    s = str(v)
+    return s if re.fullmatch(r"[A-Za-z0-9_./:-]+", s) else "'" + s.replace("'", "\\'") + "'"
+
+
 def expand(sweep: dict) -> list[dict]:
-    """Cartesian product of `grid` over `base` + `overrides`; one dict of TrainConfig fields per run."""
-    base = sweep["base"]
-    if isinstance(base, str):
-        with open(os.path.join(ROOT, base) if not os.path.isabs(base) else base) as f:
-            base = json.load(f)
-    base = {k: v for k, v in base.items() if not k.startswith("_")}
-    base.update(sweep.get("overrides", {}))
+    """-> [{"name", "overrides", "cfg"(TrainConfig)}], model-major order."""
+    from vlmrl.config import compose
     keys = list(sweep.get("grid", {}))
-    keys.sort(key=lambda k: k != "model")  # model-major ordering
     runs = []
     for combo in itertools.product(*[sweep["grid"][k] for k in keys]):
-        cfg = {**base, **dict(zip(keys, combo))}
-        if "env_kwargs" in sweep.get("grid", {}):
-            cfg["env_kwargs"] = {**base.get("env_kwargs", {}), **dict(zip(keys, combo))["env_kwargs"]}
         name = "__".join(f"{k}={slug(v)}" for k, v in zip(keys, combo)) or "base"
-        cfg["wandb_run_name"] = name
-        cfg["wandb_group"] = sweep["group"]
-        cfg["wandb_project"] = sweep.get("project", cfg.get("wandb_project"))
-        cfg["out_dir"] = f"runs/{sweep['group']}/{name}"
-        if cfg.get("rollout_backend") == "vllm":
-            cfg["vllm_url"] = f"http://localhost:{sweep.get('vllm_port', 8011)}"
-        runs.append(cfg)
+        ov = list(sweep.get("overrides", [])) + [f"{k}={_q(v)}" for k, v in zip(keys, combo)]
+        group = sweep["group"]
+        ov += [f"wandb_group={_q(group)}", f"wandb_run_name={_q(name)}", f"out_dir={_q(f'runs/{group}/{name}')}"]
+        if sweep.get("project"):
+            ov.append(f"wandb_project={_q(sweep['project'])}")
+        if "vllm_port" in sweep:
+            ov.append(f"vllm_url=http://localhost:{sweep['vllm_port']}")
+        runs.append({"name": name, "overrides": ov, "cfg": compose(ov)})
+    runs.sort(key=lambda r: r["cfg"].model)  # stable: keeps grid order within a model
     return runs
 
 
-def finished(cfg) -> bool:
-    p = os.path.join(ROOT, cfg["out_dir"], "metrics.jsonl")
+def finished(run) -> bool:
+    p = os.path.join(ROOT, run["cfg"].out_dir, "metrics.jsonl")
     if not os.path.exists(p):
         return False
     with open(p) as f:
-        steps = [json.loads(l)["step"] for l in f if l.strip()]
-    return bool(steps) and max(steps) >= cfg.get("steps", 0)
+        steps = [json.loads(line)["step"] for line in f if line.strip()]
+    return bool(steps) and max(steps) >= run["cfg"].steps
 
 
 def wait_ready(url, proc, timeout=1200):
@@ -89,42 +92,42 @@ def main():
     ap.add_argument("--dry_run", action="store_true")
     a = ap.parse_args()
     with open(a.sweep) as f:
-        sweep = json.load(f)
+        sweep = yaml.safe_load(f)
     runs = expand(sweep)
     print(f"{len(runs)} runs in group {sweep['group']}")
     for r in runs:
-        print(("  [done] " if finished(r) else "  ") + r["wandb_run_name"])
+        print(("  [done] " if finished(r) else "  ") + r["name"] + "   " + " ".join(r["overrides"]))
     if a.dry_run:
         return
     os.makedirs(os.path.join(ROOT, "runs", sweep["group"]), exist_ok=True)
     server, server_model = None, None
     try:
-        for cfg in runs:
-            if finished(cfg):
+        for r in runs:
+            cfg = r["cfg"]
+            if finished(r):
                 continue
-            if cfg.get("rollout_backend") == "vllm" and server_model != cfg["model"]:
+            if cfg.rollout_backend == "vllm" and server_model != cfg.model:
                 if server:
-                    server.terminate(); server.wait()
-                log = open(os.path.join(ROOT, "runs", sweep["group"], f"vllm_{slug(cfg['model'])}.log"), "w")
-                env = {**os.environ, "MAX_LORA_RANK": str(max(16, cfg.get("lora_rank", 64)))}
-                server = subprocess.Popen([os.path.join(ROOT, "scripts/launch_vllm.sh"), cfg["model"],
+                    server.terminate()
+                    server.wait()
+                log = open(os.path.join(ROOT, "runs", sweep["group"], f"vllm_{slug(cfg.model)}.log"), "w")
+                env = {**os.environ, "MAX_LORA_RANK": str(max(16, cfg.lora_rank))}
+                server = subprocess.Popen([os.path.join(ROOT, "scripts/launch_vllm.sh"), cfg.model,
                                            str(sweep.get("vllm_port", 8011)), str(sweep.get("vllm_gpu", 1))],
                                           stdout=log, stderr=subprocess.STDOUT, env=env, cwd=ROOT)
-                server_model = cfg["model"]
-                wait_ready(cfg["vllm_url"], server)
-            os.makedirs(os.path.join(ROOT, cfg["out_dir"]), exist_ok=True)
-            cfg_path = os.path.join(ROOT, cfg["out_dir"], "sweep_config.json")
-            with open(cfg_path, "w") as f:
-                json.dump(cfg, f, indent=2)
-            print(f"==> {cfg['wandb_run_name']}", flush=True)
+                server_model = cfg.model
+                wait_ready(cfg.vllm_url, server)
+            os.makedirs(os.path.join(ROOT, cfg.out_dir), exist_ok=True)
+            print(f"==> {r['name']}", flush=True)
             env = {**os.environ, "CUDA_VISIBLE_DEVICES": str(sweep.get("train_gpu", 0)), "PYTHONWARNINGS": "ignore"}
-            with open(os.path.join(ROOT, cfg["out_dir"], "train.log"), "w") as log:
-                rc = subprocess.call([sys.executable, "scripts/train.py", "--config", cfg_path],
+            with open(os.path.join(ROOT, cfg.out_dir, "train.log"), "w") as log:
+                rc = subprocess.call([sys.executable, "scripts/train.py", *r["overrides"]],
                                      stdout=log, stderr=subprocess.STDOUT, env=env, cwd=ROOT)
             print(f"    exit {rc}", flush=True)
     finally:
         if server:
-            server.terminate(); server.wait()
+            server.terminate()
+            server.wait()
 
 
 if __name__ == "__main__":

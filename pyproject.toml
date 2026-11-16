@@ -11,6 +11,8 @@ dependencies = [
   "numpy",
   "pillow",
   "imageio",
+  "hydra-core>=1.3",
+  "pyyaml",
 ]
 
 [project.optional-dependencies]

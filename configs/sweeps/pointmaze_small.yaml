@@ -1,0 +1,14 @@
+# Used by scripts/sweep.py (not loaded by Hydra directly). Each run = base overrides + one grid point.
+group: pointmaze-small-v1
+project: vlm-rl-pointmaze
+train_gpu: 0
+vllm_gpu: 1
+vllm_port: 8011
+overrides:
+  - experiment=pointmaze_q3vl4b_vllm
+  - steps=30
+  - env_kwargs.maze=medium
+  - env_kwargs.max_turns=15
+grid:
+  policy: [qwen3vl2b_lora, qwen3vl4b_lora]
+  reward: [success, "success+0.5*neg_dist", pref_oracle_dist]

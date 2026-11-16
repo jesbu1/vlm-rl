@@ -71,11 +71,15 @@ class VLLMServerGenerator:
                    "temperature": 0.0 if greedy else temperature, "top_p": 1.0 if greedy else top_p,
                    "top_k": -1, "n": 1}
         r = _post(f"{self.url}/v1/chat/completions", payload)
-        return (r["choices"][0]["message"].get("content") or "").strip()
+        u = r.get("usage") or {}
+        ntok = int(u.get("prompt_tokens", 0)) + int(u.get("completion_tokens", 0))
+        return (r["choices"][0]["message"].get("content") or "").strip(), ntok
 
     def generate(self, convs, max_new_tokens=256, temperature=1.0, top_p=1.0, batch_size=None):
         futs = [self.pool.submit(self._one, c, max_new_tokens, temperature, top_p) for c in convs]
-        return [f.result() for f in futs]
+        res = [f.result() for f in futs]
+        self.last_num_tokens = [n for _, n in res]  # context length per item, for token budgets
+        return [t for t, _ in res]
 
     def sync(self, policy, step: int):
         """Push the current LoRA weights to the server (save adapter -> hot-load -> unload previous)."""

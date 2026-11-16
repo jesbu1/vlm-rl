@@ -1,6 +1,6 @@
 import numpy as np
 
-from conftest import oracle_generate, random_generate
+from conftest import const_generate, oracle_generate, random_generate
 from vlmrl.envs.pointmaze import PointMazeConfig, make_pointmaze
 from vlmrl.rollout import context_view, rollout, to_samples
 
@@ -26,19 +26,63 @@ def test_oracle_rollout_succeeds_and_structure(rng):
 
 def test_max_turns_truncates(umaze, rng):
     env = umaze.make_vec_env()
-    noop = lambda convs: ['<action>{"dx": 0, "dy": 0}</action>'] * len(convs)
-    trajs = rollout(noop, env, umaze.interface, umaze.train_sampler.sample(3, rng), [0, 0, 0], 4)
-    assert all(len(t.turns) == 4 and t.done and not t.success for t in trajs)
+    trajs = rollout(const_generate(), env, umaze.interface, umaze.train_sampler.sample(3, rng), [0, 0, 0], 4)
+    assert all(len(t.turns) == 4 and t.done and not t.success and t.end_reason == "max_turns" for t in trajs)
 
 
 def test_parse_failure_is_noop_and_reported(umaze, rng):
     env = umaze.make_vec_env()
     start = umaze.train_sampler.sample(1, rng)
     bad = lambda convs: ["I refuse to use tags"] * len(convs)
-    t = rollout(bad, env, umaze.interface, start, [0], 3)[0]
+    t = rollout(bad, env, umaze.interface, start, [0], 3, on_invalid="noop")[0]
     assert t.num_invalid == 3 and all(x.action is None for x in t.turns)
     assert np.allclose(t.turns[-1].result.obs.state[:2], start[0]["qpos"])  # never moved
-    assert "no valid <action>" in t.messages[3]["content"][-1]["text"]
+    assert "no valid action" in t.messages[3]["content"][0]["text"]
+    assert t.end_reason == "max_turns"
+
+
+def test_invalid_action_terminates_episode_pear(umaze, rng):
+    """PEAR: an episode ends when a response contains no valid action."""
+    env = umaze.make_vec_env()
+    rounds = iter([[umaze.interface.format_action([0.2, 0.0])] * 2, ["oops, no json"] * 2])
+    starts = umaze.train_sampler.sample(2, rng)
+    trajs = rollout(lambda c: next(rounds), env, umaze.interface, starts, [0, 0], 6)
+    for t in trajs:
+        assert len(t.turns) == 2 and t.end_reason == "invalid" and not t.success and t.num_invalid == 1
+        assert t.messages[-1]["role"] == "assistant"
+        assert "dist" in t.turns[-1].result.info  # carried so distance-based rewards still work
+    # first-turn invalid: info comes from the observation extras
+    env2 = umaze.make_vec_env()
+    t = rollout(lambda c: ["nope"] * len(c), env2, umaze.interface, starts[:1], [0], 3)[0]
+    assert t.end_reason == "invalid" and np.isclose(t.turns[0].result.info["dist"],
+                                                    np.linalg.norm(starts[0]["qpos"] - starts[0]["goal"]))
+
+
+def test_all_invalid_round_does_not_call_step_with_empty_batch(rng):
+    from examples.toy_wam import make_bundle
+    b = make_bundle(max_turns=3, image_size=32)
+    t = rollout(lambda c: ["x"] * len(c), b.make_vec_env(), b.interface, b.train_sampler.sample(2, rng), [0, 0], 3)
+    assert all(x.end_reason == "invalid" for x in t)
+
+
+def test_context_token_budget_ends_episode(umaze, rng):
+    env = umaze.make_vec_env()
+    calls = {"n": 0}
+
+    def gen(convs):
+        calls["n"] += 1
+        return const_generate((0.1, 0.0))(convs)
+    budget = lambda: [1000 * calls["n"]] * 2           # context grows 1000 tokens per round
+    trajs = rollout(gen, env, umaze.interface, umaze.train_sampler.sample(2, rng), [0, 0], 10,
+                    max_context_tokens=2500, last_tokens=budget)
+    assert all(len(t.turns) == 3 and t.end_reason == "context" for t in trajs)
+
+
+def test_success_end_reason(rng):
+    b = make_pointmaze(PointMazeConfig(maze="umaze", max_turns=15, image_size=32))
+    env = b.make_vec_env()
+    t = rollout(oracle_generate(env.maze_map), env, b.interface, b.train_sampler.sample(2, rng), [0, 0], 15)
+    assert all(x.end_reason == "success" for x in t)
 
 
 def test_finished_episodes_stop_generating(umaze, rng):

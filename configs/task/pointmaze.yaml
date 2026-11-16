@@ -1,0 +1,13 @@
+# @package _global_
+env: pointmaze
+env_kwargs:
+  maze: umaze              # open | umaze | medium | large | *_diverse_gr
+  max_turns: 10
+  image_size: 336
+  include_state: true      # state JSON + goal coordinates in the prompt
+  prompt_style: pear       # pear (paper App. H protocol) | simple
+  settle: true             # act until target reached & at rest, or blocked (PEAR EXECUTION)
+  start_states: random     # random | Minari id (e.g. D4RL/pointmaze/umaze-v2) | path.npz
+  eval_start_states: random
+  min_goal_dist: 1.5
+reward: success

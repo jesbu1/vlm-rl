@@ -1,0 +1,15 @@
+# @package _global_
+# 1-step CPU smoke run with the tiny VLM (used by `make smoke` and the slow e2e test).
+defaults:
+  - override /policy: smolvlm256m
+env_kwargs: {maze: umaze, max_turns: 2, image_size: 64}
+steps: 1
+groups_per_step: 1
+group_size: 2
+max_new_tokens: 16
+eval_every: 1
+eval_episodes: 2
+filter_groups: false
+reward: neg_dist
+on_invalid: noop
+out_dir: runs/smoke

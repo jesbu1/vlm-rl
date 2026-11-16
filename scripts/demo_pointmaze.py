@@ -19,10 +19,12 @@ p.add_argument("--policy", default="oracle", choices=["oracle", "random"])
 p.add_argument("--episodes", type=int, default=16)
 p.add_argument("--max_turns", type=int, default=20)
 p.add_argument("--start_states", default="random")
+p.add_argument("--prompt_style", default="pear", choices=["pear", "simple"])
 p.add_argument("--out", default="outputs/demo")
 a = p.parse_args()
 
-bundle = make_pointmaze(PointMazeConfig(maze=a.maze, max_turns=a.max_turns, start_states=a.start_states))
+bundle = make_pointmaze(PointMazeConfig(maze=a.maze, max_turns=a.max_turns, start_states=a.start_states,
+                                       prompt_style=a.prompt_style))
 env, itf = bundle.make_vec_env(), bundle.interface
 rng = np.random.default_rng(0)
 starts = bundle.train_sampler.sample(a.episodes, rng)
@@ -36,7 +38,7 @@ for t in range(a.max_turns):
     for k in active:
         o = obs[k]
         d = oracle_delta(env.maze_map, o.state[:2], o.extras["goal"]) if a.policy == "oracle" else rng.uniform(-1, 1, 2)
-        texts.append(f'Moving toward the goal. <action>{{"dx": {d[0]:.2f}, "dy": {d[1]:.2f}}}</action>')
+        texts.append("Moving toward the goal.\n" + itf.format_action(d))
     acts = [itf.parse_action(x) for x in texts]
     res = env.step(active, acts)
     nxt = []
@@ -55,5 +57,7 @@ os.makedirs(a.out, exist_ok=True)
 imageio.mimsave(f"{a.out}/{a.maze}_{a.policy}.gif", frames, duration=0.4)
 with open(f"{a.out}/prompt.txt", "w") as f:
     f.write("SYSTEM:\n" + itf.system_prompt(starts[0]) + "\n\nUSER:\n")
-    f.write(itf.observation_message(env.reset(starts[:1])[0], 0, None, False)[1]["text"])
+    msg = itf.observation_message(env.reset(starts[:1])[0], 0, None, False)
+    f.write("\n".join(c["text"] if c["type"] == "text" else "<image>" for c in msg))
+    f.write("\n\nASSISTANT (example):\nMoving toward the goal.\n" + itf.format_action([0.5, 0.0]))
 print(f"{a.maze}/{a.policy}: success {succ.mean():.2f}, mean turns {turns.mean():.1f}  -> {a.out}")

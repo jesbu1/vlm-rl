@@ -1,0 +1,6 @@
+# @package _global_
+# Tiny model for smoke tests (CPU/MPS friendly). Disables image tiling (else ~1.1k tokens per frame).
+model: HuggingFaceTB/SmolVLM-256M-Instruct
+processor_kwargs: {do_image_splitting: false}
+lora_rank: 0
+lr: 1.0e-5

@@ -1,0 +1,21 @@
+# @package _global_
+# Closest to PEAR's Table 1: full FT, lr 1e-6, 128 groups x 8 (after filter), temperature 1.0 over the
+# full distribution, GRPO z-score advantages + DAPO filter, REINFORCE (no clipping), token-mean, no KL /
+# entropy, one update per step, whole episode in context, episode ends on invalid action / context budget.
+defaults:
+  - override /policy: qwen25vl7b_full
+  - override /task: pointmaze
+env_kwargs: {maze: medium, max_turns: 20}
+groups_per_step: 128
+group_size: 8
+filter_groups: true
+adv_mode: zscore
+policy_loss: reinforce
+ppo_epochs: 1
+score_centering: true
+on_invalid: terminate
+max_context_tokens: 32768
+temperature: 1.0
+top_p: 1.0
+max_images: null
+out_dir: runs/pear_recipe

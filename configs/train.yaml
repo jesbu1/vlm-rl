@@ -1,0 +1,21 @@
+# Root Hydra config. The schema is vlmrl.trainer.TrainConfig (registered as "train_schema"), so every
+# field is type-checked and overridable:  python scripts/train.py steps=50 env_kwargs.maze=medium
+# Groups (all "@package _global_", i.e. they set top-level TrainConfig fields):
+#   policy/      which VLM + finetuning mode     task/   env + its kwargs
+#   rollout/     hf (in-process) | vllm server   experiment/  full presets (selected last, wins)
+defaults:
+  - train_schema
+  - _self_
+  - policy: qwen3vl4b_lora
+  - task: pointmaze
+  - rollout: hf
+  - experiment: null
+
+hydra:
+  run:
+    dir: ${out_dir}                # .hydra/ (resolved config + overrides) lands next to metrics.jsonl
+  sweep:
+    dir: runs/multirun/${now:%Y-%m-%d_%H-%M-%S}
+    subdir: ${hydra.job.num}
+  job:
+    chdir: false
