@@ -1,0 +1,9 @@
+# @package _global_
+# SmolVLM-256M with LoRA (servable by vLLM). Full fine-tuning: policy=smolvlm256m with rollout=hf.
+# Serve with --max-model-len 8192 --mm-processor-kwargs '{"do_image_splitting": false}'.
+model: HuggingFaceTB/SmolVLM-256M-Instruct
+lora_rank: 64
+lora_alpha: 128
+lora_targets: '.*text_model.*\.(q_proj|k_proj|v_proj|o_proj|gate_proj|up_proj|down_proj)'
+processor_kwargs: {do_image_splitting: false}
+lr: 2.0e-5

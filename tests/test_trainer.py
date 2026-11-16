@@ -171,7 +171,8 @@ def test_shipped_experiments_compose(exp):
 
 
 @pytest.mark.parametrize("policy", ["qwen3vl4b_lora", "qwen3vl2b_lora", "qwen25vl3b_lora", "smolvlm256m",
-                                    "smolvlm2_2b_lora", "qwen25vl7b_full"])
+                                    "smolvlm2_2b_lora", "qwen25vl7b_full",
+                                    "gemma4_e2b_lora", "minicpmv46_lora", "smolvlm256m_lora"])
 def test_policy_presets_compose(policy):
     from vlmrl.config import compose
     assert compose([f"policy={policy}"]).model

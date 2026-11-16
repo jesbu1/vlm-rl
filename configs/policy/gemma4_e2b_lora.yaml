@@ -1,0 +1,8 @@
+# @package _global_
+# Gemma 4 E2B (5.1B total params, ~2B "effective": per-layer embeddings). The regex matches only the
+# language model; vision/audio tower linears are named *.linear and are excluded (not servable by vLLM).
+model: google/gemma-4-E2B-it
+lora_rank: 64
+lora_alpha: 128
+lora_targets: '.*language_model.*\.(q_proj|k_proj|v_proj|o_proj|gate_proj|up_proj|down_proj)'
+lr: 2.0e-5

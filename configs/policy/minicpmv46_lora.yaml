@@ -1,0 +1,9 @@
+# @package _global_
+# MiniCPM-V 4.6 (1.3B total). Hybrid LM: full-attention layers (q/k/v/o_proj) + linear-attention layers
+# (linear_attn.*, not targeted). The chat template rewrites earlier <think> blocks, so it is NOT
+# prefix-stable across turns: use max_frames=<int> or max_images=<int> (per-turn samples).
+model: openbmb/MiniCPM-V-4.6
+lora_rank: 64
+lora_alpha: 128
+lora_targets: '.*language_model.*\.(q_proj|k_proj|v_proj|o_proj|gate_proj|up_proj|down_proj)'
+lr: 2.0e-5
