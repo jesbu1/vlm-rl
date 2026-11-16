@@ -24,7 +24,7 @@ D4RL/Minari `pointmaze` datasets), PEAR's exact prompt protocol, and exact
 
 > **Status.** Verified on 2×A6000 with Qwen3-VL-4B + LoRA, using both the HF and the vLLM rollout
 > backends, with wandb logging. UMaze eval success went **0.625 → 1.0 in 20 RL steps** (§14).
-> 139 tests (133 fast CPU + 6 real-VLM), run locally and on the GPU box.
+> 142 tests (136 fast CPU + 6 real-VLM), passing locally and on the GPU box.
 
 ---
 
@@ -53,9 +53,9 @@ D4RL/Minari `pointmaze` datasets), PEAR's exact prompt protocol, and exact
 
 ```bash
 uv venv -p 3.11 .venv
-uv pip install -p .venv -e ".[pointmaze,offline,lora,wandb,dev]"
+uv pip install -p .venv -e ".[pointmaze,offline,lora,wandb,dev]"     # + smolvlm for SmolVLM2
 
-make test          # 133 fast tests, CPU, no downloads (~10 s)
+make test          # 136 fast tests, CPU, no downloads (~10 s)
 make test-slow     # + 6 tests with a real tiny VLM (downloads SmolVLM-256M once)
 make demo          # BFS oracle drives PointMaze through the text protocol -> outputs/demo/{*.gif,prompt.txt}
 make smoke         # 1 RL step with SmolVLM-256M on CPU  (= scripts/train.py experiment=smoke)
@@ -511,7 +511,7 @@ Measured on an A6000 (Qwen3-VL-4B LoRA, UMaze, 32 eval episodes): HF `generate` 
 ## 13. Testing
 
 ```bash
-make test        # pytest                  133 fast tests: CPU, no downloads, ~10 s
+make test        # pytest                  136 fast tests: CPU, no downloads, ~10 s
 make test-slow   # pytest --run-slow       + 6 real SmolVLM-256M tests (masks, logits_to_keep, padding, CLI e2e)
 make test-all    # pytest --run-slow --run-gpu
 ```
@@ -562,7 +562,17 @@ Qwen3-VL-4B-Instruct, LoRA r=64, lr 2e-5, UMaze, ≤10 rounds, 8 groups × 8, `r
 Steps took about 2–4 min on 2×A6000 (vLLM on GPU1, trainer on GPU0). Wall-clock *falls* as the
 policy improves (rollout 149 s → 30 s), and fewer groups survive the DAPO filter, which is GRPO
 saturating on an easy maze. The zero-shot failure mode, pushing into a wall repeatedly, is what RL
-removed. VERIFY_NOTE
+removed.
+
+**Verification of the PEAR-faithful code path** (GPU, Hydra CLI, `prompt_style=pear`, z-score
+advantages, `on_invalid=terminate`, context budget). Qwen3-VL-2B LoRA, HF backend, 3 steps × 2
+groups × 4: finite losses and gradients, 0% invalid actions, end reasons logged. It's a code-path
+check, not a learning result. **Observation:** zero-shot, the 2B model under PEAR's protocol
+often *echoes the current state JSON* (reading the action as an absolute pose rather than a change),
+so with `reward=success` every group is all-fail and gets filtered. A dense term
+(`success+0.5*neg_dist`) or a stronger/reasoning model gives signal. This matches the paper's note
+that a small base model needs a detailed embodiment description in the prompt. The sweep in
+`configs/sweeps/pointmaze_small.yaml` compares this across models and rewards.
 
 ---
 
