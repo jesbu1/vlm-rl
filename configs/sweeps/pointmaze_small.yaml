@@ -1,7 +1,7 @@
 # Used by scripts/sweep.py (not loaded by Hydra directly). Each run = base overrides + one grid point.
 # Runs are grouped by model in first-appearance order. Per-model training settings come from the
 # policy presets; per-model vLLM server flags from `vllm_args`.
-group: pointmaze-small-v1
+group: pointmaze-small-v2
 project: vlm-rl-pointmaze
 train_gpu: 0
 vllm_gpu: 1

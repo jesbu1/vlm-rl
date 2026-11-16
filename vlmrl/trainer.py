@@ -14,6 +14,7 @@ import importlib
 import json
 import os
 import time
+import uuid
 from dataclasses import dataclass, field
 
 import numpy as np
@@ -45,6 +46,7 @@ class TrainConfig:
     env_kwargs: dict = field(default_factory=dict)
     reward: str = "success"                             # see rewards.build_reward
     max_images: int | None = None                       # None = full multi-image history (PEAR); k = keep last k
+    max_frames: int | None = None                       # k = keep only the last k rounds (frame + text), train & eval
     # RL
     steps: int = 200
     groups_per_step: int = 8                            # PEAR: 128
@@ -75,6 +77,8 @@ class TrainConfig:
     eval_episodes: int = 32
     eval_temperature: float = 0.0
     save_every: int = 50
+    resume: bool = True                                 # continue from out_dir/resume/state.pt if it exists
+    resume_every: int = 1                               # steps between resume checkpoints (0 = off)
     log_samples_every: int = 5
     video_format: str = "mp4"                           # episode media: mp4 (H.264, wandb video player) | gif
     video_fps: float = 2.0                              # one frame per round
@@ -136,24 +140,32 @@ class Trainer:
             cfg.model, dtype=cfg.dtype, attn_implementation=cfg.attn_implementation,
             gradient_checkpointing=cfg.gradient_checkpointing, lora_rank=cfg.lora_rank,
             lora_alpha=cfg.lora_alpha, lora_targets=cfg.lora_targets, processor_kwargs=cfg.processor_kwargs)
-        if cfg.rollout_backend == "vllm":
-            from vlmrl.vllm_client import VLLMServerGenerator
-            self.generator = VLLMServerGenerator(cfg.vllm_url, cfg.model, f"{cfg.out_dir}/adapters")
-            self.generator.sync(self.policy, 0)  # serve the (freshly initialised) LoRA policy from step 0
-        elif cfg.rollout_backend == "hf":
-            self.generator = self.policy
-        else:
+        if cfg.rollout_backend not in ("hf", "vllm"):
             raise ValueError(f"unknown rollout_backend {cfg.rollout_backend!r}")
         params = [p for p in self.policy.model.parameters() if p.requires_grad]
         self.opt = torch.optim.AdamW(params, lr=cfg.lr, weight_decay=cfg.weight_decay, betas=(0.9, 0.999))
         self.params = params
         self.eval_starts = self.bundle.eval_sampler.sample(cfg.eval_episodes, np.random.default_rng(10_000 + cfg.seed))
+        self.start_step, pending = self.load_resume() if cfg.resume else (0, None)
+        if cfg.rollout_backend == "vllm":
+            from vlmrl.vllm_client import VLLMServerGenerator
+            self.generator = VLLMServerGenerator(cfg.vllm_url, cfg.model, f"{cfg.out_dir}/adapters")
+            self.generator.sync(self.policy, self.start_step)  # serve the initial / resumed LoRA policy
+        else:
+            self.generator = self.policy
         self.wandb = None
         if cfg.wandb_project:
             import wandb
+            id_file = f"{cfg.out_dir}/wandb_run_id"
+            run_id = open(id_file).read().strip() if cfg.resume and os.path.exists(id_file) else uuid.uuid4().hex[:8]
+            with open(id_file, "w") as f:
+                f.write(run_id)
             self.wandb = wandb.init(project=cfg.wandb_project, entity=cfg.wandb_entity, name=cfg.wandb_run_name,
                                     group=cfg.wandb_group, tags=[t for t in cfg.wandb_tags.split(",") if t],
-                                    config=dataclasses.asdict(cfg), dir=cfg.out_dir)
+                                    config=dataclasses.asdict(cfg), dir=cfg.out_dir, id=run_id, resume="allow")
+            self.backfill_wandb()
+        if pending is not None:  # crashed after checkpointing this step but before logging it
+            self.log(self.start_step, pending)
 
     # ------------------------------------------------------------------ rollouts
     def _gen(self, temperature):
@@ -188,7 +200,7 @@ class Trainer:
         trajs = [t for g in groups for t in g if abs(t.advantage) > 1e-8]  # zero-adv => zero gradient
         if not trajs:
             return {"train/skipped": 1.0}
-        samples = to_samples(trajs, c.max_images)
+        samples = to_samples(trajs, c.max_images, c.max_frames)
         samples.sort(key=lambda s: len(s.messages))  # length-bucketing -> less padding per micro-batch
         batches = [pol.build_batch(samples[i:i + c.micro_batch_size])
                    for i in range(0, len(samples), c.micro_batch_size)]
@@ -249,7 +261,7 @@ class Trainer:
         c = self.cfg
         return rollout(self._gen(temperature), self.env, self.bundle.interface, starts, gids, self.bundle.max_turns,
                        c.max_images, on_invalid=c.on_invalid, max_context_tokens=c.max_context_tokens,
-                       last_tokens=lambda: getattr(self.generator, "last_num_tokens", []))
+                       last_tokens=lambda: getattr(self.generator, "last_num_tokens", []), max_frames=c.max_frames)
 
     def dump_episode(self, tr, tag, step=None):
         """Write a video (mp4 or gif) + transcript to out_dir/episodes, and to wandb as media if enabled."""
@@ -274,22 +286,74 @@ class Trainer:
                 media[f"{kind}/episode"] = wandb.Video(video, caption=caption, format=self.cfg.video_format)
             self.wandb.log(media, step=step, commit=False)
 
+    # ------------------------------------------------------------------ resume
+    def save_resume(self, step, metrics):
+        """Everything needed to continue after `step`: trainable weights, optimizer, sampler RNG, and the
+        step's metrics (so a crash between checkpointing and logging loses nothing). Written atomically."""
+        d = f"{self.cfg.out_dir}/resume"
+        os.makedirs(d, exist_ok=True)
+        state = {"step": step, "metrics": metrics, "opt": self.opt.state_dict(),
+                 "trainable": {n: p.detach().cpu() for n, p in self.policy.model.named_parameters() if p.requires_grad},
+                 "rng": self.rng.bit_generator.state, "torch_rng": torch.get_rng_state()}
+        torch.save(state, f"{d}/state.pt.tmp")
+        os.replace(f"{d}/state.pt.tmp", f"{d}/state.pt")
+
+    def load_resume(self):
+        """Restore from out_dir/resume/state.pt; returns (step, metrics not yet in metrics.jsonl or None).
+        metrics.jsonl is truncated to steps <= the checkpoint, so re-run steps aren't duplicated."""
+        path, mpath = f"{self.cfg.out_dir}/resume/state.pt", f"{self.cfg.out_dir}/metrics.jsonl"
+        if not os.path.exists(path):
+            if os.path.exists(mpath):  # crashed before the first checkpoint: start over cleanly
+                os.replace(mpath, f"{mpath}.prev")
+            return 0, None
+        state = torch.load(path, weights_only=False)
+        named = dict(self.policy.model.named_parameters())
+        with torch.no_grad():
+            for n, v in state["trainable"].items():
+                named[n].copy_(v.to(named[n].device, named[n].dtype))
+        self.opt.load_state_dict(state["opt"])
+        self.rng.bit_generator.state = state["rng"]
+        torch.set_rng_state(state["torch_rng"])
+        step, lines = state["step"], []
+        if os.path.exists(mpath):
+            with open(mpath) as f:
+                lines = [l for l in f if l.strip() and json.loads(l)["step"] <= step]
+            with open(mpath, "w") as f:
+                f.writelines(lines)
+        logged = any(json.loads(l)["step"] == step for l in lines)
+        print(f"[resume] continuing after step {step} from {path}", flush=True)
+        return step, None if logged else state["metrics"]
+
+    def backfill_wandb(self):
+        """A hard kill can lose the last rows before wandb uploads them. A resumed wandb run reports
+        the next step it expects, so re-send the metrics.jsonl rows it doesn't have (scalars only)."""
+        path = f"{self.cfg.out_dir}/metrics.jsonl"
+        if not os.path.exists(path):
+            return
+        with open(path) as f:
+            rows = [json.loads(l) for l in f if l.strip()]
+        missing = [r for r in rows if r["step"] >= self.wandb.step]
+        for r in missing:
+            self.wandb.log({k: v for k, v in r.items() if k != "step"}, step=r["step"], commit=True)
+        if missing:
+            print(f"[resume] re-sent {len(missing)} metrics rows to wandb (steps {missing[0]['step']}..)", flush=True)
+
     def log(self, step, metrics):
         line = {"step": step, **{k: (round(v, 4) if isinstance(v, float) else v) for k, v in metrics.items()}}
         print(json.dumps(line), flush=True)
         with open(f"{self.cfg.out_dir}/metrics.jsonl", "a") as f:
             f.write(json.dumps(line) + "\n")
         if self.wandb:
-            self.wandb.log(metrics, step=step)
+            self.wandb.log(metrics, step=step, commit=True)  # don't hold the row open until the next step
 
     # ------------------------------------------------------------------ main loop
     def train(self):
         c = self.cfg
-        if c.eval_every:
+        if c.eval_every and self.start_step == 0:
             m, trajs = self.evaluate()
             self.log(0, m)
             self.dump_episode(trajs[0], "eval_step0", 0)
-        for step in range(1, c.steps + 1):
+        for step in range(self.start_step + 1, c.steps + 1):
             t0 = time.time()
             groups, all_trajs, rounds = self.collect()
             t1 = time.time()
@@ -315,6 +379,8 @@ class Trainer:
                 em, trajs = self.evaluate()
                 m.update(em)
                 self.dump_episode(trajs[0], f"eval_step{step}", step)
+            if c.resume_every and (step % c.resume_every == 0 or step == c.steps):
+                self.save_resume(step, m)
             self.log(step, m)
             if c.save_every and step % c.save_every == 0:
                 self.policy.save(f"{c.out_dir}/ckpt_step{step}")

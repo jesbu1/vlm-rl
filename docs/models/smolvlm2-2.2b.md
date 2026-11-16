@@ -43,5 +43,5 @@ CUDA_VISIBLE_DEVICES=0 python scripts/train.py experiment=pointmaze_q3vl4b_vllm 
 
 ## Status
 
-Part of the `pointmaze-small-v1` reward × model sweep. Results go to wandb group `pointmaze-small-v1`
+Part of the `pointmaze-small-v2` reward × model sweep. Results go to wandb group `pointmaze-small-v2`
 (see [Experiment log](../training/experiments.md)).

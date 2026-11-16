@@ -14,4 +14,19 @@ python scripts/train.py experiment=pointmaze_q3vl4b_vllm steps=40 wandb_project=
 
 Outputs go to `out_dir/`: `.hydra/` (the resolved config and overrides), `config.json`,
 `metrics.jsonl` (one JSON line per step), `episodes/*.mp4|txt` (sample episode videos with full transcripts; `video_format=gif` for GIFs),
-`ckpt_step*/` (`save_pretrained` adapter or full weights + processor) and `adapters/` (vLLM sync).
+`ckpt_step*/` (`save_pretrained` adapter or full weights + processor), `adapters/` (vLLM sync) and `resume/state.pt`.
+
+## Resuming
+
+After every step (`resume_every`, default 1), the trainer atomically writes `out_dir/resume/state.pt`:
+trainable weights, optimizer state, the sampler RNG, and that step's metrics. **Re-running the same command
+continues after the last checkpointed step**:
+
+- `metrics.jsonl` is truncated to that step, so re-run steps aren't duplicated, and a step that was
+  checkpointed but not yet logged is logged.
+- The same wandb run is resumed (its id is kept in `out_dir/wandb_run_id`), and rows the server lost in
+  a hard kill are re-sent.
+- With the vLLM backend, the server gets the restored adapter under a fresh, unique name.
+
+`resume=false` starts over. [Sweeps](sweeps.md) rely on this, so re-running a sweep after a crash or
+reboot resumes it.

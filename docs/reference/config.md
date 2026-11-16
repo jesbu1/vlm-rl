@@ -34,6 +34,7 @@ Every field of `vlmrl.trainer.TrainConfig`, the Hydra schema. Set any of them on
 | `env_kwargs` | `dict` | `{'maze': 'umaze', 'max_turns': 10, 'image_size': 336, 'include_state': True, 'prompt_style': 'pear', 'settle': True, 'start_states': 'random', 'eval_start_states': 'random', 'min_goal_dist': 1.5}` |  |
 | `reward` | `str` | `'success'` | see rewards.build_reward |
 | `max_images` | `int \| None` | `null` | None = full multi-image history (PEAR); k = keep last k |
+| `max_frames` | `int \| None` | `null` | k = keep only the last k rounds (frame + text), train & eval |
 
 ## RL
 
@@ -80,6 +81,8 @@ Every field of `vlmrl.trainer.TrainConfig`, the Hydra schema. Set any of them on
 | `eval_episodes` | `int` | `32` |  |
 | `eval_temperature` | `float` | `0.0` |  |
 | `save_every` | `int` | `50` |  |
+| `resume` | `bool` | `True` | continue from out_dir/resume/state.pt if it exists |
+| `resume_every` | `int` | `1` | steps between resume checkpoints (0 = off) |
 | `log_samples_every` | `int` | `5` |  |
 | `video_format` | `str` | `'mp4'` | episode media: mp4 (H.264, wandb video player) \| gif |
 | `video_fps` | `float` | `2.0` | one frame per round |

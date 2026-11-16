@@ -33,9 +33,11 @@ python scripts/train.py rollout=vllm vllm_url=http://localhost:8011
 
 ### How weight sync works
 
-1. At startup and after each optimizer step, the trainer saves the LoRA adapter to
-   `out_dir/adapters/policy_step{N}` and calls `POST /v1/load_lora_adapter`.
-2. Later requests use `model=policy_step{N}`.
+1. At startup (or after resuming) and after each optimizer step, the trainer saves the LoRA adapter to
+   `out_dir/adapters/policy_<tag>_step{N}` and calls `POST /v1/load_lora_adapter`. `<tag>` is unique per
+   trainer process: a sweep reuses one server across runs, and resumed runs restart at an old step, so vLLM
+   would otherwise refuse a name that's still loaded.
+2. Later requests use `model=policy_<tag>_step{N}`.
 3. The previous adapter is unloaded and its directory deleted.
 
 This is simple and robust, and it needs no NCCL. Full-weight sync is on the [roadmap](../development/roadmap.md).

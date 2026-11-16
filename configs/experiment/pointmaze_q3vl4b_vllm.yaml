@@ -4,6 +4,9 @@ defaults:
   - override /policy: qwen3vl4b_lora
   - override /task: pointmaze
   - override /rollout: vllm
+# PointMaze observations are Markov (state JSON + image after the ball comes to rest), so each turn only
+# needs the current round: short single-frame prompts, cheap per-turn training samples.
+max_frames: 1
 groups_per_step: 8
 group_size: 8
 micro_batch_size: 2

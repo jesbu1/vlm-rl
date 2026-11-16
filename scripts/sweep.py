@@ -3,7 +3,7 @@
     python scripts/sweep.py configs/sweeps/pointmaze_small.yaml [--dry_run]
 
 Sweep file (YAML):
-    group: pointmaze-small-v1            # wandb group + runs/<group>/<run>/
+    group: pointmaze-small-v2            # wandb group + runs/<group>/<run>/
     project: vlm-rl-pointmaze
     train_gpu: 0
     vllm_gpu: 1
@@ -17,7 +17,9 @@ Per-model *training* settings (LoRA target names, processor kwargs) live in the 
 
 Each grid point becomes Hydra overrides for scripts/train.py; the full config is composed up front
 (so typos fail before anything launches). Runs are ordered by model so each model's vLLM server
-(rollout_backend=vllm) is started once and reused; models keep their grid order. Finished runs are skipped => re-running resumes.
+(rollout_backend=vllm) is started once and reused; models keep their grid order. Finished runs are
+skipped and unfinished runs continue from their last per-step checkpoint (TrainConfig.resume), so
+re-running the sweep (e.g. after a crash or reboot) resumes it.
 Plain Hydra multirun (`train.py -m ...`) also works when no per-model vLLM server is needed.
 """
 from __future__ import annotations
@@ -146,7 +148,7 @@ def main():
             os.makedirs(os.path.join(ROOT, cfg.out_dir), exist_ok=True)
             print(f"==> {r['name']}", flush=True)
             env = {**os.environ, "CUDA_VISIBLE_DEVICES": str(sweep.get("train_gpu", 0)), "PYTHONWARNINGS": "ignore"}
-            with open(os.path.join(ROOT, cfg.out_dir, "train.log"), "w") as log:
+            with open(os.path.join(ROOT, cfg.out_dir, "train.log"), "a") as log:  # resumed runs append
                 rc = subprocess.call([sys.executable, "scripts/train.py", *r["overrides"]],
                                      stdout=log, stderr=subprocess.STDOUT, env=env, cwd=ROOT)
             print(f"    exit {rc}", flush=True)

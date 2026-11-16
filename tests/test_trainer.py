@@ -276,3 +276,74 @@ def test_gif_video_format_option(tmp_path):
                       log_samples_every=1, save_every=0, filter_groups=False, reward="neg_dist", video_format="gif")
     Trainer(cfg, policy=FakePolicy(random_generate(0)), bundle=_bundle()).train()
     assert (tmp_path / "episodes" / "train_step1.gif").exists()
+
+
+def _resume_cfg(tmp_path, steps, **kw):
+    return TrainConfig(out_dir=str(tmp_path), steps=steps, groups_per_step=2, group_size=3, eval_every=2,
+                       eval_episodes=2, log_samples_every=0, save_every=0, lr=0.05, filter_groups=False,
+                       reward="neg_dist", **kw)
+
+
+def test_resume_continues_after_last_checkpoint(tmp_path):
+    t1 = Trainer(_resume_cfg(tmp_path, 2), policy=FakePolicy(random_generate(0)), bundle=_bundle())
+    t1.train()
+    theta, rng_state = t1.policy.model.theta.detach().clone(), t1.rng.bit_generator.state
+    assert torch.any(theta != 0)
+    # a re-launch with more steps picks up at step 3 with weights, optimizer and sampler RNG restored
+    t2 = Trainer(_resume_cfg(tmp_path, 4), policy=FakePolicy(random_generate(1)), bundle=_bundle())
+    assert t2.start_step == 2 and torch.equal(t2.policy.model.theta.detach(), theta)
+    assert t2.rng.bit_generator.state == rng_state and len(t2.opt.state_dict()["state"]) == 1
+    t2.train()
+    assert [json.loads(l)["step"] for l in open(tmp_path / "metrics.jsonl")] == [0, 1, 2, 3, 4]
+    # resume=False starts over
+    assert Trainer(_resume_cfg(tmp_path, 4, resume=False), policy=FakePolicy(random_generate(0)),
+                   bundle=_bundle()).start_step == 0
+
+
+def test_resume_relogs_pending_step_and_truncates_extra_lines(tmp_path):
+    Trainer(_resume_cfg(tmp_path, 2), policy=FakePolicy(random_generate(0)), bundle=_bundle()).train()
+    path = tmp_path / "metrics.jsonl"
+    lines = path.read_text().splitlines()
+    # crash after checkpointing step 2 but before logging it; plus a stray line from a later step
+    path.write_text("\n".join(lines[:-1] + ['{"step": 3, "x": 1}']) + "\n")
+    t = Trainer(_resume_cfg(tmp_path, 2), policy=FakePolicy(random_generate(0)), bundle=_bundle())
+    t.train()  # nothing left to do
+    got = [json.loads(l) for l in path.read_text().splitlines()]
+    assert [l["step"] for l in got] == [0, 1, 2] and got[-1] == json.loads(lines[-1])
+
+
+def test_restart_without_checkpoint_starts_over(tmp_path):
+    (tmp_path / "metrics.jsonl").write_text('{"step": 0, "eval/success": 0.5}\n')
+    t = Trainer(_resume_cfg(tmp_path, 1), policy=FakePolicy(random_generate(0)), bundle=_bundle())
+    assert t.start_step == 0 and not (tmp_path / "metrics.jsonl").exists()
+    t.train()
+    assert [json.loads(l)["step"] for l in open(tmp_path / "metrics.jsonl")] == [0, 1]
+
+
+def test_wandb_resume_reuses_run_id(tmp_path, monkeypatch):
+    pytest.importorskip("wandb")
+    monkeypatch.setenv("WANDB_MODE", "offline")
+    monkeypatch.setenv("WANDB_SILENT", "true")
+    kw = dict(wandb_project="vlmrl-test", wandb_run_name="unit")
+    t1 = Trainer(_resume_cfg(tmp_path, 1, **kw), policy=FakePolicy(random_generate(0)), bundle=_bundle())
+    rid = t1.wandb.id
+    t1.train()
+    t2 = Trainer(_resume_cfg(tmp_path, 2, **kw), policy=FakePolicy(random_generate(0)), bundle=_bundle())
+    assert t2.wandb.id == rid and t2.start_step == 1
+    t2.train()
+
+
+def test_backfill_wandb_resends_rows_the_server_lacks(tmp_path):
+    t = Trainer(_resume_cfg(tmp_path, 3), policy=FakePolicy(random_generate(0)), bundle=_bundle())
+    t.train()
+
+    class FakeRun:
+        step = 2  # server has steps 0..1 (e.g. step 2+ were buffered when the process was killed)
+        logged = []
+
+        def log(self, data, step=None, commit=None):
+            self.logged.append((step, data))
+    t.wandb = FakeRun()
+    t.backfill_wandb()
+    assert [s for s, _ in FakeRun.logged] == [2, 3] and "rollout/success" in FakeRun.logged[0][1]
+    assert "step" not in FakeRun.logged[0][1]

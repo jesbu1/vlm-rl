@@ -6,13 +6,13 @@ models.
 ```bash
 python scripts/sweep.py configs/sweeps/pointmaze_small.yaml --dry_run    # list runs + their overrides
 nohup python scripts/sweep.py configs/sweeps/pointmaze_small.yaml > sweep.log 2>&1 &
-python scripts/make_wandb_report.py --group pointmaze-small-v1 --takeaways takeaways.md
+python scripts/make_wandb_report.py --group pointmaze-small-v2 --takeaways takeaways.md
 ```
 
 ## Sweep file
 
 ```yaml
-group: pointmaze-small-v1          # wandb group + runs/<group>/<run>/
+group: pointmaze-small-v2          # wandb group + runs/<group>/<run>/
 project: vlm-rl-pointmaze
 train_gpu: 0
 vllm_gpu: 1
@@ -35,7 +35,9 @@ vllm_args:                          # extra `vllm serve` flags per model
    and `wandb_run_name`.
 2. **Groups runs by model**, in the order models first appear in the grid. Each model's vLLM server
    (`rollout_backend=vllm`) is started once and reused for all of that model's runs.
-3. **Skips finished runs**: `metrics.jsonl` already reached `steps`. Re-running the sweep resumes it.
+3. **Skips finished runs** (`metrics.jsonl` already reached `steps`) and **resumes unfinished ones** from
+   their last per-step checkpoint ([Resuming](index.md#resuming)), appending to `train.log`. Re-running
+   the sweep after a crash or reboot picks up where it stopped.
 4. **Stops servers robustly**: the server runs in its own process group, which is SIGTERMed and then
    SIGKILLed. vLLM can ignore SIGTERM during startup, and killing only the parent would orphan the
    GPU-holding engine process.

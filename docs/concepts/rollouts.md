@@ -42,6 +42,13 @@ stateDiagram-v2
   `[earlier image omitted]`, while the text history stays. Contexts now differ per turn, so each turn
   becomes its own training sample with **exactly** the view it was generated from
   (`rollout.context_view` is shared by rollout and training, and a test checks they match).
+- **`max_frames=k`.** Only the system prompt and the last *k* rounds (each observation message and
+  the replies after it) are kept, and older rounds are dropped entirely, text included. Each turn becomes its own
+  training sample. `max_frames=1` turns every round into a short single-frame prompt, which is cheap and the
+  right choice when the observation is **Markov**: PointMaze with `include_state=true`, where the
+  ball is at rest after each action. `experiment=pointmaze_q3vl4b_vllm` sets it, but PEAR keeps the full
+  history, so `experiment=pear_recipe` doesn't. `max_frames` and `max_images` compose: frames are cut first,
+  then images.
 
 ## Groups
 

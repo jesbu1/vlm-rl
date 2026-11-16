@@ -39,8 +39,14 @@ Qwen3-VL-2B LoRA, HF backend, PEAR protocol, z-score advantages, `on_invalid=ter
 - With `reward='success+0.5*neg_dist'`: finite losses (grad norm 0.6–1.0), 0% invalid actions, rollout
   success 0 → 0.19 at step 3. That's 16 episodes, so it only shows the code path works.
 
-## In progress · `pointmaze-small-v1` sweep
+## In progress · `pointmaze-small-v2` sweep
 
 {Qwen3-VL-2B, Qwen3-VL-4B, SmolVLM2-2.2B} × {`success`, `success+0.5*neg_dist`, `pref_oracle_dist`} on
-PointMaze **medium**, 30 steps each (`configs/sweeps/pointmaze_small.yaml`). The comparison report
-will be in wandb group `pointmaze-small-v1`.
+PointMaze **medium**, 30 steps each, with `max_frames=1`. Results go to wandb group `pointmaze-small-v2`.
+
+!!! note "Which code it runs"
+    This sweep was launched from the puget checkout **before** the PEAR-faithful defaults landed, so it
+    uses `prompt_style=simple`, `adv_mode=center`, `on_invalid=noop` and fixed 40-substep actions. Its
+    results are comparable with each other and with the UMaze dev run, but not with runs on the current
+    defaults. `pointmaze-small-v1` was stopped after 2 steps and superseded by v2, which adds `max_frames=1`
+    and resumable training.

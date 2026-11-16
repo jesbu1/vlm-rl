@@ -13,7 +13,7 @@ selects the Table 1 settings in one go.
 | token-mean over the batch | summed micro-batch losses ÷ global token count | exact under any micro-batching |
 | no KL / entropy, 1 update per step, AdamW | — | `ppo_epochs=1`; `lr` 1e-6 full FT, ≈2e-5 LoRA |
 | temperature 1.0, full distribution | `temperature=1 top_p=1`, `top_k=0` forced | checkpoint generation configs are overridden (see [Models](../models/index.md#generation-config)) |
-| whole episode = one sequence | `max_images=null` | `max_images=k` → per-turn samples |
+| whole episode = one sequence | `max_images=null max_frames=null` | `max_images=k` keeps the last k images, `max_frames=k` the last k rounds (per-turn samples) |
 | protocol (App. H) | `vlmrl/envs/protocol.py` | `env_kwargs.prompt_style=pear` |
 | EXECUTION: until reached & at rest / blocked | `PointMazeSimVecEnv(settle=True)` | `env_kwargs.settle=true` |
 | episode ends on invalid action | `rollout(on_invalid="terminate")` | `on_invalid=terminate` |
