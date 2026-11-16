@@ -437,7 +437,18 @@ The full `TrainConfig` is the run config, so you can group and filter by `config
 Qwen3-VL-4B-Instruct, LoRA r=64 (language model only), lr 2e-5, UMaze, `include_state=True`,
 ≤10 turns, 8 groups × 8, `reward=success`, vLLM rollouts:
 
-RESULTS_TABLE
+| step | eval success (greedy, fixed 32 starts) | eval mean turns | rollout success (T=1.0) | rollout mean turns |
+|---|---|---|---|---|
+| 0 (zero-shot) | 0.625 | 6.03 | – | – |
+| 1 | – | – | 0.48 | 6.71 |
+| 5 | 0.656 | 5.66 | 0.66 | 6.35 |
+| 10 | **0.906** | **4.94** | **0.91** | **4.26** |
+
+About 2–4 min per step on 2×A6000 (vLLM on GPU1, trainer on GPU0). Wall-clock per step *falls* as the
+policy improves (shorter episodes; rollout 149 s → 30 s), and fewer groups survive the DAPO filter
+(more all-success groups), which is the expected signature of GRPO saturating on an easy maze. The
+next step is harder settings (`medium`/`large`, `include_state=false`); see `configs/sweeps/`.
+Runs live in wandb project `vlm-rl-pointmaze` (group `dev`).
 
 Zero-shot, the model already uses the format perfectly (0% invalid). Its typical failure is
 pushing into a wall repeatedly even though its position doesn't change, which is what RL needs to fix.
