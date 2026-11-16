@@ -94,3 +94,35 @@ def test_full_context_single_sample(umaze, rng):
     (s,) = to_samples([t], None)
     assert s.messages is t.messages and s.meta["group"] == 3
     assert [t.messages[i]["role"] for i in s.train_msg_idx] == ["assistant"] * len(t.turns)
+
+
+def test_context_view_max_frames_keeps_system_and_last_rounds(umaze, rng):
+    env = umaze.make_vec_env()
+    t = rollout(random_generate(), env, umaze.interface, umaze.train_sampler.sample(1, rng), [0], 5)[0]
+    assert len(t.turns) >= 3
+    ctx = t.messages[:-1]                                      # what turn T saw: ends with its observation
+    v = context_view(ctx, None, 1)
+    assert [m["role"] for m in v] == ["system", "user"] and v[0] is ctx[0] and v[1] is ctx[-1]
+    v2 = context_view(ctx, None, 2)
+    assert [m["role"] for m in v2] == ["system", "user", "assistant", "user"] and v2[1:] == ctx[-3:]
+    assert context_view(ctx, None, 100) == ctx
+    # frames and images compose: 2 rounds kept, only the newest image
+    v3 = context_view(ctx, 1, 2)
+    assert sum(c["type"] == "image" for m in v3 for c in m["content"]) == 1
+
+
+def test_rollout_context_matches_training_samples_max_frames(umaze, rng):
+    """max_frames=1: generate() sees [system, current obs] each turn, and per-turn samples match exactly."""
+    env = umaze.make_vec_env()
+    seen = []
+    base = random_generate(1)
+
+    def gen(convs):
+        seen.extend(list(c) for c in convs)  # the untruncated first-turn view is the live message list
+        return base(convs)
+    t = rollout(gen, env, umaze.interface, umaze.train_sampler.sample(1, rng), [0], 4, max_frames=1)[0]
+    assert all([m["role"] for m in ctx] == ["system", "user"] for ctx in seen)
+    samples = to_samples([t], None, 1)
+    assert len(samples) == len(t.turns) == len(seen)
+    for s, ctx in zip(samples, seen):
+        assert s.messages[:-1] == ctx and s.messages[-1]["role"] == "assistant" and s.train_msg_idx == [2]

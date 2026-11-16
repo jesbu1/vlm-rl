@@ -4,7 +4,7 @@
 
 Sweep file:
     {"base": "configs/pointmaze_qwen3vl4b_vllm.json",      # TrainConfig JSON (or inline dict)
-     "group": "pointmaze-small-v1",                         # wandb group + output subdir
+     "group": "pointmaze-small-v2",                         # wandb group + output subdir
      "project": "vlm-rl-pointmaze",
      "train_gpu": 0, "vllm_gpu": 1, "vllm_port": 8011,
      "grid": {"model": ["Qwen/Qwen3-VL-2B-Instruct", "Qwen/Qwen3-VL-4B-Instruct"],
@@ -19,7 +19,8 @@ for that model's server (later flags override launch_vllm.sh's defaults).
 
 Runs are ordered model-major so each model's vLLM server (rollout_backend == "vllm") is started
 once, reused for all of that model's runs, then stopped. Runs whose metrics.jsonl already reached
-`steps` are skipped, so re-running the sweep resumes it.
+`steps` are skipped and unfinished runs continue from their last per-step checkpoint
+(TrainConfig.resume), so re-running the sweep (e.g. after a crash or reboot) resumes it.
 """
 from __future__ import annotations
 
@@ -145,7 +146,7 @@ def main():
                 json.dump(cfg, f, indent=2)
             print(f"==> {cfg['wandb_run_name']}", flush=True)
             env = {**os.environ, "CUDA_VISIBLE_DEVICES": str(sweep.get("train_gpu", 0)), "PYTHONWARNINGS": "ignore"}
-            with open(os.path.join(ROOT, cfg["out_dir"], "train.log"), "w") as log:
+            with open(os.path.join(ROOT, cfg["out_dir"], "train.log"), "a") as log:  # resumed runs append
                 rc = subprocess.call([sys.executable, "scripts/train.py", "--config", cfg_path],
                                      stdout=log, stderr=subprocess.STDOUT, env=env, cwd=ROOT)
             print(f"    exit {rc}", flush=True)

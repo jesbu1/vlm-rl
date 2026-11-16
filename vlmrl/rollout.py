@@ -10,9 +10,16 @@ from vlmrl.types import Trajectory, Turn
 Generate = Callable[[list[list[dict]]], list[str]]
 
 
-def context_view(messages: list[dict], max_images: int | None) -> list[dict]:
-    """What the policy actually conditions on. With ``max_images`` set, only the most recent images
-    are kept; older ones become a short text placeholder (text history is kept)."""
+def context_view(messages: list[dict], max_images: int | None, max_frames: int | None = None) -> list[dict]:
+    """What the policy actually conditions on. With ``max_frames`` set, only the system prompt and the
+    last ``max_frames`` rounds (observation message + the replies after it) are kept; older rounds are
+    dropped entirely, text included. With ``max_images`` set, only the most recent images are kept;
+    older ones become a short text placeholder (text history is kept)."""
+    if max_frames is not None:
+        users = [i for i, m in enumerate(messages) if m["role"] == "user"]
+        if len(users) > max_frames:
+            cut = users[-max_frames]
+            messages = [m for i, m in enumerate(messages) if i >= cut or (i < users[0])]
     if max_images is None:
         return messages
     n_img = sum(1 for m in messages for c in m["content"] if c.get("type") == "image")
@@ -31,7 +38,8 @@ def context_view(messages: list[dict], max_images: int | None) -> list[dict]:
 
 
 def rollout(generate: Generate, env: VecEnv, interface: TextInterface, start_states: Sequence[dict],
-            group_ids: Sequence[int], max_turns: int, max_images: int | None = None) -> list[Trajectory]:
+            group_ids: Sequence[int], max_turns: int, max_images: int | None = None,
+            max_frames: int | None = None) -> list[Trajectory]:
     """Run ``len(start_states)`` episodes in lock-step. Each round, every unfinished episode gets one
     generation (batched) and one env step (batched over the still-active slots)."""
     obs = env.reset(start_states)
@@ -44,7 +52,7 @@ def rollout(generate: Generate, env: VecEnv, interface: TextInterface, start_sta
     for t in range(max_turns):
         if not active:
             break
-        texts = generate([context_view(trajs[k].messages, max_images) for k in active])
+        texts = generate([context_view(trajs[k].messages, max_images, max_frames) for k in active])
         parsed = [interface.parse_action(x) for x in texts]
         actions = [a if a is not None else interface.noop_action() for a in parsed]
         results = env.step(active, actions)
@@ -64,16 +72,16 @@ def rollout(generate: Generate, env: VecEnv, interface: TextInterface, start_sta
     return trajs
 
 
-def to_samples(trajs: Sequence[Trajectory], max_images: int | None) -> list[Sample]:
+def to_samples(trajs: Sequence[Trajectory], max_images: int | None, max_frames: int | None = None) -> list[Sample]:
     """Full context -> one sequence per episode with every assistant turn in the loss (PEAR-style).
-    Truncated image history -> one sequence per turn, each with exactly the context that turn saw."""
+    Truncated image/frame history -> one sequence per turn, each with exactly the context that turn saw."""
     samples = []
     for tr in trajs:
         a_idx = [i for i, m in enumerate(tr.messages) if m["role"] == "assistant"]
-        if max_images is None:
+        if max_images is None and max_frames is None:
             samples.append(Sample(tr.messages, a_idx, tr.advantage, {"group": tr.group_id}))
         else:
             for i in a_idx:
-                view = context_view(tr.messages[:i], max_images) + [tr.messages[i]]
-                samples.append(Sample(view, [i], tr.advantage, {"group": tr.group_id}))
+                view = context_view(tr.messages[:i], max_images, max_frames) + [tr.messages[i]]
+                samples.append(Sample(view, [len(view) - 1], tr.advantage, {"group": tr.group_id}))
     return samples

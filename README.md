@@ -71,7 +71,13 @@ CUDA_VISIBLE_DEVICES=0 python scripts/train.py --config configs/pointmaze_qwen3v
 
 Every `TrainConfig` field is a CLI flag (dict fields take JSON; `none` sets Optionals to None); CLI
 flags override `--config`. Outputs land in `out_dir/`: `config.json`, `metrics.jsonl`,
-`episodes/*.gif|txt` (sample transcripts), `ckpt_step*/`.
+`episodes/*.gif|txt` (sample transcripts), `ckpt_step*/`, `resume/state.pt`.
+
+**Resuming.** Every step (`resume_every`) the trainer atomically writes `out_dir/resume/state.pt`
+(trainable weights, optimizer, sampler RNG, that step's metrics). Re-running the same command
+continues after the last checkpointed step: `metrics.jsonl` is truncated to that step, the same
+wandb run id (`out_dir/wandb_run_id`) is resumed, and the vLLM server gets the restored adapter.
+`--resume false` starts over. `scripts/sweep.py` relies on this, so re-running a sweep resumes it.
 
 ---
 
@@ -93,7 +99,7 @@ There are no perception tools, planners or skill libraries, only RL from task su
 | 1 optimizer update per step | yes | |
 | AdamW, lr 1e-6 | AdamW, `lr` | 1e-6 is for 27B full FT; LoRA on 2–8B wants ~1e-5–5e-5 |
 | temperature 1.0, full distribution | `temperature=1.0, top_p=1, top_k=0` | overrides checkpoints' generation_config (Qwen ships top_k=1) |
-| Earlier rounds stay in context (39–59 images/episode) | `max_images=None` (default) | or `max_images=k` to keep the last k images |
+| Earlier rounds stay in context (39–59 images/episode) | `max_images=None, max_frames=None` (default) | `max_images=k` keeps the last k images; `max_frames=k` keeps only the last k rounds |
 | Binary success reward | `reward="success"` | plus shaped / preference rewards |
 | Text action (JSON pose) | `<action>{"dx":…, "dy":…}</action>` | parsed by the env's `TextInterface` |
 | veRL + LMCache, fully async, FSDP×SP, TP rollouts | single-process trainer + optional vLLM server w/ prefix caching | see §10 and §14 |
@@ -348,6 +354,10 @@ and the PPO surrogate have identical gradients at r=1 (unit-tested).
 - `max_images=None` (PEAR): the whole episode is **one sequence**
   `[system, user₁(img), asst₁, user₂(img), asst₂, …]`, and the loss mask covers every assistant span.
   Each turn's tokens are conditioned on exactly the context the policy saw when generating them.
+- `max_frames=k`: the context at turn t is the system prompt + only the last k rounds (observation
+  message and the replies after it); older rounds are dropped, text included. Per-turn samples, as below.
+  `max_frames=1` makes each turn a short single-frame prompt, which is cheap and is the right choice
+  when the observation is Markov (PointMaze with `include_state=True`). The shipped PointMaze configs use it.
 - `max_images=k`: the context at turn t keeps only the last k images (older ones become
   `[earlier image omitted]`), so contexts differ per turn and each turn becomes its own sample with
   exactly the view used at generation time (`rollout.context_view` is shared by rollout and training;
@@ -439,7 +449,8 @@ The full `TrainConfig` is the run config, so you can group and filter by `config
 ## 13. Results so far
 
 Qwen3-VL-4B-Instruct, LoRA r=64 (language model only), lr 2e-5, UMaze, `include_state=True`,
-≤10 turns, 8 groups × 8, `reward=success`, vLLM rollouts:
+≤10 turns, 8 groups × 8, `reward=success`, vLLM rollouts, **full multi-turn history** (this predates
+`max_frames`; the shipped config now sets `max_frames=1`):
 
 | step | eval success (greedy, fixed 32 starts) | eval mean turns | rollout success (T=1.0) | rollout mean turns |
 |---|---|---|---|---|

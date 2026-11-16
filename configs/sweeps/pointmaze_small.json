@@ -1,6 +1,6 @@
 {
   "base": "configs/pointmaze_qwen3vl4b_vllm.json",
-  "group": "pointmaze-small-v1",
+  "group": "pointmaze-small-v2",
   "project": "vlm-rl-pointmaze",
   "train_gpu": 0,
   "vllm_gpu": 1,
