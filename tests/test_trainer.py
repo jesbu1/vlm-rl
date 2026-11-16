@@ -192,3 +192,20 @@ def test_wandb_offline_logging(tmp_path, monkeypatch):
     tr.train()
     hist = list((tmp_path / "wandb").glob("offline-run-*/files/media/videos/**/*.gif"))
     assert hist, "episode GIFs should be logged as wandb media"
+
+
+def test_sweep_expansion(tmp_path):
+    sys.path.insert(0, f"{ROOT}/scripts")
+    import sweep
+    runs = sweep.expand({"base": "configs/pointmaze_qwen3vl4b_vllm.json", "group": "g", "project": "p",
+                         "vllm_port": 9000, "grid": {"reward": ["success", "neg_dist"], "model": ["a/m1", "b/m2"]},
+                         "overrides": {"steps": 3}})
+    assert len(runs) == 4
+    assert [r["model"] for r in runs] == ["a/m1", "a/m1", "b/m2", "b/m2"]   # model-major
+    assert runs[0]["wandb_run_name"] == "model=m1__reward=success" and runs[0]["out_dir"] == "runs/g/model=m1__reward=success"
+    assert all(r["steps"] == 3 and r["wandb_group"] == "g" and r["vllm_url"] == "http://localhost:9000" for r in runs)
+    for r in runs:
+        TrainConfig(**r)
+    shipped = json.load(open(f"{ROOT}/configs/sweeps/pointmaze_small.json"))
+    for r in sweep.expand(shipped):
+        TrainConfig(**r)

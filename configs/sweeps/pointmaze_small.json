@@ -1,0 +1,13 @@
+{
+  "base": "configs/pointmaze_qwen3vl4b_vllm.json",
+  "group": "pointmaze-small-v1",
+  "project": "vlm-rl-pointmaze",
+  "train_gpu": 0,
+  "vllm_gpu": 1,
+  "vllm_port": 8011,
+  "grid": {
+    "model": ["Qwen/Qwen3-VL-2B-Instruct", "Qwen/Qwen3-VL-4B-Instruct"],
+    "reward": ["success", "success+0.5*neg_dist", "pref_oracle_dist"]
+  },
+  "overrides": {"steps": 30, "eval_every": 5, "env_kwargs": {"maze": "medium", "max_turns": 15, "image_size": 336, "include_state": true}}
+}
