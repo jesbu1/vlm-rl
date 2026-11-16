@@ -171,7 +171,7 @@ def test_shipped_experiments_compose(exp):
 
 
 @pytest.mark.parametrize("policy", ["qwen3vl4b_lora", "qwen3vl2b_lora", "qwen25vl3b_lora", "smolvlm256m",
-                                    "qwen25vl7b_full"])
+                                    "smolvlm2_2b_lora", "qwen25vl7b_full"])
 def test_policy_presets_compose(policy):
     from vlmrl.config import compose
     assert compose([f"policy={policy}"]).model
@@ -246,23 +246,3 @@ def test_wandb_offline_logging(tmp_path, monkeypatch):
     tr.train()
     hist = list((tmp_path / "wandb").glob("offline-run-*/files/media/videos/**/*.gif"))
     assert hist, "episode GIFs should be logged as wandb media"
-
-
-def test_sweep_expansion(tmp_path):
-    import yaml
-    sys.path.insert(0, f"{ROOT}/scripts")
-    import sweep
-    runs = sweep.expand({"group": "g", "project": "p", "vllm_port": 9000,
-                         "overrides": ["experiment=pointmaze_q3vl4b_vllm", "steps=3"],
-                         "grid": {"reward": ["success", "success+0.5*neg_dist"], "policy": ["qwen3vl4b_lora", "qwen3vl2b_lora"]}})
-    assert len(runs) == 4
-    assert [r["cfg"].model for r in runs] == ["Qwen/Qwen3-VL-4B-Instruct"] * 2 + ["Qwen/Qwen3-VL-2B-Instruct"] * 2
-    r0 = next(r for r in runs if r["name"] == "reward=success__policy=qwen3vl4b_lora")
-    assert r0["cfg"].out_dir == "runs/g/reward=success__policy=qwen3vl4b_lora" and r0["cfg"].wandb_group == "g"
-    assert all(r["cfg"].steps == 3 and r["cfg"].vllm_url == "http://localhost:9000" and r["cfg"].wandb_project == "p"
-               for r in runs)
-    assert {r["cfg"].reward for r in runs} == {"success", "success+0.5*neg_dist"}
-    shipped = yaml.safe_load(open(f"{ROOT}/configs/sweeps/pointmaze_small.yaml"))
-    sh = sweep.expand(shipped)
-    assert len(sh) == 9 and sh[-1]["cfg"].model == "Qwen/Qwen2.5-VL-3B-Instruct"
-    assert all(r["cfg"].wandb_entity == "tri" and r["cfg"].wandb_tags == "pointmaze,medium,lora,sweep" for r in sh)

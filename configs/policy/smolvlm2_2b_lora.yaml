@@ -1,0 +1,10 @@
+# @package _global_
+# SmolVLM2 (Idefics3-style): LoRA targets are named text_model (not language_model); no image tiling.
+# Needs `num2words` (trainer venv and vLLM venv). Serve with --max-model-len 8192 and
+# --mm-processor-kwargs '{"do_image_splitting": false}' (see configs/sweeps/pointmaze_small.yaml).
+model: HuggingFaceTB/SmolVLM2-2.2B-Instruct
+lora_rank: 64
+lora_alpha: 128
+lora_targets: '.*text_model.*\.(q_proj|k_proj|v_proj|o_proj|gate_proj|up_proj|down_proj)'
+processor_kwargs: {do_image_splitting: false}
+lr: 2.0e-5

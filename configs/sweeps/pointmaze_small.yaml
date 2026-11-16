@@ -1,5 +1,6 @@
 # Used by scripts/sweep.py (not loaded by Hydra directly). Each run = base overrides + one grid point.
-# Runs are grouped by model in first-appearance order (Qwen2.5-VL-3B last).
+# Runs are grouped by model in first-appearance order. Per-model training settings come from the
+# policy presets; per-model vLLM server flags from `vllm_args`.
 group: pointmaze-small-v1
 project: vlm-rl-pointmaze
 train_gpu: 0
@@ -14,5 +15,7 @@ overrides:
   - env_kwargs.maze=medium
   - env_kwargs.max_turns=15
 grid:
-  policy: [qwen3vl2b_lora, qwen3vl4b_lora, qwen25vl3b_lora]
+  policy: [qwen3vl2b_lora, qwen3vl4b_lora, smolvlm2_2b_lora]
   reward: [success, "success+0.5*neg_dist", pref_oracle_dist]
+vllm_args:
+  HuggingFaceTB/SmolVLM2-2.2B-Instruct: [--max-model-len, "8192", --mm-processor-kwargs, '{"do_image_splitting": false}']
