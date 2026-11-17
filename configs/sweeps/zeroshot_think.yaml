@@ -1,0 +1,25 @@
+# Zero-shot (steps=0) prompt ablation: does asking for reasoning change success? Same eval start states
+# and episode settings as pointmaze_small.yaml (v5), so the pear/think=false cells repeat v5's step-0 eval.
+# prompt_style x think separates the action format (pear JSON block vs simple <action> tag) from the
+# "Think briefly" cue. Models' native thinking modes: zeroshot_native_think.yaml.
+group: zeroshot-think
+project: vlm-rl-pointmaze
+train_gpu: 0
+vllm_gpu: 1
+vllm_port: 8011
+overrides:
+  - experiment=pointmaze_q3vl4b_vllm
+  - steps=0
+  - eval_episodes=32
+  - reward=success
+  - max_new_tokens=512
+  - wandb_entity=tri
+  - "wandb_tags='pointmaze,zeroshot,prompt-ablation'"
+  - env_kwargs.max_turns=15
+grid:
+  policy: [gemma4_e2b_lora, qwen3vl4b_lora, minicpmv46_lora, smolvlm256m_lora]
+  env_kwargs.maze: [umaze, medium]
+  env_kwargs.prompt_style: [pear, simple]
+  env_kwargs.think: [false, true]
+vllm_args:
+  HuggingFaceTB/SmolVLM-256M-Instruct: [--max-model-len, "8192", --mm-processor-kwargs, '{"do_image_splitting": false}']

@@ -58,7 +58,8 @@ def to_openai_messages(messages: list[dict]) -> list[dict]:
 
 
 class VLLMServerGenerator:
-    def __init__(self, url: str, base_model: str, adapter_dir: str, max_workers: int = 256):
+    def __init__(self, url: str, base_model: str, adapter_dir: str, max_workers: int = 256,
+                 chat_template_kwargs: dict | None = None):
         self.url = url.rstrip("/")
         self.base_model = base_model
         self.adapter_dir = adapter_dir
@@ -68,12 +69,15 @@ class VLLMServerGenerator:
         # restart at an old step), and vLLM refuses to load a name that is still loaded from an earlier run
         self.tag = uuid.uuid4().hex[:8]
         self.pool = ThreadPoolExecutor(max_workers)
+        self.chat_template_kwargs = dict(chat_template_kwargs or {})
 
     def _one(self, msgs, max_new_tokens, temperature, top_p):
         greedy = temperature <= 0
         payload = {"model": self.current, "messages": to_openai_messages(msgs), "max_tokens": max_new_tokens,
                    "temperature": 0.0 if greedy else temperature, "top_p": 1.0 if greedy else top_p,
                    "top_k": -1, "n": 1}
+        if self.chat_template_kwargs:
+            payload["chat_template_kwargs"] = self.chat_template_kwargs
         r = _post(f"{self.url}/v1/chat/completions", payload)
         u = r.get("usage") or {}
         ntok = int(u.get("prompt_tokens", 0)) + int(u.get("completion_tokens", 0))

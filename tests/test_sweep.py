@@ -78,3 +78,15 @@ def test_stop_server_kills_sigterm_ignoring_parent_and_children(tmp_path):
         time.sleep(0.05)
     else:
         pytest.fail("child process survived stop_server")
+
+
+def test_zeroshot_think_sweeps_compose():
+    import yaml
+    d = os.path.join(os.path.dirname(__file__), "..", "configs/sweeps")
+    runs = sweep.expand(yaml.safe_load(open(f"{d}/zeroshot_think.yaml")))
+    assert len(runs) == 32 and all(r["cfg"].steps == 0 and r["cfg"].chat_template_kwargs == {} for r in runs)
+    assert {(r["cfg"].env_kwargs["prompt_style"], r["cfg"].env_kwargs["think"]) for r in runs} == \
+        {("pear", False), ("pear", True), ("simple", False), ("simple", True)}
+    native = sweep.expand(yaml.safe_load(open(f"{d}/zeroshot_native_think.yaml")))
+    assert len(native) == 8 and all(r["cfg"].chat_template_kwargs == {"enable_thinking": True}
+                                    and r["cfg"].env_kwargs["think"] is False for r in native)

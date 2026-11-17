@@ -6,6 +6,7 @@ env_kwargs:
   image_size: 336
   include_state: true      # state JSON + goal coordinates in the prompt
   prompt_style: pear       # pear (paper App. H protocol) | simple
+  think: null              # "Think briefly" cue; null = style default (simple: on, pear: off)
   settle: true             # act until target reached & at rest, or blocked (PEAR EXECUTION)
   start_states: random     # random | Minari id (e.g. D4RL/pointmaze/umaze-v2) | path.npz
   eval_start_states: random

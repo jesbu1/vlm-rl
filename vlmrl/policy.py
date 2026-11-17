@@ -71,7 +71,8 @@ class HFPolicy:
     def __init__(self, model_name: str, device: str | None = None, dtype: str = "auto",
                  attn_implementation: str | None = None, gradient_checkpointing: bool = True,
                  lora_rank: int = 0, lora_alpha: int = 32, lora_targets: str = "all-linear",
-                 processor_kwargs: dict | None = None, logprob_chunk: int = 1024):
+                 processor_kwargs: dict | None = None, logprob_chunk: int = 1024,
+                 chat_template_kwargs: dict | None = None):
         from transformers import AutoModelForImageTextToText, AutoProcessor
 
         self.device = device or ("cuda" if torch.cuda.is_available() else
@@ -96,6 +97,7 @@ class HFPolicy:
                 r=lora_rank, lora_alpha=lora_alpha, target_modules=lora_targets, lora_dropout=0.0))
             self.model.print_trainable_parameters()
         self.logprob_chunk = logprob_chunk
+        self.chat_template_kwargs = dict(chat_template_kwargs or {})
         self._prefix_checked = False
 
     # ------------------------------------------------------------------ tokenisation helpers
@@ -105,7 +107,7 @@ class HFPolicy:
             pk["return_tensors"] = "pt"
         return self.processor.apply_chat_template(
             convs, add_generation_prompt=add_generation_prompt, tokenize=True, return_dict=True,
-            processor_kwargs=pk)
+            processor_kwargs=pk, **self.chat_template_kwargs)
 
     def _len(self, messages, add_generation_prompt: bool) -> list[int]:
         return self._apply([messages], add_generation_prompt, tensors=False)["input_ids"][0]

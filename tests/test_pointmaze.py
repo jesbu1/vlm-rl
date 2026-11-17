@@ -297,3 +297,12 @@ def test_format_action_roundtrip(pear, itf):
 def test_pear_requires_delta_mode():
     with pytest.raises(AssertionError):
         PointMazeTextInterface(get_maze_map("umaze"), action_mode="force", prompt_style="pear")
+
+
+def test_think_cue_defaults_and_overrides():
+    m = get_maze_map("umaze")
+    sp = lambda **kw: PointMazeTextInterface(m, **kw).system_prompt({})  # noqa: E731
+    assert "Think briefly" not in sp() and "Think briefly, then end your response with" in sp(think=True)
+    assert "Think briefly, then end your reply" in sp(prompt_style="simple")
+    simple_no = sp(prompt_style="simple", think=False)
+    assert "Think briefly" not in simple_no and "End your reply with exactly one action tag" in simple_no

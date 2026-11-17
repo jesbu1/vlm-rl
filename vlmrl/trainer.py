@@ -32,6 +32,7 @@ class TrainConfig:
     # model
     model: str = "Qwen/Qwen2.5-VL-3B-Instruct"
     processor_kwargs: dict = field(default_factory=dict)  # e.g. {"max_pixels": 200704} / {"do_image_splitting": false}
+    chat_template_kwargs: dict = field(default_factory=dict)  # e.g. {"enable_thinking": true} (HF and vLLM)
     dtype: str = "auto"
     attn_implementation: str | None = None             # e.g. "flash_attention_2" / "sdpa"
     gradient_checkpointing: bool = True
@@ -153,7 +154,8 @@ class Trainer:
         self.policy = policy or HFPolicy(
             cfg.model, dtype=cfg.dtype, attn_implementation=cfg.attn_implementation,
             gradient_checkpointing=cfg.gradient_checkpointing, lora_rank=cfg.lora_rank,
-            lora_alpha=cfg.lora_alpha, lora_targets=cfg.lora_targets, processor_kwargs=cfg.processor_kwargs)
+            lora_alpha=cfg.lora_alpha, lora_targets=cfg.lora_targets, processor_kwargs=cfg.processor_kwargs,
+            chat_template_kwargs=cfg.chat_template_kwargs)
         if cfg.rollout_backend not in ("hf", "vllm"):
             raise ValueError(f"unknown rollout_backend {cfg.rollout_backend!r}")
         params = [p for p in self.policy.model.parameters() if p.requires_grad]
@@ -163,7 +165,8 @@ class Trainer:
         self.start_step, pending = self.load_resume() if cfg.resume else (0, None)
         if cfg.rollout_backend == "vllm":
             from vlmrl.vllm_client import VLLMServerGenerator
-            self.generator = VLLMServerGenerator(cfg.vllm_url, cfg.model, f"{cfg.out_dir}/adapters")
+            self.generator = VLLMServerGenerator(cfg.vllm_url, cfg.model, f"{cfg.out_dir}/adapters",
+                                                 chat_template_kwargs=cfg.chat_template_kwargs)
             self.generator.sync(self.policy, self.start_step)  # serve the initial / resumed LoRA policy
         else:
             self.generator = self.policy

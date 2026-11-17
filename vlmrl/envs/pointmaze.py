@@ -204,12 +204,14 @@ class PointMazeTextInterface:
     is one part ``ball`` with quantities ``x, y``; each turn starts with the state JSON, then the
     image; the action is the *change* ``{"ball": {"x": dx, "y": dy}}`` in a final fenced json block.
     ``prompt_style="simple"`` is a shorter custom prompt with ``<action>{"dx":..,"dy":..}</action>``.
+    ``think`` adds / drops the "Think briefly, then ..." cue (default: on for simple, off for pear).
     """
 
     SCHEMA = {"ball": ["x", "y"]}
 
     def __init__(self, maze_map, action_mode: str = "delta", include_state: bool = True,
-                 max_delta: float = 1.0, image_size: int = 336, prompt_style: str = "pear"):
+                 max_delta: float = 1.0, image_size: int = 336, prompt_style: str = "pear",
+                 think: bool | None = None):
         assert prompt_style in ("pear", "simple")
         if prompt_style == "pear":
             assert action_mode == "delta", "PEAR protocol actions are changes of quantities (delta mode)"
@@ -217,6 +219,7 @@ class PointMazeTextInterface:
         self.include_state, self.max_delta = include_state, max_delta
         self.keys = ("dx", "dy") if action_mode == "delta" else ("fx", "fy")
         self.image_size, self.prompt_style = image_size, prompt_style
+        self.think = prompt_style == "simple" if think is None else think
 
     # ---------------------------------------------------------------- prompts
     def environment_section(self) -> str:
@@ -243,8 +246,11 @@ class PointMazeTextInterface:
     def system_prompt(self, start_state):
         if self.prompt_style == "pear":
             from vlmrl.envs import protocol
-            return protocol.system_prompt(self.environment_section(), self.instruction(start_state),
+            text = protocol.system_prompt(self.environment_section(), self.instruction(start_state),
                                           length_unit="maze cells")
+            if self.think:
+                text = text.replace("End your response with", "Think briefly, then end your response with", 1)
+            return text
         h, w = len(self.maze_map), len(self.maze_map[0])
         if self.action_mode == "delta":
             act = (f'a relative waypoint {{"dx": <float>, "dy": <float>}} in maze units; the robot moves by '
@@ -262,7 +268,8 @@ class PointMazeTextInterface:
             "centre of the image.\n"
             f"Each round you see the current view and choose {act}\n"
             "Plan a path through free cells around walls; move through cell centres to avoid getting stuck "
-            "on corners. Think briefly, then end your reply with exactly one action tag, e.g.\n"
+            "on corners. " + ("Think briefly, then end" if self.think else "End") +
+            " your reply with exactly one action tag, e.g.\n"
             f'<action>{{"{self.keys[0]}": 0.5, "{self.keys[1]}": -1.0}}</action>'
         )
 
@@ -436,6 +443,7 @@ class PointMazeConfig:
     image_size: int = 336
     include_state: bool = True
     prompt_style: str = "pear"        # "pear" (paper Appendix H protocol) | "simple"
+    think: bool | None = None         # "Think briefly" cue; None = style default (simple: on, pear: off)
     settle: bool = True               # PEAR execution: act until target reached & at rest, or blocked
     max_turns: int = 12
     start_states: str = "random"      # "random" | minari dataset id | path.npz
@@ -457,7 +465,7 @@ def make_pointmaze(cfg: PointMazeConfig | None = None, **kw) -> EnvBundle:
                                                 max_delta=cfg.max_delta, image_size=cfg.image_size,
                                                 settle=cfg.settle),
         interface=PointMazeTextInterface(maze_map, cfg.action_mode, cfg.include_state, cfg.max_delta,
-                                         cfg.image_size, cfg.prompt_style),
+                                         cfg.image_size, cfg.prompt_style, cfg.think),
         train_sampler=sampler(cfg.start_states),
         eval_sampler=sampler(cfg.eval_start_states),
         max_turns=cfg.max_turns,

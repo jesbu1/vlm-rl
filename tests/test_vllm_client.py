@@ -111,3 +111,11 @@ def test_sync_requires_lora(server, tmp_path):
         model = torch.nn.Linear(1, 1)
     with pytest.raises(NotImplementedError):
         g.sync(P(), 0)
+
+
+def test_chat_template_kwargs_forwarded_only_when_set(server):
+    VLLMServerGenerator(server, "base", "/tmp/unused").generate([_conv()], max_new_tokens=4)
+    VLLMServerGenerator(server, "base", "/tmp/unused", chat_template_kwargs={"enable_thinking": True}).generate(
+        [_conv()], max_new_tokens=4)
+    bodies = [b for p, b in _Handler.log if p == "/v1/chat/completions"]
+    assert "chat_template_kwargs" not in bodies[0] and bodies[1]["chat_template_kwargs"] == {"enable_thinking": True}

@@ -12,6 +12,7 @@ Every field of `vlmrl.trainer.TrainConfig`, the Hydra schema. Set any of them on
 |---|---|---|---|
 | `model` | `str` | `'Qwen/Qwen3-VL-4B-Instruct'` |  |
 | `processor_kwargs` | `dict` | `{}` | e.g. {"max_pixels": 200704} / {"do_image_splitting": false} |
+| `chat_template_kwargs` | `dict` | `{}` | e.g. {"enable_thinking": true} (HF and vLLM) |
 | `dtype` | `str` | `'auto'` |  |
 | `attn_implementation` | `str \| None` | `null` | e.g. "flash_attention_2" / "sdpa" |
 | `gradient_checkpointing` | `bool` | `True` |  |
@@ -31,7 +32,7 @@ Every field of `vlmrl.trainer.TrainConfig`, the Hydra schema. Set any of them on
 | field | type | default | notes |
 |---|---|---|---|
 | `env` | `str` | `'pointmaze'` | registry name or "module:factory" |
-| `env_kwargs` | `dict` | `{'maze': 'umaze', 'max_turns': 10, 'image_size': 336, 'include_state': True, 'prompt_style': 'pear', 'settle': True, 'start_states': 'random', 'eval_start_states': 'random', 'min_goal_dist': 1.5}` |  |
+| `env_kwargs` | `dict` | `{'maze': 'umaze', 'max_turns': 10, 'image_size': 336, 'include_state': True, 'prompt_style': 'pear', 'think': None, 'settle': True, 'start_states': 'random', 'eval_start_states': 'random', 'min_goal_dist': 1.5}` |  |
 | `reward` | `str` | `'success'` | see rewards.build_reward |
 | `max_images` | `int \| None` | `null` | None = full multi-image history (PEAR); k = keep last k |
 | `max_frames` | `int \| None` | `null` | k = keep only the last k rounds (frame + text), train & eval |
