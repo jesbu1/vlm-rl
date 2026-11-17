@@ -72,7 +72,7 @@ Full walkthrough: [Code tour](getting-started/code-tour.md).
 !!! success "Verified"
     On 2×A6000 with Qwen3-VL-4B + LoRA (HF and vLLM backends, wandb logging), PointMaze UMaze eval
     success went **0.625 → 1.0 within 20 RL steps**. See the [experiment log](training/experiments.md).
-    165 tests (159 fast CPU + 6 real-VLM) pass locally and on the GPU machine. See [Testing](development/testing.md).
+    The full test suite (fast CPU tier + real-VLM tier) passes locally and on the GPU machine. See [Testing](development/testing.md).
 
 ```mermaid
 flowchart LR
