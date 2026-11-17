@@ -54,6 +54,7 @@ nav:
       - Installation: getting-started/installation.md
       - Quickstart: getting-started/quickstart.md
       - Your first real run: getting-started/first-run.md
+      - Code tour: getting-started/code-tour.md
   - PEAR (the paper):
       - pear/index.md
       - The robot-use protocol: pear/protocol.md

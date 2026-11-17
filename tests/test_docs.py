@@ -52,3 +52,36 @@ def test_mermaid_edge_labels_are_quoted():
                 if re.search(r"[()\[\]{}]", label) and not (label.startswith('"') and label.endswith('"')):
                     bad.append((os.path.relpath(path, ROOT), label))
     assert not bad, bad
+
+
+def _code_refs():
+    """Every `path.py::Name` or `path.py::Class.method` reference written anywhere in docs/."""
+    refs = set()
+    for d, _, fs in os.walk(os.path.join(ROOT, "docs")):
+        for f in fs:
+            if f.endswith(".md"):
+                refs |= set(re.findall(r"`([\w/]+\.py)::([\w.]+)`", open(os.path.join(d, f)).read()))
+    return sorted(refs)
+
+
+def test_code_references_in_docs_exist():
+    """Docs point at code as `file.py::Symbol`; every such symbol must still exist (catches renames)."""
+    import ast
+    sources = [os.path.relpath(os.path.join(d, f), ROOT) for top in ("vlmrl", "scripts", "examples", "tests")
+               for d, _, fs in os.walk(os.path.join(ROOT, top)) for f in fs if f.endswith(".py")]
+    refs = _code_refs()
+    assert len(refs) >= 30, "the code tour should reference the main functions"
+    bad = []
+    for path, name in refs:
+        hits = [s for s in sources if s == path or s.endswith("/" + path)]
+        if len(hits) != 1:
+            bad.append((path, name, f"{len(hits)} files match"))
+            continue
+        tree = ast.parse(open(os.path.join(ROOT, hits[0])).read())
+        defs = {n.name: n for n in tree.body if isinstance(n, (ast.FunctionDef, ast.ClassDef))}
+        head, _, attr = name.partition(".")
+        node = defs.get(head)
+        if node is None or (attr and attr not in {m.name for m in getattr(node, "body", [])
+                                                 if isinstance(m, (ast.FunctionDef, ast.AsyncFunctionDef))}):
+            bad.append((path, name, "not found"))
+    assert not bad, bad

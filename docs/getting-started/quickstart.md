@@ -5,7 +5,7 @@ Everything on this page runs on a laptop CPU.
 ## 1. Tests
 
 ```bash
-make test        # 157 fast tests (~10 s)
+make test        # 159 fast tests (~10 s)
 make test-slow   # + 6 tests that load SmolVLM-256M (downloads ~500 MB once)
 ```
 
@@ -41,3 +41,9 @@ python scripts/train.py --cfg job experiment=pear_recipe   # the paper's Table 1
 ```
 
 Next: [Your first real run](first-run.md), or read how [PEAR](../pear/index.md) works.
+
+## 5. Find your way around the code
+
+Read the [Code tour](code-tour.md). It follows one training step through the files and functions, in
+order, and ends with an "if you want to change X, edit Y" table. In short: **`vlmrl/trainer.py`** is the
+loop, **`vlmrl/algo.py`** is the GRPO math, and **`vlmrl/rollout.py`** runs the episodes.
