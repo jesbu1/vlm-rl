@@ -58,7 +58,7 @@ def to_openai_messages(messages: list[dict]) -> list[dict]:
 
 
 class VLLMServerGenerator:
-    def __init__(self, url: str, base_model: str, adapter_dir: str, max_workers: int = 128):
+    def __init__(self, url: str, base_model: str, adapter_dir: str, max_workers: int = 256):
         self.url = url.rstrip("/")
         self.base_model = base_model
         self.adapter_dir = adapter_dir

@@ -72,7 +72,30 @@ Partial results (rollout = temperature 1.0, 8 groups × 8 with DAPO resampling; 
 - wandb runs: v2 `5d6f2cac`, v3 `dcaba8b7` (state: crashed/killed). v2 also served as the live resume test:
   the stack was hard-killed mid-step twice and continued from the last checkpointed step.
 
-## In progress · `pointmaze-small-v4` sweep (current code)
+## 2026-11-16 · Zero-shot protocol ablation (Qwen3-VL-4B)
+
+Why v4 didn't learn: the current defaults change several things at once relative to the `dev` run. Greedy
+step-0 eval (32 fixed starts, ≤10 rounds, `max_frames=1`, 256 tokens), toggling one factor at a time:
+
+| maze | prompt | settle=F, noop | settle=F, terminate | settle=T, noop | settle=T, terminate |
+|---|---|---|---|---|---|
+| UMaze | simple | **0.625** | 0.562 | 0.594 | 0.656 |
+| UMaze | PEAR | 0.250 | 0.219 | 0.219 | 0.219 |
+| medium | simple | 0.500 | 0.469 | 0.531 | 0.531 |
+| medium | PEAR | 0.094 | **0.000** | 0.031 | 0.031 |
+
+- **The prompt dominates.** The PEAR protocol cuts zero-shot success roughly 3× on UMaze and 5–15× on
+  medium. Models tend to echo the state JSON as the action (an absolute pose instead of a change), see
+  [Gemma 4 E2B](../models/gemma-4-e2b.md) and [Qwen3-VL-2B](../models/qwen3-vl-2b.md).
+- Settle-until-at-rest is neutral, and terminate-on-invalid costs a few points, mostly under PEAR on medium.
+- The legacy cell reproduces the `dev` run's step-0 eval exactly (0.625), so env, start states and eval
+  are unchanged. `experiment=pointmaze_q3vl4b_vllm_legacy` restores that run's protocol for full-run
+  reproduction (`configs/sweeps/repro_q3vl4b_umaze.yaml`).
+- Consequence for sparse rewards: at a success rate p, a group of G rollouts carries signal only if it
+  mixes outcomes, P ≈ 1 − (1−p)^G. At p≈0.03 and G=8 that is ~22% of groups, so under PEAR on
+  medium most steps have nothing to train on. v5 uses 16 groups × 16 and adds UMaze.
+
+## Stopped · `pointmaze-small-v4` sweep (current code)
 
 `configs/sweeps/pointmaze_small.yaml`: {Gemma 4 E2B, Qwen3-VL-4B, MiniCPM-V 4.6, SmolVLM-256M} (LoRA r=64,
 largest model first) × {`success`, `success+0.5*neg_dist`, `pref_oracle_dist`}, plus
@@ -81,7 +104,20 @@ rewards. PointMaze medium, ≤15 rounds, 30 steps, `max_frames=1`, `max_new_toke
 (PEAR prompt, z-score advantages, settle-until-at-rest, `on_invalid=terminate`). wandb group
 `pointmaze-small-v4`.
 
+Stopped after 5 steps of its first run (Gemma 4 E2B, `reward=success`, medium): eval success 0, rollout
+success 0–4%, one update in 5 steps (the other 4 had every group filtered). Gemma mostly echoes the state
+JSON. Superseded by v5.
+
 One-step smoke runs before launch (6 episodes each, PEAR prompt): Gemma 4 E2B produced valid, short
 actions. **MiniCPM-V 4.6 and SmolVLM-256M were 100% invalid** (unfenced or state-echo JSON). With
 `on_invalid=terminate` such groups have zero variance and are filtered, so these runs may not learn at
 all. That is reported as a finding; prompts and rewards are left unchanged.
+
+## In progress · `pointmaze-small-v5` sweep
+
+`configs/sweeps/pointmaze_small.yaml` + `pointmaze_small_fft.yaml`: PEAR protocol (current defaults),
+sparse `reward=success`, {UMaze, medium} × {Gemma 4 E2B, Qwen3-VL-4B, MiniCPM-V 4.6, SmolVLM-256M} with
+LoRA (largest model first), plus SmolVLM-256M full fine-tuning (HF rollouts) on both mazes. **16 groups ×
+16 rollouts** per step (v4: 8 × 8), ≤3 resampling rounds, ≤15 rounds, 30 steps, `max_frames=1`,
+`max_new_tokens=512`. wandb group `pointmaze-small-v5`. Runs after the Qwen3-VL-4B legacy-protocol
+reproduction (`repro-q3vl4b-umaze`).

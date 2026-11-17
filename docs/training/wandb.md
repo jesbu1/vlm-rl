@@ -37,7 +37,7 @@ takeaways from a markdown file.
 
 ```bash
 uv pip install -p .venv wandb-workspaces
-python scripts/make_wandb_report.py --group pointmaze-small-v4 --takeaways takeaways.md [--dry_run]
+python scripts/make_wandb_report.py --group pointmaze-small-v5 --takeaways takeaways.md [--dry_run]
 ```
 
 Offline logging works too (`WANDB_MODE=offline`), and is covered by a test.

@@ -6,13 +6,13 @@ models.
 ```bash
 python scripts/sweep.py configs/sweeps/pointmaze_small.yaml --dry_run    # list runs + their overrides
 nohup python scripts/sweep.py configs/sweeps/pointmaze_small.yaml > sweep.log 2>&1 &
-python scripts/make_wandb_report.py --group pointmaze-small-v4 --takeaways takeaways.md
+python scripts/make_wandb_report.py --group pointmaze-small-v5 --takeaways takeaways.md
 ```
 
 ## Sweep file
 
 ```yaml
-group: pointmaze-small-v4          # wandb group + runs/<group>/<run>/
+group: pointmaze-small-v5          # wandb group + runs/<group>/<run>/
 project: vlm-rl-pointmaze
 train_gpu: 0
 vllm_gpu: 1
@@ -20,10 +20,13 @@ vllm_port: 8011
 overrides:                          # Hydra overrides applied to every run
   - experiment=pointmaze_q3vl4b_vllm
   - steps=30
+  - reward=success
+  - groups_per_step=16                # bigger RL batch: sparse rewards need mixed-outcome groups
+  - group_size=16
   - max_new_tokens=512
-  - env_kwargs.maze=medium
 grid:                               # cartesian product; any config key or group
   policy: [gemma4_e2b_lora, qwen3vl4b_lora, minicpmv46_lora, smolvlm256m_lora]   # largest first
+  env_kwargs.maze: [umaze, medium]
   reward: [success, "success+0.5*neg_dist", pref_oracle_dist]
 vllm_args:                          # extra `vllm serve` flags per model
   HuggingFaceTB/SmolVLM-256M-Instruct: [--max-model-len, "8192", --mm-processor-kwargs, '{"do_image_splitting": false}']

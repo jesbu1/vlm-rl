@@ -1,7 +1,7 @@
 """Build a wandb Report comparing the runs of one sweep group (e.g. reward fns x models).
 
     uv pip install -p .venv wandb-workspaces
-    python scripts/make_wandb_report.py --group pointmaze-small-v4 --takeaways takeaways.md [--dry_run]
+    python scripts/make_wandb_report.py --group pointmaze-small-v5 --takeaways takeaways.md [--dry_run]
 
 Sections: setup, a final-eval summary table (computed here from run histories, so it also lists
 crashed / partial runs), success curves grouped by `config.reward` and by `config.model`, episode
@@ -120,7 +120,7 @@ def build_report(a, rows, cfg):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--group", default="pointmaze-small-v4")
+    ap.add_argument("--group", default="pointmaze-small-v5")
     ap.add_argument("--entity", default="tri")
     ap.add_argument("--project", default="vlm-rl-pointmaze")
     ap.add_argument("--title", default=None)
