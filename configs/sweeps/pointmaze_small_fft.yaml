@@ -12,6 +12,7 @@ overrides:
   - reward=success
   - groups_per_step=16
   - group_size=16
+  - micro_batch_size=8               # short single-frame per-turn samples; same loss (global token norm)
   - max_new_tokens=512
   - wandb_entity=tri
   - "wandb_tags='pointmaze,pear,fft,sweep'"
