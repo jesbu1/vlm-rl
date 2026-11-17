@@ -95,6 +95,28 @@ step-0 eval (32 fixed starts, ≤10 rounds, `max_frames=1`, 256 tokens), togglin
   mixes outcomes, P ≈ 1 − (1−p)^G. At p≈0.03 and G=8 that is ~22% of groups, so under PEAR on
   medium most steps have nothing to train on. v5 uses 16 groups × 16 and adds UMaze.
 
+## 2026-11-16 · Reproduction of the `dev` run on current code (wandb group `repro-q3vl4b-umaze`)
+
+`configs/sweeps/repro_q3vl4b_umaze.yaml`, run `experiment=pointmaze_q3vl4b_vllm_legacy` (wandb `a4a417f1`):
+Qwen3-VL-4B LoRA, UMaze, sparse `reward=success`, 8 groups × 8, 40 steps, the `dev` run's protocol.
+
+| step | `dev` eval success | reproduction eval success | reproduction rollout success | groups kept |
+|---|---|---|---|---|
+| 0 | 0.625 | 0.594 | – | – |
+| 5 | 0.656 | 0.594 | 0.57 | 5 |
+| 10 | 0.906 | 0.812 | 0.92 | 3 |
+| 15 | 0.969 | 0.969 | 0.96 | 2 |
+| 20 | 1.000 | **1.000** | 0.94 | 2 |
+| 25 | – | 0.875 | 0.98 | 1 |
+| 30 | – | 0.906 | 0.88 | 0 |
+| 40 | 1.000 | 0.969 | 1.00 | 0 |
+
+**Reproduced.** Current code with the original protocol learns the same curve, so v4's failure came from
+the protocol change, not from a regression. After step 20 the task is saturated: 0–2 groups survive the
+DAPO filter, and greedy eval moves by one to four of 32 episodes either way. 1.5–4 min per step,
+falling as episodes get shorter. The second run in that sweep (current PEAR defaults) was dropped in
+favor of v5, which covers it with a bigger batch.
+
 ## Stopped · `pointmaze-small-v4` sweep (current code)
 
 `configs/sweeps/pointmaze_small.yaml`: {Gemma 4 E2B, Qwen3-VL-4B, MiniCPM-V 4.6, SmolVLM-256M} (LoRA r=64,
