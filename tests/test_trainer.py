@@ -157,7 +157,8 @@ def test_hydra_type_checking():
         compose(["not_a_field=1"])
 
 
-@pytest.mark.parametrize("exp", ["pointmaze_q3vl4b_vllm", "pear_recipe", "toy_wam_prefs", "smoke"])
+@pytest.mark.parametrize("exp", ["pointmaze_q3vl4b_vllm", "pointmaze_q3vl4b_vllm_legacy", "pear_recipe",
+                                 "toy_wam_prefs", "smoke"])
 def test_shipped_experiments_compose(exp):
     from vlmrl.config import compose
     c = compose([f"experiment={exp}"])
@@ -168,6 +169,10 @@ def test_shipped_experiments_compose(exp):
         assert c.env_kwargs["maze"] == "medium" and c.env_kwargs["prompt_style"] == "pear"
     if exp == "pointmaze_q3vl4b_vllm":
         assert c.rollout_backend == "vllm" and c.lora_rank == 64
+    if exp == "pointmaze_q3vl4b_vllm_legacy":  # the original `dev` run's protocol
+        assert (c.env_kwargs["prompt_style"], c.env_kwargs["settle"], c.on_invalid, c.adv_mode, c.max_frames) == \
+            ("simple", False, "noop", "center", None)
+        assert c.env_kwargs["maze"] == "umaze" and c.rollout_backend == "vllm" and c.reward == "success"
 
 
 @pytest.mark.parametrize("policy", ["qwen3vl4b_lora", "qwen3vl2b_lora", "qwen25vl3b_lora", "smolvlm256m",

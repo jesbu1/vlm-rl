@@ -15,7 +15,7 @@ configs/
                                                    smolvlm256m_lora, gemma4_e2b_lora, minicpmv46_lora)
   task/             env + env_kwargs + reward     (pointmaze, toy_wam)
   rollout/          generation backend            (hf, vllm)
-  experiment/       full presets, applied last    (pointmaze_q3vl4b_vllm, pear_recipe, toy_wam_prefs, smoke)
+  experiment/       full presets, applied last    (pointmaze_q3vl4b_vllm, pointmaze_q3vl4b_vllm_legacy, pear_recipe, toy_wam_prefs, smoke)
   sweeps/           grids for scripts/sweep.py (not loaded by Hydra)
 ```
 

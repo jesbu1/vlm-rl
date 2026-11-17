@@ -1,0 +1,12 @@
+# @package _global_
+# The original `dev` run's protocol (2026-11-16, UMaze 0.625 -> 1.0 in 20 steps), before the PEAR-faithful
+# defaults: simple <action>{"dx","dy"}</action> prompt, fixed 40-substep actions, invalid action = no-op,
+# mean-centred advantages, full multi-turn history. Use it to check that current code reproduces that run.
+defaults:
+  - pointmaze_q3vl4b_vllm
+env_kwargs:
+  prompt_style: simple
+  settle: false
+on_invalid: noop
+adv_mode: center
+max_frames: null

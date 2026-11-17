@@ -1,0 +1,15 @@
+# Reproduce the original Qwen3-VL-4B UMaze run (wandb group `dev`: eval success 0.625 -> 1.0) on current
+# code, with the same sparse reward, under (a) its original protocol and (b) the current PEAR-faithful
+# defaults. Both use one vLLM server.
+group: repro-q3vl4b-umaze
+project: vlm-rl-pointmaze
+train_gpu: 0
+vllm_gpu: 1
+vllm_port: 8011
+overrides:
+  - steps=40
+  - reward=success
+  - wandb_entity=tri
+  - "wandb_tags='pointmaze,umaze,lora,repro'"
+grid:
+  experiment: [pointmaze_q3vl4b_vllm_legacy, pointmaze_q3vl4b_vllm]
