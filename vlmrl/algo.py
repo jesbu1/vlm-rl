@@ -82,3 +82,11 @@ def policy_loss_sum(logp: torch.Tensor, adv: torch.Tensor, mask: torch.Tensor,
             clipped = ((ratio < 1 - lo) | (ratio > 1 + hi)).to(logp.dtype)
             stats = {"clipfrac_sum": (clipped * mask).sum().item()}
     return (per_tok * mask).sum(), stats
+
+
+def kl_k3_sum(logp: torch.Tensor, ref_logp: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
+    """Sum over masked tokens of the k3 estimator of KL(pi || pi_ref) on tokens sampled from pi (Schulman's
+    approximation, as in GRPO): exp(r) - r - 1 with r = ref_logp - logp. Non-negative, zero iff the two agree on the
+    sampled token, and its gradient w.r.t. logp is 1 - exp(r), which pulls logp back toward ref_logp."""
+    r = (ref_logp.detach() - logp).clamp(-20, 20)
+    return ((torch.exp(r) - r - 1) * mask).sum()

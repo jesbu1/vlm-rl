@@ -66,6 +66,7 @@ class TrainConfig:
     max_context_tokens: int | None = None               # PEAR: episode ends when the context budget is reached
     clip_low: float = 0.2
     clip_high: float = 0.28
+    kl_coef: float = 0.0                                # per-token k3 KL to the pretrained model in the loss; 0 = off (PEAR)
     # optim
     lr: float = 1e-6                                    # PEAR (27B full FT); LoRA on small models wants ~1e-5..1e-4
     weight_decay: float = 0.0
@@ -285,7 +286,7 @@ class Trainer:
         # Loss = sum over response tokens / global token count. Batches are built on the fly, so each one is
         # back-propagated as loss_sum / len(samples) and the accumulated gradient is rescaled by
         # len(samples) / n_tok once n_tok is known: exactly the gradient of the global token mean.
-        stats = {"loss": 0.0, "clipfrac_sum": 0.0, "logp_sum": 0.0}
+        stats = {"loss": 0.0, "clipfrac_sum": 0.0, "logp_sum": 0.0, "kl_sum": 0.0}
         scale = float(len(samples))
         for _ in range(c.ppo_epochs):
             self.opt.zero_grad(set_to_none=True)
@@ -293,6 +294,7 @@ class Trainer:
             for bi, b in enumerate(self._batches(samples)):
                 n_tok += float(b["loss_mask"].sum())
                 centering, old_logp = None, None
+                ref_logp = pol.ref_token_logprobs(b) if c.kl_coef > 0 else None
                 if sc:
                     logp, mask, st = pol.token_logprobs(b, gather_ids=old[bi]["topk_ids"])
                     centering = algo.score_centering_term(st["logp_at_ids"], old[bi]["topk_probs"])
@@ -303,6 +305,10 @@ class Trainer:
                 adv = b["advantages"].to(logp.device)[:, None].expand_as(logp)
                 loss_sum, st = algo.policy_loss_sum(logp, adv, mask, old_logp, (c.clip_low, c.clip_high),
                                                     centering=centering)
+                if ref_logp is not None:
+                    kl_sum = algo.kl_k3_sum(logp, ref_logp.to(logp.device), mask)
+                    loss_sum = loss_sum + c.kl_coef * kl_sum
+                    stats["kl_sum"] += float(kl_sum.detach())
                 if not torch.isfinite(loss_sum):
                     print("[warn] non-finite loss, skipping micro-batch")
                     continue
@@ -323,7 +329,8 @@ class Trainer:
                 "train/tokens": n_tok, "train/sequences": len(samples),
                 "train/mean_logp": stats["logp_sum"] / max(n_tok, 1) / c.ppo_epochs,
                 **({"train/clipfrac": stats["clipfrac_sum"] / n_tok / c.ppo_epochs}
-                   if c.policy_loss == "ppo_clip" else {})}
+                   if c.policy_loss == "ppo_clip" else {}),
+                **({"train/kl": stats["kl_sum"] / max(n_tok, 1) / c.ppo_epochs} if c.kl_coef > 0 else {})}
 
     # ------------------------------------------------------------------ eval / logging
     @staticmethod

@@ -173,6 +173,21 @@ def test_fast_reply_span_matches_slow_path(tiny_vlm, rng, style):
     assert orig(samples[0], enc["input_ids"][0], int(enc["attention_mask"][0].sum())) is not None  # fast path used
 
 @pytest.mark.slow
+def test_reference_logprobs_match_the_untrained_policy(tiny_vlm, rng):
+    """The KL reference is the pretrained checkpoint: before any update it scores tokens like the policy itself."""
+    from vlmrl.envs.pointmaze import PointMazeConfig, make_pointmaze
+    b = make_pointmaze(PointMazeConfig(maze="umaze", max_turns=2, image_size=64, prompt_style="compact_rel"))
+    gen = lambda convs: ['{"x": 0.4, "y": -0.2}'] * len(convs)
+    trajs = rollout(gen, b.make_vec_env(), b.interface, b.train_sampler.sample(2, rng), [0, 1], 2)
+    batch = tiny_vlm.build_batch(to_samples(trajs, None))
+    with torch.no_grad():
+        logp, mask = tiny_vlm.token_logprobs(batch)
+    ref = tiny_vlm.ref_token_logprobs(batch)
+    assert ref.shape == logp.shape and not ref.requires_grad
+    assert torch.allclose(ref[mask > 0], logp[mask > 0], atol=1e-3)
+
+
+@pytest.mark.slow
 def test_reply_spelling_image_token_still_builds_a_batch(tiny_vlm, rng):
     """Regression: SmolVLM wrote a literal "<image>" in a reply and build_batch raised "Found total 65 <image>
     tokens and 64 images"; rollout scrubs placeholders before the reply enters the conversation."""

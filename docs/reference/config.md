@@ -58,6 +58,7 @@ Every field of `vlmrl.trainer.TrainConfig`, the Hydra schema. Set any of them on
 | `max_context_tokens` | `int \| None` | `null` | PEAR: episode ends when the context budget is reached |
 | `clip_low` | `float` | `0.2` |  |
 | `clip_high` | `float` | `0.28` |  |
+| `kl_coef` | `float` | `0.0` | per-token k3 KL to the pretrained model in the loss; 0 = off (PEAR) |
 
 ## optim
 

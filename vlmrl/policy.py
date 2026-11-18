@@ -92,6 +92,7 @@ class HFPolicy:
         if dtype == "auto":
             dtype = "bfloat16" if self.device == "cuda" else "float32"
         self.dtype = getattr(torch, dtype)
+        self.model_name = model_name
         self.processor = AutoProcessor.from_pretrained(model_name, **(processor_kwargs or {}))
         self.tokenizer = getattr(self.processor, "tokenizer", self.processor)
         kw = {"dtype": self.dtype}
@@ -240,6 +241,25 @@ class HFPolicy:
         """Return (logp, mask) over positions [first_response_token, T); grad flows through logp.
         With ``topk``/``gather_ids`` returns (logp, mask, stats) -- see ``chunked_token_stats``."""
         self.model.train()
+        return self._logprobs(self.model, batch, topk, gather_ids)
+
+    @torch.no_grad()
+    def ref_token_logprobs(self, batch: dict[str, Any]) -> torch.Tensor:
+        """Token log-probs under the frozen reference policy (the pretrained model), aligned with
+        ``token_logprobs``: the base model with adapters disabled (LoRA), or a frozen copy of the pretrained
+        checkpoint in the model dtype (full fine-tuning; loaded on first use, so it costs memory only when a KL
+        penalty is on, and it stays the pretrained model after a resume)."""
+        if hasattr(self.model, "disable_adapter"):
+            self.model.eval()
+            with self.model.disable_adapter():
+                return self._logprobs(self.model, batch)[0]
+        if getattr(self, "_ref", None) is None:
+            from transformers import AutoModelForImageTextToText
+            self._ref = AutoModelForImageTextToText.from_pretrained(self.model_name, dtype=self.dtype).to(self.device)
+            self._ref.eval().requires_grad_(False)
+        return self._logprobs(self._ref, batch)[0]
+
+    def _logprobs(self, model, batch, topk: int = 0, gather_ids: torch.Tensor | None = None):
         mask = batch["loss_mask"]
         first = int(mask.any(0).nonzero().min())
         T = mask.shape[1]
@@ -248,7 +268,7 @@ class HFPolicy:
             inputs["pixel_values"] = inputs["pixel_values"].to(self.dtype)
         # only compute LM-head logits from the first response token on (prompt logits are wasted work)
         with self._amp():
-            out = self.model(**inputs, use_cache=False, logits_to_keep=T - first + 1)
+            out = model(**inputs, use_cache=False, logits_to_keep=T - first + 1)
         # some models ignore logits_to_keep (e.g. MiniCPM-V 4.6 returns all T positions): keep the last ones
         logits = out.logits[:, -(T - first + 1):][:, :-1]
         targets = inputs["input_ids"][:, first:]

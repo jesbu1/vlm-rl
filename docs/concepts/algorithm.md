@@ -26,6 +26,12 @@ What one call of `Trainer.collect()` + `Trainer.update()` computes. The paper-si
     where \(C_t\) is the score-centering surrogate (below). With `policy_loss=ppo_clip`, the
     REINFORCE term is replaced by \(\min(rA, \operatorname{clip}(r, 1-\epsilon_{lo}, 1+\epsilon_{hi})A)\) with
     \(\epsilon_{lo}=0.2\) and \(\epsilon_{hi}=0.28\) (DAPO clip-higher).
+    With `kl_coef` \(\beta > 0\) the loss adds \(\frac{\beta}{N_{tok}}\sum_{\text{tokens}} (e^{r_t} - r_t - 1)\),
+    \(r_t = \log\pi_{ref}(y_t \mid c_t) - \log\pi_\theta(y_t \mid c_t)\): the k3 estimator of
+    \(\mathrm{KL}(\pi_\theta \,\|\, \pi_{ref})\) on the sampled tokens (logged as `train/kl`), with \(\pi_{ref}\) the
+    pretrained model (adapters disabled for LoRA; a frozen copy of the checkpoint for full fine-tuning, loaded on
+    first use). Off by default, as in PEAR. It is the guard against the drift seen with SmolVLM-256M full FT at
+    lr=3e-5: mean sampled log-prob fell from -2.3 to -8.3 and replies degenerated into gibberish.
 5. **Update.** AdamW step with grad-norm clip 1.0, skipping non-finite losses or gradients.
    Then push the weights to the rollout engine (vLLM backend).
 

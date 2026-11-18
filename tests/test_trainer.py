@@ -410,3 +410,26 @@ def test_update_is_invariant_to_micro_batch_size(tmp_path, epochs, loss):
         thetas.append(tr.policy.model.theta.detach().clone())
         assert m["train/sequences"] == 8
     assert all(torch.allclose(thetas[0], t, atol=1e-6) for t in thetas[1:])
+
+
+def test_kl_penalty_is_inert_at_the_reference_and_pulls_back_toward_it(tmp_path):
+    """kl_coef > 0: at the reference the KL term is zero and changes nothing; once theta has moved away (set by hand
+    here), the update pulls it back toward the reference, while kl_coef = 0 leaves it where it is (the fake policy's
+    REINFORCE gradient is zero: group-normalized advantages sum to 0 and share one parameter per group)."""
+    import copy
+    reward = lambda gs: [[float(i) for i in range(len(g))] for g in gs]  # noqa: E731
+    kept, _, _ = copy.deepcopy(_trainer(tmp_path / "src", random_generate(0), reward_fn=reward).collect())
+    out = {}
+    for kl in (0.0, 0.5):
+        tr = _trainer(tmp_path / str(kl), random_generate(0), reward_fn=reward, kl_coef=kl, grad_clip=1e9)
+        m0 = tr.update(copy.deepcopy(kept))
+        t0 = tr.policy.model.theta.detach().clone()
+        with torch.no_grad():
+            tr.policy.model.theta.fill_(2.0)
+        m1 = tr.update(copy.deepcopy(kept))
+        out[kl] = (m0, t0, m1, tr.policy.model.theta.detach().clone())
+    (a0, ta0, a1, ta1), (b0, tb0, b1, tb1) = out[0.0], out[0.5]
+    assert "train/kl" not in a0 and b0["train/kl"] == 0.0 and torch.allclose(ta0, tb0)
+    assert b1["train/kl"] > 0
+    assert torch.allclose(ta1, torch.full((4,), 2.0))                # no KL: stays put
+    assert (tb1 < 2.0).any() and (tb1 <= 2.0).all()                  # KL: pulled back toward 0

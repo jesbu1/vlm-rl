@@ -154,6 +154,10 @@ class FakePolicy:
             st["logp_at_ids"] = torch.stack([logp, lp1], -1)
         return logp, mask, st
 
+    def ref_token_logprobs(self, batch):
+        """Reference policy = the initial theta (zeros)."""
+        return -torch.nn.functional.softplus(torch.zeros(4)[batch["group"]])[:, None].expand(-1, 4)
+
     def save(self, path):
         self.saved.append(path)
 

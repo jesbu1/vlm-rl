@@ -115,3 +115,18 @@ def test_reinforce_with_centering_subtracts_term():
 
 def test_default_advantage_is_grpo_zscore():
     assert np.allclose(algo.group_advantages([[1, 0, 0, 1]])[0], [1, -1, -1, 1], atol=1e-4)
+
+
+def test_kl_k3_is_zero_at_reference_and_pulls_back():
+    from vlmrl.algo import kl_k3_sum
+    ref = torch.log(torch.tensor([[0.5, 0.25]]))
+    mask = torch.ones(1, 2)
+    logp = ref.clone().requires_grad_(True)
+    kl = kl_k3_sum(logp, ref, mask)
+    kl.backward()
+    assert float(kl) == 0.0 and torch.allclose(logp.grad, torch.zeros(1, 2))
+    logp = (ref - 1.0).requires_grad_(True)   # policy put less mass on the sampled tokens than the reference
+    kl = kl_k3_sum(logp, ref, mask)
+    kl.backward()
+    assert float(kl) > 0 and (logp.grad < 0).all()   # descending the loss raises logp back toward ref
+    assert float(kl_k3_sum(logp, ref, torch.zeros(1, 2))) == 0.0
