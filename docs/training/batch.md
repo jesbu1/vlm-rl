@@ -68,10 +68,29 @@ python scripts/batch_submit.py configs/sweeps/batch_small_fft.yaml              
 | `--shards N` | machines (default: ceil(#runs / lanes)) |
 | `--lanes L` | lanes per machine (default `gpus // 2`) |
 | `--only REGEX` | only runs whose name matches, e.g. `--only qwen3vl2b` |
+| `--gpus`, `--vcpus`, `--memory_mib` | machine size for this submit (overrides the config), e.g. 1-GPU machines |
+| `--gpus_per_lane 1` | trainer and vLLM server share one GPU (default when `gpus=1`) |
 | `--set`, `--group`, `--max_hours`, `--tag`, `--dry_run` | as for `scripts/sagemaker_submit.py` |
 
 Every submit registers a new revision of the job definition (`<ecr_repository>-gpu<gpus>`) pointing at the
 image tag. Old revisions keep working for jobs that are still queued.
+
+## 1-GPU machines
+
+If the multi-GPU instance type has no capacity (Batch keeps the job RUNNABLE, and the auto-scaling group logs
+`InsufficientInstanceCapacity`), submit to 1-GPU instances of the same queue. Every run then gets its own machine:
+
+```bash
+# small models: trainer + vLLM server on the same GPU (server capped at vllm_gpu_util_shared, default 0.3)
+python scripts/batch_submit.py configs/sweeps/batch_small_fft.yaml --gpus 1 --vcpus 16 --memory_mib 120000 \
+    --only 'minicpmv46|smolvlm256m'
+# ~2B full fine-tuning needs most of a 48 GB GPU: generate in-process instead of a server
+python scripts/batch_submit.py configs/sweeps/batch_small_fft.yaml --gpus 1 --vcpus 16 --memory_mib 120000 \
+    --only 'qwen3vl2b|smolvlm2_2b' --set rollout=hf
+```
+
+On a shared GPU, the server starts first and takes its fraction; the trainer gets the rest. 16 vCPUs / 120 GB
+selects `g6e.4xlarge` or larger. Full-FT resume state is ~12 bytes per parameter in CPU memory while it is written.
 
 ## Monitor
 

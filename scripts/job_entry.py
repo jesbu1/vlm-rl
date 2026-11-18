@@ -65,8 +65,9 @@ def job_config(hp_path: str = HP_PATH, environ=os.environ) -> dict:
     return hp
 
 
-def pick_scratch(candidates=("/opt/ml/scratch", "/tmp")) -> str:
-    """The candidate with the most free space (instance NVMe vs root volume differ per instance type)."""
+def pick_scratch(candidates=("/opt/ml/scratch", "/tmp", "/dev/shm")) -> str:
+    """The candidate with the most free space. SageMaker mounts instance storage at /opt/ml; Batch containers
+    often get a small root volume, where the RAM-backed /dev/shm (job definition sharedMemorySize) is bigger."""
     best, best_free = None, -1
     for c in candidates:
         try:

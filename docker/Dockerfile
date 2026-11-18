@@ -10,7 +10,8 @@ ENV DEBIAN_FRONTEND=noninteractive \
     UV_LINK_MODE=copy \
     UV_COMPILE_BYTECODE=1 \
     UV_NO_CACHE=1
-RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl libgl1 libglib2.0-0 \
+# gcc + libc headers: Triton compiles small launcher stubs at runtime (vLLM uses torch.compile / Inductor)
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl libgl1 libglib2.0-0 gcc libc6-dev \
     && rm -rf /var/lib/apt/lists/*
 COPY --from=ghcr.io/astral-sh/uv:0.9 /uv /usr/local/bin/uv
 
