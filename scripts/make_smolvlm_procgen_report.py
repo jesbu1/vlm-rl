@@ -57,6 +57,17 @@ def build(a) -> str:
     def grid(panels, runset=None):
         return wr.PanelGrid(runsets=[runset or runs()], panels=panels)
 
+    def episode_blocks(split, title):
+        tag = split.replace("/", " ")
+        return [
+            wr.H2(title),
+            grid([wr.MediaBrowser(title=f"{tag} video", media_keys=[f"{split}/episode"], num_columns=1,
+                                  layout=wr.Layout(x=0, y=0, w=10, h=10)),
+                  wr.MediaBrowser(title=f"{tag} transcript", media_keys=[f"{split}/transcript"], num_columns=1,
+                                  layout=wr.Layout(x=10, y=0, w=14, h=10)),
+                  wr.WeavePanelSummaryTable(table_name=f"{split}/samples", layout=wr.Layout(x=0, y=10, w=24, h=12))]),
+        ]
+
     by_prompt = runs("by prompt", ["config.env_kwargs.prompt_style"])
     set_keys = [f"eval/{s}/success" for s in SETS]
     takeaways = open(a.takeaways).read() if a.takeaways else "_(to be written)_"
@@ -94,11 +105,16 @@ def build(a) -> str:
              "A policy stuck against a wall repeats the same move until max_turns."),
         grid(lines(["eval/turns", "rollout/turns", "rollout/end_success", "rollout/end_max_turns",
                     "rollout/resp_chars"])),
-        wr.H1("Episodes"),
-        wr.P("Greedy eval episodes for each set and sampled training episodes (videos; use the step slider). "
-             "The transcript panels show the exact prompts and replies."),
-        grid([wr.MediaBrowser(title=f"eval {s}", media_keys=[f"eval/{s}/episode"], num_columns=2) for s in SETS]
-             + [wr.MediaBrowser(title="train", media_keys=["train/episode"], num_columns=2)]),
+        wr.H1("Episodes: videos, transcripts and sampled actions"),
+        wr.P("What the models actually do. For each split: the logged episode video (top-down frames, use the step "
+             "slider; the caption gives success / turns / end reason) next to its transcript (exact prompts and "
+             "replies), then the samples table with one row per logged episode (success, turns, reply length, "
+             "transcript, video) across all runs and steps. Training episodes are sampled at T=1; eval episodes "
+             "are greedy. The compact runs' transcripts show the goal-echo collapse (the same reply every turn); "
+             "compact_rel replies copy the relative offset."),
+        *[blk for name, title in [("train", "Training rollouts (T=1)")] + [(f"eval/{s}", f"Eval {s}: {d}")
+                                                                      for s, d in SETS.items()]
+          for blk in episode_blocks(name, title)],
         wr.H1("Cost"),
         wr.P("Seconds per step for rollouts (incl. DAPO resampling) and the update, and sequences trained per step."),
         grid(lines(["time/rollout", "time/train", "train/sequences", "rollout/rounds"])),
@@ -110,7 +126,7 @@ def build(a) -> str:
     report = wr.Report(entity=a.entity, project=a.project, title=a.title, blocks=blocks,
                        description=f"SmolVLM-256M full-FT GRPO on procedural mazes, sparse reward (group {a.group}).")
     if a.url:
-        old = wr.Report.from_url(a.url)
+        old = wr.Report.from_url(a.url.replace("/wandb/", "/", 1))  # from_url wants entity/project/reports/name
         old.blocks, old.title, old.description = report.blocks, report.title, report.description
         report = old
     report.save(draft=a.draft)

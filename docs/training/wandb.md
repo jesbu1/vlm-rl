@@ -43,7 +43,7 @@ python scripts/make_wandb_report.py --group pointmaze-small-v5 --takeaways takea
 
 `scripts/make_smolvlm_procgen_report.py` is a narrative report for one experiment (the SmolVLM procgen runs,
 group `smolvlm-procgen-v1`): headline eval curve, runs grouped by `env_kwargs.prompt_style`, per-eval-set
-generalization curves plus a latest-value bar chart, learning dynamics, behaviour, eval/train episode videos, cost,
+generalization curves plus a latest-value bar chart, learning dynamics, behaviour, and per split (train + each eval set) the episode video next to its transcript plus the samples table, cost,
 setup and a run comparer. All panels are live, so curves keep updating while runs train; the takeaways and setup
 text are static. `--url <report>` rewrites an existing report in place (e.g. to refresh the takeaways).
 
