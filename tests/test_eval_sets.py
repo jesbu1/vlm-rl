@@ -183,6 +183,7 @@ def test_hydra_eval_sets_override():
 
 
 def test_report_summary_lists_eval_sets():
+    pytest.importorskip("wandb")   # make_wandb_report imports wandb at module level; CI installs [pointmaze,dev] only
     import importlib.util
     import os
     spec = importlib.util.spec_from_file_location(
