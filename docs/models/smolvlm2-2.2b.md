@@ -24,6 +24,8 @@ architecture comparison in the sweep.
 | context | 8k tokens. Serve with `--max-model-len 8192`; long episodes may need `max_images=<int>` |
 | vLLM server | must also disable tiling: `--mm-processor-kwargs '{"do_image_splitting": false}'` |
 | shipped generation config | none |
+| `return_tensors` | the processor honours it only as a top-level `apply_chat_template` argument; inside `processor_kwargs` it returns `input_ids` as lists. `HFPolicy` passes both |
+| action format | under the simple prompt it often writes bare JSON (`{"dx": 0.0, "dy": 0.0}`) without the `<action>` tag, which counts as invalid (53–72% invalid in the first full-FT steps) |
 
 The sweep config passes the server flags automatically:
 

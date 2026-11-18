@@ -2,6 +2,20 @@
 
 All runs are on `puget` (2×RTX A6000 48 GB). wandb project: `tri/vlm-rl-pointmaze`.
 
+## 2026-11-18 · Small-model full fine-tuning on AWS Batch (wandb group `pointmaze-small-fft-batch-v1`)
+
+`configs/sweeps/batch_small_fft.yaml` on `g6e` (L40S 48 GB) machines through [AWS Batch](batch.md): Qwen3-VL-2B,
+SmolVLM2-2.2B, MiniCPM-V 4.6 and SmolVLM-256M, all parameters trained (fp32 masters), simple prompt,
+`success+0.5*neg_dist`, UMaze + medium, 40 steps × 16 groups × 16. No 4-GPU `g6e.12xlarge` capacity in the queue's
+availability zone, so **each run has its own 1-GPU machine (8 in parallel)**: MiniCPM-V and SmolVLM-256M share the
+GPU with a vLLM server (30%); the two ~2B models need most of the GPU and generate in-process (`rollout=hf`).
+
+Smoke runs (2 steps × 4 groups × 4) passed for all 8 runs after fixing what they found: no C compiler in the image
+(vLLM's `torch.compile`), small container disks (`/dev/shm` scratch), vLLM's encoder cache after a full-weight reload
+("Encoder cache miss"), MiniCPM-V ignoring `logits_to_keep`, and SmolVLM2's processor returning lists. In those two
+steps, MiniCPM-V on UMaze went from 94% to 7% invalid actions after one update. Qwen3-VL-2B reached 0.25 (UMaze) and
+0.125 (medium) eval success from 0. SmolVLM-256M stayed at ~100% invalid, so it has almost no learning signal.
+
 ## 2026-11-16 · Qwen3-VL-4B, PointMaze UMaze, success reward (wandb group `dev`)
 
 `policy=qwen3vl4b_lora rollout=vllm`, 8 groups × 8, ≤10 rounds, lr 2e-5, LoRA r=64 on the language

@@ -24,6 +24,8 @@ linear-attention projections are not targeted.
 | tokens per 336-px frame | 70 |
 | shipped generation config | `temperature=0.7`, `top_k=0`, `top_p=1.0` (overridden by vlmrl) |
 | vLLM | `MiniCPMV4_6ForConditionalGeneration` with LoRA, default server flags |
+| `logits_to_keep` | **ignored**: the forward pass returns logits for every position. `HFPolicy.token_logprobs` keeps the last positions itself, so this is handled |
+| linear-attention layers | without `flash-linear-attention` / `causal_conv1d` installed, transformers falls back to slower reference kernels (correct, slower training forward) |
 
 ## Zero-shot behavior under the PEAR prompt
 
