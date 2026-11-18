@@ -13,8 +13,8 @@
 
 | run | step 0 | 5 | 10 | 15 | 20 | status |
 |---|---|---|---|---|---|---|
-| `compact_rel`, lr=3e-5, **kl_coef=0.05** | 1.6 | 13.5 | | | | running (GPU0) |
-| `compact_rel`, lr=1e-5, **kl_coef=0.05** | | | | | | running (GPU1), started 11:32 |
+| `compact_rel`, lr=3e-5, **kl_coef=0.05** | 1.6 | 13.5 | 24.0 | **25.0** | **25.0** | running (GPU0); past the no-KL collapse point |
+| `compact_rel`, lr=1e-5, **kl_coef=0.05** | 1.6 | 4.7 | 20.3 | | | running (GPU1) |
 | `compact_rel`, lr=1e-5 | 1.6 | 10.4 | 20.8 | **22.9** | 20.8 | degenerated at step 25 (0.5%), stopped |
 | `compact_rel`, lr=1e-5, top_p=0.95 | 1.6 | 5.7 | | | | stopped @5 (behind top_p=1 at step 5) |
 | `compact_rel`, lr=3e-5 | 1.6 | 22.9 | **24.5** | 18.2 | 0.0 | degenerated, stopped @20 |
@@ -39,7 +39,11 @@
   * The mean log-prob slide preceded the eval drop by ~8 steps in both runs: it is the early warning.
 * `top_p=0.95` (lr=1e-5) was slower (5.7% vs 10.4% eval at step 5), so it was stopped.
 * **New: `kl_coef`** (k3 KL to the pretrained model, off by default as in PEAR); both GPUs now run `kl_coef=0.05`.
-  * lr=3e-5 + KL, first 5 steps: mean log-prob stays at -1.8 to -2.4 (no drift); eval 13.5% at step 5 (vs 22.9% without KL).
+  * **KL stops the collapse so far**: lr=3e-5 + KL is at 25.0% eval at step 20 (no-KL: 0%), 0% invalid eval replies;
+    mean log-prob -1.8 to -2.2 through step 20 (no-KL: -8.3); KL 0.1-0.4 per token; grad norm <= 2 after step 3.
+  * Cost: slower start (step 5: 13.5% vs 22.9% at lr=3e-5; 4.7% vs 10.4% at lr=1e-5); both caught up by step 10.
+  * Eval is flat at 25.0% for steps 15-20 (identical per-set scores): greedy policy solves the same straight-line
+    episodes; rollout invalid replies 30% -> 44-57% (steps 11-20) without the log-prob drifting.
   * One spike at step 2 (KL 222, grad norm 5157, clipped to 1.0) from a few tokens with a huge k3 ratio; recovered by step 4.
 
 **Scale / cost**
