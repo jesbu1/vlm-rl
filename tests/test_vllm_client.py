@@ -1,5 +1,6 @@
 """vLLM server backend against a fake OpenAI-compatible HTTP server (no vLLM/GPU needed)."""
 import json
+import os
 import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
@@ -104,13 +105,34 @@ def test_adapter_names_unique_across_generators(server, tmp_path):
     assert len(loaded) == 2 and loaded[0] != loaded[1]
 
 
-def test_sync_requires_lora(server, tmp_path):
-    g = VLLMServerGenerator(server, "base", str(tmp_path))
+class _FullPolicy:
+    """Full fine-tuning policy (no peft_config): sync saves a whole checkpoint via policy.save."""
+    model = torch.nn.Linear(1, 1)
 
-    class P:
-        model = torch.nn.Linear(1, 1)
-    with pytest.raises(NotImplementedError):
-        g.sync(P(), 0)
+    def __init__(self):
+        self.saved = []
+
+    def save(self, path, processor=True):
+        import os
+        os.makedirs(path, exist_ok=True)
+        open(f"{path}/model.safetensors", "w").write("x")
+        self.saved.append((path, processor))
+
+
+def test_full_weight_sync_reloads_in_place(server, tmp_path):
+    g = VLLMServerGenerator(server, "base", str(tmp_path))
+    pol = _FullPolicy()
+    g.sync(pol, 0)                      # step 0 = the base weights the server already serves
+    assert _Handler.log == [] and pol.saved == []
+    g.sync(pol, 1)
+    g.sync(pol, 2)
+    assert [p for p, _ in _Handler.log] == ["/collective_rpc", "/reset_prefix_cache"] * 2
+    p1, p2 = (f"{tmp_path}/full_{g.tag}_step{s}" for s in (1, 2))
+    assert _Handler.log[0][1] == {"method": "reload_weights", "kwargs": {"weights_path": p1}}
+    assert _Handler.log[2][1]["kwargs"]["weights_path"] == p2
+    assert pol.saved == [(p1, False), (p2, False)]       # weights only, no processor files
+    assert not os.path.exists(p1) and os.path.exists(p2)  # only the served checkpoint is kept
+    assert g.current == "base" and g.generate([_conv()[:2]])[0].startswith("base|")
 
 
 def test_chat_template_kwargs_forwarded_only_when_set(server):

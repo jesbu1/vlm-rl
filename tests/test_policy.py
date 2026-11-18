@@ -115,3 +115,37 @@ def test_batch_padding_does_not_change_logprobs(tiny_vlm, umaze, rng):
     a = alone[0][m_alone[0].bool()]
     b = both[0][m_both[0].bool()]
     assert a.shape == b.shape and torch.allclose(a, b, atol=2e-3)
+
+
+@pytest.mark.slow
+def test_full_ft_freeze_fp32_master_and_save_format(umaze, rng, tmp_path):
+    """Full FT: frozen params stay bf16, trainable ones become fp32 masters (bf16 autocast forward), grads are
+    fp32, and `save` writes a bf16 checkpoint with exactly the original checkpoint's tensor names (what the
+    vLLM full-weight sync reloads)."""
+    from huggingface_hub import hf_hub_download
+    from safetensors import safe_open
+
+    from conftest import TINY_VLM
+    from vlmrl.policy import HFPolicy
+    pol = HFPolicy(TINY_VLM, device="cpu", dtype="bfloat16", processor_kwargs={"do_image_splitting": False},
+                   gradient_checkpointing=False, freeze=r".*embed_tokens.*")
+    named = dict(pol.model.named_parameters())
+    frozen = [n for n in named if "embed_tokens" in n]
+    assert frozen and all(not named[n].requires_grad and named[n].dtype == torch.bfloat16 for n in frozen)
+    train = [p for p in named.values() if p.requires_grad]
+    assert train and all(p.dtype == torch.float32 for p in train)
+    t = _traj_with_texts(umaze, rng, ["a <action>0,0</action>"])
+    logp, mask = pol.token_logprobs(pol.build_batch([Sample(t.messages, [2], 1.0)]))
+    assert torch.isfinite(logp[mask.bool()]).all()
+    (-(logp * mask).sum()).backward()
+    grads = [p.grad for p in train if p.grad is not None]
+    assert grads and all(g.dtype == torch.float32 for g in grads)
+
+    pol.save(str(tmp_path / "ck"), processor=False)
+    saved = {}
+    for f in (tmp_path / "ck").glob("*.safetensors"):
+        with safe_open(str(f), "pt") as fh:
+            saved.update({k: fh.get_slice(k).get_dtype() for k in fh.keys()})
+    with safe_open(hf_hub_download(TINY_VLM, "model.safetensors"), "pt") as fh:
+        original = set(fh.keys())
+    assert set(saved) == original and set(saved.values()) == {"BF16"}

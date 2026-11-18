@@ -235,3 +235,6 @@ wandb/
 
 # mkdocs build output
 site/
+
+# SageMaker: account-specific settings (account ids, roles, buckets, tags) stay local; see configs/sagemaker/example.yaml
+configs/sagemaker/local*.yaml

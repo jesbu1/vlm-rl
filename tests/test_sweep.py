@@ -90,3 +90,71 @@ def test_zeroshot_think_sweeps_compose():
     native = sweep.expand(yaml.safe_load(open(f"{d}/zeroshot_native_think.yaml")))
     assert len(native) == 8 and all(r["cfg"].chat_template_kwargs == {"enable_thinking": True}
                                     and r["cfg"].env_kwargs["think"] is False for r in native)
+
+
+def test_merge_overrides_replaces_keys():
+    base = ["experiment=x", "steps=40", "+env_kwargs.maze=umaze", "lr=1e-6"]
+    assert sweep.merge_overrides(base, ["steps=2", "env_kwargs.maze=open"]) == \
+        ["experiment=x", "lr=1e-6", "steps=2", "env_kwargs.maze=open"]
+    assert sweep.merge_overrides(base, []) == base
+
+
+def test_lanes_assign_disjoint_gpus_and_ports():
+    assert sweep.lanes_for(1, {"train_gpu": 3, "vllm_gpu": 5, "vllm_port": 9000}) == \
+        [{"train_gpu": 3, "vllm_gpu": 5, "vllm_port": 9000}]
+    lanes = sweep.lanes_for(4, {"vllm_port": 8011})
+    gpus = [g for l in lanes for g in (l["train_gpu"], l["vllm_gpu"])]
+    assert sorted(gpus) == list(range(8)) and [l["vllm_port"] for l in lanes] == [8011, 8012, 8013, 8014]
+    ov = sweep.lane_overrides(["a=1", "vllm_url=http://localhost:8011"], lanes[2])
+    assert ov == ["a=1", "vllm_url=http://localhost:8013"]
+
+
+def test_out_and_sync_roots():
+    runs = sweep.expand({"group": "g", "overrides": ["experiment=pointmaze_q3vl4b_vllm"], "grid": {"seed": [1]}},
+                        out_root="/opt/ml/checkpoints", sync_root="/scratch/sync")
+    assert runs[0]["cfg"].out_dir == "/opt/ml/checkpoints/g/seed=1"
+    assert runs[0]["cfg"].vllm_sync_dir == "/scratch/sync/g/seed=1"
+    assert sweep.expand({"group": "g", "overrides": [], "grid": {"seed": [1]}})[0]["cfg"].vllm_sync_dir == ""
+
+
+def test_run_lane_starts_full_ft_server_without_lora(monkeypatch, tmp_path):
+    """Full fine-tuning runs get a server with ENABLE_LORA=0 on the lane's GPU/port, trainer on the lane's GPU."""
+    import yaml
+    shipped = yaml.safe_load(open(os.path.join(os.path.dirname(__file__), "..", "configs/sweeps/sagemaker_gemma4_fft.yaml")))
+    runs = sweep.expand(shipped, out_root=str(tmp_path))[:1]
+    calls = {}
+
+    class FakeProc:
+        pid = 0
+
+        def poll(self):
+            return None
+
+    def popen(cmd, env, **kw):
+        calls["server"] = (cmd, env)
+        return FakeProc()
+
+    def call(cmd, env, **kw):
+        calls["train"] = (cmd, env)
+        return 0
+    monkeypatch.setattr(sweep.subprocess, "Popen", popen)
+    monkeypatch.setattr(sweep.subprocess, "call", call)
+    monkeypatch.setattr(sweep, "wait_ready", lambda url, proc: calls.setdefault("url", url))
+    monkeypatch.setattr(sweep, "stop_server", lambda proc: None)
+    lane = sweep.lanes_for(4, shipped)[3]
+    sweep.run_lane(runs, shipped, lane, 3, str(tmp_path))
+    cmd, env = calls["server"]
+    assert cmd[1:4] == ["google/gemma-4-E2B-it", "8014", "7"] and env["ENABLE_LORA"] == "0"
+    tcmd, tenv = calls["train"]
+    assert tenv["CUDA_VISIBLE_DEVICES"] == "6" and tcmd[-1] == "vllm_url=http://localhost:8014"
+    assert calls["url"] == "http://localhost:8014" and runs[0]["rc"] == 0
+
+
+def test_shipped_sagemaker_sweep_composes():
+    import yaml
+    shipped = yaml.safe_load(open(os.path.join(os.path.dirname(__file__), "..", "configs/sweeps/sagemaker_gemma4_fft.yaml")))
+    runs = sweep.expand(shipped)
+    assert len(runs) == 4 and {r["cfg"].lr for r in runs} == {1e-6, 5e-6}
+    c = runs[0]["cfg"]
+    assert c.model == "google/gemma-4-E2B-it" and c.lora_rank == 0 and c.fp32_master and c.rollout_backend == "vllm"
+    assert "embed_tokens" in c.freeze and c.max_frames == 1 and c.steps == 40

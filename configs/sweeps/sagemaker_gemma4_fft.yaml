@@ -1,0 +1,27 @@
+# Gemma 4 E2B full fine-tuning on one 8-GPU node (4 lanes: trainer GPU + vLLM GPU each).
+#   python scripts/sagemaker_submit.py configs/sweeps/sagemaker_gemma4_fft.yaml        (SageMaker)
+#   python scripts/sweep.py configs/sweeps/sagemaker_gemma4_fft.yaml --lanes 4         (any 8-GPU box)
+# Same task settings as pointmaze_small.yaml (v5: PEAR protocol, sparse success reward, 16 groups x 16,
+# 15 turns), so the curves sit next to the LoRA runs. Grid: maze x learning rate (PEAR uses 1e-6 for full FT
+# at a much larger batch; 5e-6 checks whether this small batch wants a larger step).
+group: pointmaze-gemma4-fft-v1
+project: vlm-rl-pointmaze
+vllm_port: 8011
+overrides:
+  - experiment=pointmaze_q3vl4b_vllm
+  - policy=gemma4_e2b_full
+  - steps=40
+  - eval_every=5
+  - reward=success
+  - groups_per_step=16
+  - group_size=16
+  - micro_batch_size=8
+  - max_new_tokens=512
+  - save_every=40                    # final HF checkpoint only (bf16, ~10 GB)
+  - resume_every=5                   # resume state = fp32 trainable weights + AdamW (~25 GB), synced to S3
+  - wandb_entity=tri
+  - "wandb_tags='pointmaze,pear,fft,gemma4,sagemaker'"
+  - env_kwargs.max_turns=15
+grid:
+  env_kwargs.maze: [umaze, medium]
+  lr: [1.0e-6, 5.0e-6]

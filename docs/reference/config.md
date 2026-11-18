@@ -19,13 +19,16 @@ Every field of `vlmrl.trainer.TrainConfig`, the Hydra schema. Set any of them on
 | `lora_rank` | `int` | `64` | 0 = full fine-tuning |
 | `lora_alpha` | `int` | `128` |  |
 | `lora_targets` | `str` | `'.*language_model.*\\.(q_proj\|k_proj\|v_proj\|o_proj\|gate_proj\|up_proj\|down_proj)'` | PEFT target_modules; a regex string also works |
+| `freeze` | `str` | `''` | full FT: regex (fullmatch) of parameter names to keep frozen |
+| `fp32_master` | `bool` | `True` | full FT: keep trainable weights in fp32, bf16 autocast forward |
 
 ## rollout backend
 
 | field | type | default | notes |
 |---|---|---|---|
-| `rollout_backend` | `str` | `'hf'` | "hf" (in-process generate) \| "vllm" (server, LoRA only) |
+| `rollout_backend` | `str` | `'hf'` | "hf" (in-process generate) \| "vllm" (server) |
 | `vllm_url` | `str` | `'http://localhost:8000'` |  |
+| `vllm_sync_dir` | `str` | `''` | where weights for the server are written ("" = out_dir/adapters) |
 
 ## task
 

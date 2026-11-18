@@ -39,9 +39,12 @@ class TrainConfig:
     lora_rank: int = 0                                  # 0 = full fine-tuning
     lora_alpha: int = 32
     lora_targets: str = "all-linear"                    # PEFT target_modules; a regex string also works
+    freeze: str = ""                                    # full FT: regex (fullmatch) of parameter names to keep frozen
+    fp32_master: bool = True                            # full FT: keep trainable weights in fp32, bf16 autocast forward
     # rollout backend
-    rollout_backend: str = "hf"                         # "hf" (in-process generate) | "vllm" (server, LoRA only)
+    rollout_backend: str = "hf"                         # "hf" (in-process generate) | "vllm" (server)
     vllm_url: str = "http://localhost:8000"
+    vllm_sync_dir: str = ""                             # where weights for the server are written ("" = out_dir/adapters)
     # task
     env: str = "pointmaze"                              # registry name or "module:factory"
     env_kwargs: dict = field(default_factory=dict)
@@ -159,7 +162,7 @@ class Trainer:
             cfg.model, dtype=cfg.dtype, attn_implementation=cfg.attn_implementation,
             gradient_checkpointing=cfg.gradient_checkpointing, lora_rank=cfg.lora_rank,
             lora_alpha=cfg.lora_alpha, lora_targets=cfg.lora_targets, processor_kwargs=cfg.processor_kwargs,
-            chat_template_kwargs=cfg.chat_template_kwargs)
+            chat_template_kwargs=cfg.chat_template_kwargs, freeze=cfg.freeze, fp32_master=cfg.fp32_master)
         if cfg.rollout_backend not in ("hf", "vllm"):
             raise ValueError(f"unknown rollout_backend {cfg.rollout_backend!r}")
         params = [p for p in self.policy.model.parameters() if p.requires_grad]
@@ -170,9 +173,9 @@ class Trainer:
         self.start_step, pending = self.load_resume() if cfg.resume else (0, None)
         if cfg.rollout_backend == "vllm":
             from vlmrl.vllm_client import VLLMServerGenerator
-            self.generator = VLLMServerGenerator(cfg.vllm_url, cfg.model, f"{cfg.out_dir}/adapters",
+            self.generator = VLLMServerGenerator(cfg.vllm_url, cfg.model, cfg.vllm_sync_dir or f"{cfg.out_dir}/adapters",
                                                  chat_template_kwargs=cfg.chat_template_kwargs)
-            self.generator.sync(self.policy, self.start_step)  # serve the initial / resumed LoRA policy
+            self.generator.sync(self.policy, self.start_step)  # serve the initial / resumed policy
         else:
             self.generator = self.policy
         self.wandb = None

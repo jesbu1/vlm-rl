@@ -6,8 +6,9 @@ re-prefills it from scratch; vLLM's automatic prefix caching reuses the KV cache
 
 Why a *server*: it keeps vLLM's pinned torch/CUDA stack in its own venv/GPU, works for any model vLLM
 serves, and makes weight sync trivial for LoRA: after each update we save the adapter and call
-``/v1/load_lora_adapter``. Full fine-tuning would need an NCCL weight broadcast (see FeynRL /
-veRL); not implemented here.
+``/v1/load_lora_adapter``. Full fine-tuning saves the whole checkpoint and has the server reload it in
+place (``/collective_rpc`` -> ``reload_weights``, dev mode). That costs a disk round trip per step (seconds
+for a few-B model on local NVMe); an NCCL broadcast (FeynRL / veRL) would avoid it.
 
 Launch (separate venv, separate GPU), then train with ``--rollout_backend vllm --vllm_url ...``:
 
@@ -90,9 +91,10 @@ class VLLMServerGenerator:
         return [t for t, _ in res]
 
     def sync(self, policy, step: int):
-        """Push the current LoRA weights to the server (save adapter -> hot-load -> unload previous)."""
+        """Push the current weights to the server. LoRA: save adapter -> hot-load -> unload previous.
+        Full fine-tuning: save the full checkpoint -> in-place ``reload_weights`` -> reset the prefix cache."""
         if not hasattr(policy.model, "peft_config"):
-            raise NotImplementedError("vLLM server backend requires LoRA (lora_rank > 0) for weight sync")
+            return self._sync_full(policy, step)
         name = f"policy_{self.tag}_step{step}"
         path = os.path.abspath(os.path.join(self.adapter_dir, name))
         policy.model.save_pretrained(path)
@@ -106,3 +108,22 @@ class VLLMServerGenerator:
                 print(f"[vllm] unload {old_name} failed: {e}")
             shutil.rmtree(old_path, ignore_errors=True)
         self._prev_adapter = (name, path)
+
+    def _sync_full(self, policy, step: int):
+        """Full-weight sync through vLLM's dev endpoints (server needs ``VLLM_SERVER_DEV_MODE=1``;
+        ``scripts/launch_vllm.sh`` sets it). The checkpoint is written in HF format, i.e. exactly what vLLM
+        loads at startup, then reloaded in place on every worker. Cached prefixes were computed with the old
+        weights, so the prefix cache is reset too. Step 0 is the base model the server already has."""
+        if step == 0:
+            return
+        path = os.path.abspath(os.path.join(self.adapter_dir, f"full_{self.tag}_step{step}"))
+        if hasattr(policy, "save"):
+            policy.save(path, processor=False)
+        else:
+            policy.model.save_pretrained(path)
+        _post(f"{self.url}/collective_rpc", {"method": "reload_weights", "kwargs": {"weights_path": path}},
+              timeout=1800)
+        _post(f"{self.url}/reset_prefix_cache", {})
+        if self._prev_adapter:
+            shutil.rmtree(self._prev_adapter[1], ignore_errors=True)
+        self._prev_adapter = (self.base_model, path)

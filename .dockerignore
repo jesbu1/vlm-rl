@@ -1,0 +1,17 @@
+# Only what the image needs: code, configs, examples, tests, docker/. Never local secrets or outputs.
+.git
+.venv*
+**/__pycache__
+*.pyc
+runs/
+outputs/
+multirun/
+wandb/
+site/
+uv.lock
+.DS_Store
+.env*
+*.pem
+*.key
+.netrc
+configs/sagemaker/local*.yaml

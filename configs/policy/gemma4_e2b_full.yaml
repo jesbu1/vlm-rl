@@ -1,0 +1,13 @@
+# @package _global_
+# Gemma 4 E2B, full fine-tuning (no LoRA) at PEAR's learning rate.
+# Of the 5.1B parameters, 2.75B are embedding tables (embed_tokens, tied with the LM head, and the per-layer
+# embeddings embed_tokens_per_layer) and ~0.35B the audio tower, which PointMaze never uses. Those stay frozen
+# in bf16; the rest (every language-model transformer layer + the vision tower, ~2.1B) is trained with fp32
+# master weights (fp32_master: ~16 bytes/param with AdamW), ~40 GB in total: fits one 80 GB H100/A100.
+# Rollouts: vLLM with full-weight sync (reload_weights each step); run the server with ENABLE_LORA=0.
+# (Saved checkpoints lack k/v_proj + k_norm of the KV-shared layers 15+: HF never builds them and vLLM drops them.)
+model: google/gemma-4-E2B-it
+lora_rank: 0
+freeze: 'model\.(language_model\.embed_tokens(_per_layer)?|audio_tower|embed_audio)\..*'
+fp32_master: true
+lr: 1.0e-6

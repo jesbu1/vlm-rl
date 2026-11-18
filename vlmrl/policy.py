@@ -13,6 +13,8 @@ a clear error otherwise -- e.g. templates that strip past reasoning; use ``conte
 """
 from __future__ import annotations
 
+import contextlib
+import re
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -72,7 +74,12 @@ class HFPolicy:
                  attn_implementation: str | None = None, gradient_checkpointing: bool = True,
                  lora_rank: int = 0, lora_alpha: int = 32, lora_targets: str = "all-linear",
                  processor_kwargs: dict | None = None, logprob_chunk: int = 1024,
-                 chat_template_kwargs: dict | None = None):
+                 chat_template_kwargs: dict | None = None, freeze: str = "", fp32_master: bool = True):
+        """Full fine-tuning (``lora_rank=0``): parameters whose name fully matches the regex ``freeze`` stay
+        frozen; with ``fp32_master`` the trainable ones are kept in fp32 while the forward pass runs under
+        bf16/fp16 autocast. (Plain bf16 weights silently drop most updates: at lr 1e-6 an Adam step is
+        ~1e-4 of a typical weight, far below bf16's ~4e-3 relative resolution.) LoRA adapters are fp32
+        already (PEFT)."""
         from transformers import AutoModelForImageTextToText, AutoProcessor
 
         self.device = device or ("cuda" if torch.cuda.is_available() else
@@ -96,9 +103,28 @@ class HFPolicy:
             self.model = get_peft_model(self.model, LoraConfig(
                 r=lora_rank, lora_alpha=lora_alpha, target_modules=lora_targets, lora_dropout=0.0))
             self.model.print_trainable_parameters()
+        self._autocast = False
+        if lora_rank == 0:
+            if freeze:
+                for n, p in self.model.named_parameters():
+                    if re.fullmatch(freeze, n):
+                        p.requires_grad_(False)
+            if fp32_master and self.dtype in (torch.bfloat16, torch.float16):
+                for p in self.model.parameters():
+                    if p.requires_grad:
+                        p.data = p.data.float()
+                self._autocast = True
+            n_train = sum(p.numel() for p in self.model.parameters() if p.requires_grad)
+            n_all = sum(p.numel() for p in self.model.parameters())
+            print(f"[policy] full fine-tuning: {n_train / 1e9:.3f}B / {n_all / 1e9:.3f}B params trainable"
+                  + (" (fp32 master weights, autocast forward)" if self._autocast else ""), flush=True)
         self.logprob_chunk = logprob_chunk
         self.chat_template_kwargs = dict(chat_template_kwargs or {})
         self._prefix_checked = False
+
+    def _amp(self):
+        dev = self.device.split(":")[0]
+        return torch.autocast(dev, dtype=self.dtype) if self._autocast else contextlib.nullcontext()
 
     # ------------------------------------------------------------------ tokenisation helpers
     def _apply(self, convs, add_generation_prompt: bool, padding_side: str = "right", tensors: bool = True):
@@ -141,16 +167,20 @@ class HFPolicy:
         if "pixel_values" in enc:
             enc["pixel_values"] = enc["pixel_values"].to(self.dtype)
         greedy = temperature <= 0
-        out = self.model.generate(
+        with self._amp():
+            out = self._sample(enc, max_new_tokens, temperature, top_p, greedy)
+        new = out[:, enc["input_ids"].shape[1]:]
+        n_new = (new != self.tokenizer.pad_token_id).sum(1)
+        self.last_num_tokens += (enc["attention_mask"].sum(1) + n_new).tolist()
+        return [t.strip() for t in self.tokenizer.batch_decode(new, skip_special_tokens=True)]
+
+    def _sample(self, enc, max_new_tokens, temperature, top_p, greedy):
+        return self.model.generate(
             **enc, max_new_tokens=max_new_tokens, do_sample=not greedy, use_cache=True,
             # override checkpoint generation_config (Qwen2.5-VL ships temperature=1e-6 + repetition_penalty=1.05,
             # Qwen3-VL temperature=0.7/top_p=0.8/top_k=20): sample the full distribution, as PEAR does
             **({} if greedy else {"temperature": temperature, "top_p": top_p, "top_k": 0}),
             repetition_penalty=1.0, pad_token_id=self.tokenizer.pad_token_id)
-        new = out[:, enc["input_ids"].shape[1]:]
-        n_new = (new != self.tokenizer.pad_token_id).sum(1)
-        self.last_num_tokens += (enc["attention_mask"].sum(1) + n_new).tolist()
-        return [t.strip() for t in self.tokenizer.batch_decode(new, skip_special_tokens=True)]
 
     # ------------------------------------------------------------------ training
     def build_batch(self, samples: list[Sample]) -> dict[str, Any]:
@@ -185,7 +215,8 @@ class HFPolicy:
         if "pixel_values" in inputs:
             inputs["pixel_values"] = inputs["pixel_values"].to(self.dtype)
         # only compute LM-head logits from the first response token on (prompt logits are wasted work)
-        out = self.model(**inputs, use_cache=False, logits_to_keep=T - first + 1)
+        with self._amp():
+            out = self.model(**inputs, use_cache=False, logits_to_keep=T - first + 1)
         logits = out.logits[:, :-1]
         targets = inputs["input_ids"][:, first:]
         mask = mask[:, first:].to(self.device)
@@ -195,6 +226,13 @@ class HFPolicy:
                                  None if gather_ids is None else gather_ids.to(self.device))
         return st.pop("logp"), mask, st
 
-    def save(self, path: str):
-        self.model.save_pretrained(path)
-        self.processor.save_pretrained(path)
+    def save(self, path: str, processor: bool = True):
+        """HF-format checkpoint. fp32 master weights are written in the model dtype, so the files look like
+        the original checkpoint (this is also what the vLLM full-weight sync reloads)."""
+        if self._autocast:
+            sd = {k: (v.to(self.dtype) if v.is_floating_point() else v) for k, v in self.model.state_dict().items()}
+            self.model.save_pretrained(path, state_dict=sd)
+        else:
+            self.model.save_pretrained(path)
+        if processor:
+            self.processor.save_pretrained(path)

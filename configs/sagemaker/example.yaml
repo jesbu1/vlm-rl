@@ -1,0 +1,18 @@
+# Template for configs/sagemaker/local.yaml (git-ignored; scripts/sagemaker_submit.py reads it).
+# Fill in your own account's values. Nothing account-specific belongs in the repo.
+profile: my-sso-profile               # AWS CLI profile (~/.aws/config) with SageMaker + Batch access
+region: us-west-2
+queue: my-sagemaker-training-queue    # AWS Batch job queue of type SAGEMAKER_TRAINING
+share_identifier: default             # fair-share identifier, if the queue uses a fair-share policy
+instance_type: ml.p5.48xlarge         # must match the queue's service environment
+volume_gb: 200
+max_hours: 8                          # default job time limit (--max_hours overrides)
+ecr_repository: my-name-vlm-rl        # image = <account>.dkr.ecr.<region>.amazonaws.com/<repo>:<git commit>
+role_arn: arn:aws:iam::<account-id>:role/<sagemaker-execution-role>
+s3_output: s3://<bucket>/<prefix>     # job outputs + checkpoints go under <s3_output>/<job-name>/
+tags:                                 # cost-allocation tags, if your organization requires them
+  owner: me@example.com
+env:                                  # plain (non-secret) environment variables for the job
+  WANDB_BASE_URL: https://api.wandb.ai
+secret_env:                           # copied from your shell's environment at submit time, never stored
+  - WANDB_API_KEY

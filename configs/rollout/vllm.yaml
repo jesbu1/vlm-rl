@@ -1,4 +1,4 @@
 # @package _global_
-# Start the server first: scripts/launch_vllm.sh <model> 8011 <gpu>   (LoRA policies only)
+# Start the server first: scripts/launch_vllm.sh <model> 8011 <gpu>   (ENABLE_LORA=0 for full fine-tuning)
 rollout_backend: vllm
 vllm_url: http://localhost:8011
