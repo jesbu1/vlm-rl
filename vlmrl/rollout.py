@@ -1,6 +1,7 @@
 """Batched multi-turn rollouts and conversion of trajectories into training samples."""
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from typing import Callable, Sequence
 
@@ -11,6 +12,18 @@ from vlmrl.policy import Sample
 from vlmrl.types import StepResult, Trajectory, Turn
 
 Generate = Callable[[list[list[dict]]], list[str]]
+
+# Image/video placeholder strings of the supported VLM processors. A sampled reply that contains one verbatim
+# (SmolVLM once wrote "<image>") would be counted as an image slot when the conversation is re-tokenised, and the
+# processor raises "number of <image> tokens ... should be the same as the number of images".
+_MEDIA_TOKENS = re.compile(
+    r"<image>|<video>|<fake_token_around_image>|<global-img>|<row_\d+_col_\d+>|<\|(?:image|video)_pad\|>"
+    r"|<\|vision_(?:start|end)\|>|<\|image\|>|<image_soft_token>|<(?:start|end)_of_image>")
+
+
+def scrub_media_tokens(text: str) -> str:
+    """Remove media placeholder strings from a model reply before it enters the conversation history."""
+    return _MEDIA_TOKENS.sub("", text)
 
 
 def context_view(messages: list[dict], max_images: int | None, max_frames: int | None = None) -> list[dict]:
@@ -103,7 +116,7 @@ def rollout_pooled(generate: Generate, tasks: Sequence[RolloutTask], max_images:
         still = []
         for j, ((i, k), text, a) in enumerate(zip(active, texts, parsed)):
             tr = trajs[i][k]
-            tr.messages.append({"role": "assistant", "content": [{"type": "text", "text": text}]})
+            tr.messages.append({"role": "assistant", "content": [{"type": "text", "text": scrub_media_tokens(text)}]})
             if j not in res_of:                      # invalid action -> episode over (PEAR)
                 # state is unchanged: carry the latest step info + scalar obs extras (e.g. "dist")
                 info = dict(tr.turns[-1].result.info) if tr.turns else {}

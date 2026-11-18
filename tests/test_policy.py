@@ -172,6 +172,17 @@ def test_fast_reply_span_matches_slow_path(tiny_vlm, rng, style):
     enc = tiny_vlm.build_batch(samples[:1])
     assert orig(samples[0], enc["input_ids"][0], int(enc["attention_mask"][0].sum())) is not None  # fast path used
 
+@pytest.mark.slow
+def test_reply_spelling_image_token_still_builds_a_batch(tiny_vlm, rng):
+    """Regression: SmolVLM wrote a literal "<image>" in a reply and build_batch raised "Found total 65 <image>
+    tokens and 64 images"; rollout scrubs placeholders before the reply enters the conversation."""
+    from vlmrl.envs.pointmaze import PointMazeConfig, make_pointmaze
+    b = make_pointmaze(PointMazeConfig(maze="umaze", max_turns=2, image_size=64, prompt_style="compact"))
+    gen = lambda convs: ['<image> {"x": 0.4, "y": -0.2}'] * len(convs)
+    trajs = rollout(gen, b.make_vec_env(), b.interface, b.train_sampler.sample(2, rng), [0, 1], 2)
+    assert tiny_vlm.build_batch(to_samples(trajs, None))["loss_mask"].sum() > 0
+
+
 @pytest.mark.parametrize("honors_keep", [True, False])
 def test_token_logprobs_whether_or_not_the_model_honors_logits_to_keep(honors_keep):
     """MiniCPM-V 4.6 ignores logits_to_keep and returns logits for every position; both must give the same

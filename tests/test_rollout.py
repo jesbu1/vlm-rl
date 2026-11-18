@@ -170,3 +170,16 @@ def test_rollout_context_matches_training_samples_max_frames(umaze, rng):
     assert len(samples) == len(t.turns) == len(seen)
     for s, ctx in zip(samples, seen):
         assert s.messages[:-1] == ctx and s.messages[-1]["role"] == "assistant" and s.train_msg_idx == [2]
+
+
+def test_media_placeholders_in_replies_are_scrubbed(umaze, rng):
+    """A reply that spells out an image placeholder must not reach the history (it would be counted as an
+    image slot when the conversation is re-tokenised for training); the raw reply is kept on the turn."""
+    from vlmrl.rollout import scrub_media_tokens
+    assert scrub_media_tokens('<image>{"x": 1} <row_1_col_2><|image_pad|>') == '{"x": 1} '
+    reply = "move <image> <x>1.0</x><y>0.0</y>"
+    t = rollout(lambda c: [reply] * len(c), umaze.make_vec_env(), umaze.interface,
+                umaze.train_sampler.sample(1, rng), [0], 2, on_invalid="noop")[0]
+    replies = [m["content"][0]["text"] for m in t.messages if m["role"] == "assistant"]
+    assert replies and all("<image>" not in r for r in replies)
+    assert t.turns[0].response == reply
