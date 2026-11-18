@@ -79,7 +79,8 @@ is about **16 bytes per trainable parameter**: weight 4, gradient 4, two moments
 | `minicpmv46_full` | 1.3B (all) | 21 GB | 24 GB+ |
 | `qwen3vl2b_full` | 2.1B (all) | 34 GB | 48 GB (L40S, A6000) |
 | `smolvlm2_2b_full` | 2.25B (all) | 36 GB | 48 GB |
-| `gemma4_e2b_full` | 2.1B of 5.1B (embeddings + audio tower frozen) | 40 GB | 48 GB tight, 80 GB comfortable |
+| `gemma4_e2b_full` | 2.1B of 5.1B (embeddings + audio tower frozen) | 40 GB | 80 GB (ran out of memory on a 44.4 GB L40S) |
+| `gemma4_e2b_full_48gb` | 1.9B of 5.1B (vision tower frozen too) | 36 GB | 48 GB |
 | `qwen25vl7b_full` | 8.3B (all) | 130 GB | multi-GPU sharding (not implemented) |
 
 !!! question "Why not keep the weights in bf16 or fp16 and save half the memory?"

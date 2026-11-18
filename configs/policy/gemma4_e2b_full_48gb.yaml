@@ -1,0 +1,8 @@
+# @package _global_
+# Gemma 4 E2B full fine-tuning sized for one 48 GB GPU (L40S / A6000): as gemma4_e2b_full, but the vision tower is
+# frozen too, so the trainable part is the language model's transformer layers (~1.9B). Peak training memory ~36 GB
+# (fp32 masters + AdamW moments + grads, frozen parts in bf16) instead of ~40 GB, which ran out of memory at the
+# first optimizer step on a 44.4 GB L40S. On 80 GB GPUs use gemma4_e2b_full.
+defaults:
+  - gemma4_e2b_full
+freeze: 'model\.(language_model\.embed_tokens(_per_layer)?|audio_tower|embed_audio|vision_tower|embed_vision)\..*'

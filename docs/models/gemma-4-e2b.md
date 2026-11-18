@@ -58,6 +58,10 @@ has the original tensor names, except `k_proj`/`v_proj`/`k_norm` of the KV-share
 never builds those, and vLLM's Gemma 4 loader drops them too. Checked on CPU: a forward/backward pass on a
 PointMaze turn under bf16 autocast, and the checkpoint's names.
 
+**On a 48 GB GPU** (L40S has 44.4 GB usable) the first optimizer step ran out of memory: 43.7 GB allocated when AdamW
+created its moments. `policy=gemma4_e2b_full_48gb` also freezes the vision tower (~1.9B trainable, ~36 GB), and the
+trainer uses fused AdamW on CUDA (no parameter-sized temporaries in the step).
+
 Shipped sweep: `configs/sweeps/sagemaker_gemma4_fft.yaml` (maze × lr, 4 lanes on one 8-GPU node, see
 [SageMaker](../training/sagemaker.md)).
 

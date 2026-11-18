@@ -175,7 +175,11 @@ class Trainer:
         if cfg.rollout_backend not in ("hf", "vllm"):
             raise ValueError(f"unknown rollout_backend {cfg.rollout_backend!r}")
         params = [p for p in self.policy.model.parameters() if p.requires_grad]
-        self.opt = torch.optim.AdamW(params, lr=cfg.lr, weight_decay=cfg.weight_decay, betas=(0.9, 0.999))
+        # fused AdamW on CUDA: one kernel per tensor, no foreach temporaries. The default foreach step needs extra
+        # parameter-sized buffers on top of the two moments, which ran a 48 GB GPU out of memory for Gemma 4 E2B
+        fused = all(p.is_cuda for p in params) and len(params) > 0
+        self.opt = torch.optim.AdamW(params, lr=cfg.lr, weight_decay=cfg.weight_decay, betas=(0.9, 0.999),
+                                     **({"fused": True} if fused else {}))
         self.params = params
         self.eval_starts = self.bundle.eval_sampler.sample(cfg.eval_episodes, np.random.default_rng(10_000 + cfg.seed))
         self.eval_sets = self.build_eval_sets()
