@@ -1,6 +1,6 @@
 # Training image: the repo + two Python environments (trainer, vLLM server), as on the dev box.
 #   docker/build.sh <image-uri>     (or: docker build -f docker/Dockerfile -t vlmrl .)
-# Used by SageMaker (docker/entrypoint.sh -> scripts/sagemaker_entry.py), but also runs anywhere with
+# Used by SageMaker and AWS Batch jobs (docker/entrypoint.sh -> scripts/job_entry.py), and runs anywhere with
 #   docker run --gpus all <image> python scripts/sweep.py configs/sweeps/<sweep>.yaml --lanes 4
 # The package pins in docker/requirements-*.txt are `uv pip freeze` of the verified environments.
 FROM nvidia/cuda:13.2.1-base-ubuntu24.04
@@ -18,6 +18,11 @@ COPY --from=ghcr.io/astral-sh/uv:0.9 /uv /usr/local/bin/uv
 COPY docker/requirements-vllm.txt /tmp/requirements-vllm.txt
 RUN uv venv --managed-python --python 3.12 /opt/venv-vllm \
     && uv pip install --python /opt/venv-vllm/bin/python -r /tmp/requirements-vllm.txt
+
+# AWS CLI (S3 sync of run dirs for AWS Batch jobs), in its own env so it can't disturb the pinned ones.
+RUN uv venv --managed-python --python 3.12 /opt/venv-aws \
+    && uv pip install --python /opt/venv-aws/bin/python "awscli>=1.36,<2" \
+    && ln -s /opt/venv-aws/bin/aws /usr/local/bin/aws
 
 # Trainer environment.
 COPY docker/requirements-train.txt /tmp/requirements-train.txt

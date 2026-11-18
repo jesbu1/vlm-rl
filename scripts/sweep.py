@@ -27,6 +27,8 @@ training on GPU 2i with its own vLLM server on GPU 2i+1 (port vllm_port+i); runs
 `--out_root` moves run dirs (default `runs/`; SageMaker uses its checkpoint dir) and `--sync_root` puts the
 per-step weight files the trainer hands to vLLM somewhere else (they are large for full fine-tuning and
 should not be uploaded with the checkpoints).
+`--shard I/N` keeps runs I, I+N, I+2N, ... (after model-major ordering), so N machines (e.g. an AWS Batch array
+job) split one sweep; `--only REGEX` keeps runs whose name matches.
 """
 from __future__ import annotations
 
@@ -144,7 +146,18 @@ def lane_overrides(overrides: list[str], lane: dict) -> list[str]:
     return [o for o in overrides if not o.startswith("vllm_url=")] + [f"vllm_url=http://localhost:{lane['vllm_port']}"]
 
 
-def run_lane(runs: list[dict], sweep: dict, lane: dict, idx: int, logdir: str):
+def select(runs: list[dict], shard: str = "", only: str = "") -> list[dict]:
+    """Filter by run-name regex, then keep shard I of N ("I/N")."""
+    if only:
+        runs = [r for r in runs if re.search(only, r["name"])]
+    if shard:
+        i, n = (int(x) for x in shard.split("/"))
+        assert 0 <= i < n, f"bad shard {shard}"
+        runs = runs[i::n]
+    return runs
+
+
+def run_lane(runs: list[dict], sweep: dict, lane: dict, idx: int, logdir: str, log_tag: str = ""):
     """Run `runs` one after another on this lane's GPUs, starting one vLLM server per model."""
     server, server_model, tag = None, None, f"[lane {idx}] " if idx >= 0 else ""
     url = f"http://localhost:{lane['vllm_port']}"
@@ -156,7 +169,7 @@ def run_lane(runs: list[dict], sweep: dict, lane: dict, idx: int, logdir: str):
             if cfg.rollout_backend == "vllm" and server_model != cfg.model:
                 if server:
                     stop_server(server)
-                suffix = f"_lane{idx}" if idx >= 0 else ""
+                suffix = (f"_lane{idx}" if idx >= 0 else "") + log_tag
                 log = open(os.path.join(logdir, f"vllm_{slug(cfg.model)}{suffix}_{lane['vllm_port']}.log"), "w")
                 env = {**os.environ, "MAX_LORA_RANK": str(max(16, cfg.lora_rank)),
                        "ENABLE_LORA": "1" if cfg.lora_rank > 0 else "0"}
@@ -192,15 +205,18 @@ def main():
     ap.add_argument("--set", action="append", default=[], metavar="KEY=VALUE",
                     help="extra Hydra override for every run (replaces the sweep file's value)")
     ap.add_argument("--group", default="", help="override the sweep file's group (wandb group + run dirs)")
+    ap.add_argument("--shard", default="", metavar="I/N", help="keep runs I, I+N, ... (split a sweep over N machines)")
+    ap.add_argument("--only", default="", metavar="REGEX", help="keep runs whose name matches")
     a = ap.parse_args()
     with open(a.sweep) as f:
         sweep = yaml.safe_load(f)
     sweep["overrides"] = merge_overrides(sweep.get("overrides", []), a.set)
     if a.group:
         sweep["group"] = a.group
-    runs = expand(sweep, a.out_root, a.sync_root)
+    runs = select(expand(sweep, a.out_root, a.sync_root), a.shard, a.only)
     lanes = lanes_for(a.lanes, sweep)
-    print(f"{len(runs)} runs in group {sweep['group']} on {len(lanes)} lane(s)")
+    log_tag = f"_shard{a.shard.split('/')[0]}" if a.shard else ""
+    print(f"{len(runs)} runs in group {sweep['group']} on {len(lanes)} lane(s)" + (f", shard {a.shard}" if a.shard else ""))
     for i, r in enumerate(runs):
         lane = f"[lane {i % len(lanes)}] " if len(lanes) > 1 else ""
         print(("  [done] " if finished(r) else "  ") + lane + r["name"] + "   " + " ".join(r["overrides"]))
@@ -209,9 +225,9 @@ def main():
     logdir = os.path.join(ROOT, a.out_root, sweep["group"])
     os.makedirs(logdir, exist_ok=True)
     if len(lanes) == 1:
-        run_lane(runs, sweep, lanes[0], -1, logdir)
+        run_lane(runs, sweep, lanes[0], -1, logdir, log_tag)
     else:
-        threads = [threading.Thread(target=run_lane, args=(runs[i::len(lanes)], sweep, lane, i, logdir))
+        threads = [threading.Thread(target=run_lane, args=(runs[i::len(lanes)], sweep, lane, i, logdir, log_tag))
                    for i, lane in enumerate(lanes)]
         for t in threads:
             t.start()

@@ -254,7 +254,15 @@ class HFPolicy:
         """HF-format checkpoint. fp32 master weights are written in the model dtype, so the files look like
         the original checkpoint (this is also what the vLLM full-weight sync reloads)."""
         if self._autocast:
-            sd = {k: (v.to(self.dtype) if v.is_floating_point() else v) for k, v in self.model.state_dict().items()}
+            full = self.model.state_dict()
+            # tied weights (e.g. lm_head = embed_tokens) are one tensor under two names; HF writes it once, under
+            # the non-lm_head name, but casting makes separate copies its de-duplication can't see: drop them here
+            by_ptr: dict[int, list[str]] = {}
+            for k, v in full.items():
+                by_ptr.setdefault(v.data_ptr(), []).append(k)
+            drop = {k for names in by_ptr.values() if len(names) > 1
+                    for k in (n for n in names if "lm_head" in n) if len(names) > sum("lm_head" in n for n in names)}
+            sd = {k: (v.to(self.dtype) if v.is_floating_point() else v) for k, v in full.items() if k not in drop}
             self.model.save_pretrained(path, state_dict=sd)
         else:
             self.model.save_pretrained(path)

@@ -1,0 +1,21 @@
+# Template for configs/sagemaker/local_batch.yaml (git-ignored; scripts/batch_submit.py reads it): an AWS Batch
+# *container* (ECS) GPU queue. Fill in your own account's values. Nothing account-specific belongs in the repo.
+profile: my-sso-profile               # AWS CLI profile with Batch + ECR access
+region: us-east-1
+queue: my-gpu-job-queue               # Batch job queue backed by an EC2 compute environment with GPU instances
+ecr_repository: my-name-vlm-rl        # image = <account>.dkr.ecr.<region>.amazonaws.com/<repo>:<git commit>
+job_role_arn: arn:aws:iam::<account-id>:role/<job-role>              # the container's AWS identity (S3 writes)
+execution_role_arn: arn:aws:iam::<account-id>:role/<execution-role>  # pulls the image, writes logs
+s3_output: s3://<bucket>/<prefix>     # run dirs are synced to <s3_output>/<job-name>/ (job role needs Put/Get/List)
+gpus: 4                               # per machine; lanes per machine = gpus // 2
+vcpus: 48
+memory_mib: 262144
+shm_mib: 65536                        # /dev/shm for vLLM
+max_hours: 24                         # per-machine time limit (--max_hours overrides)
+retry_attempts: 1                     # >1: Batch retries a failed machine; it resumes from S3
+tags:                                 # cost-allocation tags, if your organization requires them
+  owner: me@example.com
+env:
+  WANDB_BASE_URL: https://api.wandb.ai
+secret_env:                           # copied from your shell's environment at submit time, never stored
+  - WANDB_API_KEY

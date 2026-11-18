@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Container entrypoint. `train` (what SageMaker passes) runs scripts/sagemaker_entry.py; anything else is
+# Container entrypoint. `train` (what SageMaker and our Batch job definition pass) runs scripts/job_entry.py; anything else is
 # executed as a command, e.g. `docker run <image> python -m pytest -q`.
 set -euo pipefail
 
@@ -18,6 +18,6 @@ fi
 
 cd /opt/vlmrl
 if [ "${1:-train}" = "train" ]; then
-  exec python scripts/sagemaker_entry.py
+  exec python scripts/job_entry.py
 fi
 exec "$@"

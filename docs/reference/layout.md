@@ -22,7 +22,7 @@ scripts/
   train.py            Hydra CLI
   sweep.py            reward x model grids, one vLLM server per model, parallel lanes, resumable
   sagemaker_submit.py submit a sweep as one SageMaker job via an AWS Batch queue (runs where your AWS login is)
-  sagemaker_entry.py  in-container runner: hyperparameters -> sweep.py lanes, checkpoints synced to S3
+  job_entry.py  in-container runner: hyperparameters -> sweep.py lanes, checkpoints synced to S3
   make_wandb_report.py  wandb Report for a sweep group
   demo_pointmaze.py   oracle / random policy through the text protocol, GIFs + prompt dump
   gen_docs.py         generated docs pages (config reference, prompts)

@@ -1,0 +1,8 @@
+# @package _global_
+# SmolVLM2-2.2B, full fine-tuning: every parameter trained, fp32 master weights + bf16 autocast forward (~16 bytes per
+# parameter with AdamW, so it fits one 48 GB GPU). vLLM rollouts use the full-weight sync (server ENABLE_LORA=0).
+model: HuggingFaceTB/SmolVLM2-2.2B-Instruct
+processor_kwargs: {do_image_splitting: false}
+lora_rank: 0
+fp32_master: true
+lr: 5.0e-6

@@ -1,0 +1,7 @@
+# @package _global_
+# Qwen3-VL-2B, full fine-tuning: every parameter trained, fp32 master weights + bf16 autocast forward (~16 bytes per
+# parameter with AdamW, so it fits one 48 GB GPU). vLLM rollouts use the full-weight sync (server ENABLE_LORA=0).
+model: Qwen/Qwen3-VL-2B-Instruct
+lora_rank: 0
+fp32_master: true
+lr: 5.0e-6

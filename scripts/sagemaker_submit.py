@@ -11,7 +11,7 @@ Secrets (e.g. WANDB_API_KEY) are read from the submitting shell's environment at
 the job as environment variables. They are never printed (--dry_run redacts them) or kept: the request reaches
 the AWS CLI as a 0600 file in a private temp dir that is deleted right after the call.
 
-The job runs the image's entrypoint (docker/entrypoint.sh -> scripts/sagemaker_entry.py), which runs
+The job runs the image's entrypoint (docker/entrypoint.sh -> scripts/job_entry.py), which runs
 scripts/sweep.py with parallel lanes on the node's GPUs. Run dirs live in /opt/ml/checkpoints, which
 SageMaker syncs to <s3_output>/<job>/checkpoints and restores on a retry, so retried jobs resume.
 """
@@ -50,14 +50,14 @@ def aws(cfg: dict, *args: str, input_json: dict | None = None) -> dict:
     return json.loads(r.stdout) if r.stdout.strip() else {}
 
 
-def load_config(path: str) -> dict:
+def load_config(path: str, required=REQUIRED, example: str = "example.yaml") -> dict:
     import yaml
     if not os.path.exists(path):
-        sys.exit(f"{path} not found: copy configs/sagemaker/example.yaml to configs/sagemaker/local.yaml "
+        sys.exit(f"{path} not found: copy configs/sagemaker/{example} to {os.path.relpath(path, ROOT)} "
                  "and fill in your account's values")
     with open(path) as f:
         cfg = yaml.safe_load(f) or {}
-    missing = [k for k in REQUIRED if not cfg.get(k)]
+    missing = [k for k in required if not cfg.get(k)]
     if missing:
         sys.exit(f"{path}: missing {', '.join(missing)}")
     return cfg

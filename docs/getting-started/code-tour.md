@@ -137,4 +137,4 @@ an `base.py::EnvBundle` holding the dynamics (`base.py::VecEnv`), the prompt/par
 | use a different VLM | a YAML file in `configs/policy/`; see [Adding a model](../models/adding.md) |
 | change a default setting | `trainer.py::TrainConfig` (all fields: [reference](../reference/config.md)) |
 | change how episodes end | `rollout.py::rollout` |
-| run on SageMaker | `sagemaker_submit.py::build_request`, `sagemaker_entry.py::main`; see [SageMaker](../training/sagemaker.md) |
+| run on SageMaker | `sagemaker_submit.py::build_request`, `job_entry.py::main`; see [SageMaker](../training/sagemaker.md) |

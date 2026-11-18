@@ -21,7 +21,7 @@ def _load(name):
 
 
 submit = _load("sagemaker_submit")
-entry = _load("sagemaker_entry")
+entry = _load("job_entry")
 
 CFG = {"region": "us-west-2", "queue": "q", "ecr_repository": "me-vlm-rl", "role_arn": "arn:aws:iam::1:role/r",
        "s3_output": "s3://b/p/", "instance_type": "ml.p5.48xlarge", "volume_gb": 100,

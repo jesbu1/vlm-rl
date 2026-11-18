@@ -25,7 +25,7 @@ Inside the job:
 
 ```mermaid
 flowchart TB
-  E["docker/entrypoint.sh<br/>CUDA forward-compat check"] --> P["scripts/sagemaker_entry.py<br/>read hyperparameters, pick scratch disk,<br/>download each model once"]
+  E["docker/entrypoint.sh<br/>CUDA forward-compat check"] --> P["scripts/job_entry.py<br/>read hyperparameters, pick scratch disk,<br/>download each model once"]
   P --> SW["scripts/sweep.py SWEEP --lanes 4<br/>--out_root /opt/ml/checkpoints --sync_root scratch/sync"]
   SW --> L0["lane 0: train GPU 0 + vLLM GPU 1"]
   SW --> L1["lane 1: train GPU 2 + vLLM GPU 3"]

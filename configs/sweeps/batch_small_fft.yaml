@@ -1,0 +1,31 @@
+# Full fine-tuning of the <= 2.2B VLMs on 48 GB GPUs (e.g. g6e / L40S via scripts/batch_submit.py: 4 GPUs per
+# machine = 2 lanes, one machine per 2 runs, all machines in parallel). Every parameter trained, fp32 masters.
+#   python scripts/batch_submit.py configs/sweeps/batch_small_fft.yaml
+#   python scripts/sweep.py configs/sweeps/batch_small_fft.yaml --lanes 2        (any 4-GPU box)
+# Small models mostly fail the PEAR action format zero-shot (74-100% invalid in the v1-v5 sweeps), and with
+# terminate-on-invalid + a sparse reward every group then scores the same and nothing trains. So these runs use
+# the simple prompt (2-15x the zero-shot success of the PEAR prompt in the protocol ablation) and a dense reward.
+group: pointmaze-small-fft-batch-v1
+project: vlm-rl-pointmaze
+vllm_port: 8011
+overrides:
+  - experiment=pointmaze_q3vl4b_vllm
+  - steps=40
+  - eval_every=5
+  - "reward='success+0.5*neg_dist'"
+  - groups_per_step=16
+  - group_size=16
+  - micro_batch_size=4
+  - max_new_tokens=512
+  - save_every=40                    # final HF checkpoint only
+  - resume_every=5                   # resume state (fp32 weights + AdamW, ~12 B/param) synced to S3
+  - wandb_entity=tri
+  - "wandb_tags='pointmaze,fft,small,batch'"
+  - env_kwargs.max_turns=15
+  - env_kwargs.prompt_style=simple
+grid:
+  policy: [qwen3vl2b_full, smolvlm2_2b_full, minicpmv46_full, smolvlm256m]
+  env_kwargs.maze: [umaze, medium]
+vllm_args:
+  HuggingFaceTB/SmolVLM-256M-Instruct: [--max-model-len, "8192", --mm-processor-kwargs, '{"do_image_splitting": false}']
+  HuggingFaceTB/SmolVLM2-2.2B-Instruct: [--max-model-len, "8192", --mm-processor-kwargs, '{"do_image_splitting": false}']

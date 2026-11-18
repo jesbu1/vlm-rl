@@ -1,0 +1,7 @@
+# @package _global_
+# MiniCPM-V 4.6 (1.3B), full fine-tuning: every parameter trained, fp32 master weights + bf16 autocast forward (~16 bytes per
+# parameter with AdamW, so it fits one 48 GB GPU). vLLM rollouts use the full-weight sync (server ENABLE_LORA=0).
+model: openbmb/MiniCPM-V-4.6
+lora_rank: 0
+fp32_master: true
+lr: 5.0e-6
