@@ -163,3 +163,13 @@ def test_server_errors_carry_the_response_body():
             _post(f"http://127.0.0.1:{srv.server_port}/collective_rpc", {})
     finally:
         srv.shutdown()
+
+
+def test_full_sync_fails_clearly_when_the_checkpoint_is_missing(server, tmp_path):
+    class NoFiles(_FullPolicy):
+        def save(self, path, processor=True):
+            os.makedirs(path, exist_ok=True)          # directory but no *.safetensors
+    g = VLLMServerGenerator(server, "base", str(tmp_path))
+    with pytest.raises(RuntimeError, match="checkpoint for vLLM missing or empty"):
+        g.sync(NoFiles(), 1)
+    assert _Handler.log == []                         # the server is never asked to load it

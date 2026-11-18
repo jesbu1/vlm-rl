@@ -124,7 +124,7 @@ def test_out_and_sync_roots():
     runs = sweep.expand({"group": "g", "overrides": ["experiment=pointmaze_q3vl4b_vllm"], "grid": {"seed": [1]}},
                         out_root="/opt/ml/checkpoints", sync_root="/scratch/sync")
     assert runs[0]["cfg"].out_dir == "/opt/ml/checkpoints/g/seed=1"
-    assert runs[0]["cfg"].vllm_sync_dir == "/scratch/sync/g/seed=1"
+    assert runs[0]["cfg"].vllm_sync_dir == "/scratch/sync/g/seed-1"     # no '=' in paths handed to vLLM
     assert sweep.expand({"group": "g", "overrides": [], "grid": {"seed": [1]}})[0]["cfg"].vllm_sync_dir == ""
 
 

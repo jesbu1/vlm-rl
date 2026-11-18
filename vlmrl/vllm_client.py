@@ -28,6 +28,18 @@ import uuid
 from concurrent.futures import ThreadPoolExecutor
 
 
+def _check_checkpoint(path: str) -> None:
+    """The server loads ``path`` from disk: fail here, with a listing, if the checkpoint is not there."""
+    import glob
+    files = glob.glob(os.path.join(path, "*.safetensors"))
+    if not os.path.isdir(path) or not files:
+        parent = os.path.dirname(path)
+        du = shutil.disk_usage(parent) if os.path.isdir(parent) else None
+        raise RuntimeError(f"checkpoint for vLLM missing or empty: {path} (isdir={os.path.isdir(path)}, "
+                           f"safetensors={len(files)}, parent={os.listdir(parent) if os.path.isdir(parent) else None}, "
+                           f"free={du.free / 1e9 if du else '?'} GB)")
+
+
 class ServerError(RuntimeError):
     """An HTTP error from the vLLM server, with its response body (the server log often has no details)."""
 
@@ -131,6 +143,7 @@ class VLLMServerGenerator:
             policy.save(path, processor=False)
         else:
             policy.model.save_pretrained(path)
+        _check_checkpoint(path)
         for attempt in (1, 2):  # one retry: a reload failed transiently on one machine while identical ones worked
             try:
                 _post(f"{self.url}/collective_rpc", {"method": "reload_weights", "kwargs": {"weights_path": path}},

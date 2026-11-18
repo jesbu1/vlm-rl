@@ -96,6 +96,29 @@ python scripts/batch_submit.py configs/sweeps/batch_small_fft.yaml --gpus 1 --vc
 On a shared GPU, the server starts first and takes its fraction; the trainer gets the rest. 16 vCPUs / 120 GB
 selects `g6e.4xlarge` or larger. Full-FT resume state is ~12 bytes per parameter in CPU memory while it is written.
 
+## Your own multi-GPU queue
+
+A shared queue often allows only one availability zone or only small instances. Our own compute environment, in the
+same VPC and with the same instance role, scales to zero when idle:
+
+1. A security group with no inbound rules and all outbound traffic (instances reach S3, ECR, HF and wandb through the
+   private subnets' NAT gateways).
+2. A launch template whose user data formats and mounts the instance's **NVMe instance store at `/scratch`**
+   (MIME-multipart shell script: `mkfs.xfs` on the first `Instance Storage` device, `mount /scratch`). g6e.12xlarge
+   has 3.8 TB. Without it, containers only get the AMI's small root volume (~8 GB free) and RAM-backed `/dev/shm`.
+3. A managed EC2 compute environment: `minvCpus: 0`, the GPU instance types you want (e.g. g6e.12xlarge /
+   24xlarge = 4 GPUs, 48xlarge = 8), **private subnets in several availability zones** (on-demand capacity of one
+   type in one zone runs out often), `ec2Configuration: [{imageType: ECS_AL2023_NVIDIA}]`, the launch template.
+   Attaching a launch template later is an infrastructure update: pass
+   `--update-policy terminateJobsOnUpdate=false,jobExecutionTimeoutMinutes=360` so running jobs are not cut off.
+4. A job queue on it, plus a `queues.<name>` entry in `local_batch.yaml` (`gpus`, `vcpus`, `memory_mib`,
+   `host_scratch: /scratch`). `host_scratch` makes the job definition bind-mount the host disk at
+   `/opt/ml/scratch`, which `scripts/job_entry.py::pick_scratch` then picks for the HF cache and the per-step weights.
+
+**Full fine-tuning with a dedicated vLLM GPU.** Sweeps start servers for `lora_rank=0` runs at
+`vllm_gpu_util_full` (default 0.7) instead of 0.85. Each in-place weight reload briefly needs a second copy of the
+largest tensor (4.4 GB for Gemma 4 E2B's per-layer embeddings), which ran an 85% server out of memory.
+
 ## Monitor
 
 ```bash

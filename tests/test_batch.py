@@ -162,3 +162,11 @@ def test_queue_settings_override_machine_size():
     big = batch.sm.for_queue(cfg, "big")
     assert big["queue"] == "big" and big["gpus"] == 8 and big["vcpus"] == 192 and big["memory_mib"] == 262144
     assert batch.job_definition(big, "img")["jobDefinitionName"] == "me-vlm-rl-gpu8"
+
+
+def test_host_scratch_is_mounted_at_the_entry_scratch_path():
+    cp = batch.job_definition({**CFG, "host_scratch": "/scratch"}, "img")["containerProperties"]
+    assert cp["volumes"] == [{"name": "scratch", "host": {"sourcePath": "/scratch"}}]
+    assert cp["mountPoints"] == [{"sourceVolume": "scratch", "containerPath": "/opt/ml/scratch"}]
+    assert "/opt/ml/scratch" in entry.pick_scratch.__defaults__[0]
+    assert "volumes" not in batch.job_definition(CFG, "img")["containerProperties"]

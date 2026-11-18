@@ -57,6 +57,11 @@ def slug(v) -> str:
     return re.sub(r"[^A-Za-z0-9.+-]+", "_", s).strip("_")[:40]
 
 
+def _plain(name: str) -> str:
+    """Run name -> a path component with only [A-Za-z0-9._-] (e.g. 'lr=1e-06__maze=umaze' -> 'lr-1e-06__maze-umaze')."""
+    return re.sub(r"[^A-Za-z0-9._-]+", "-", name)
+
+
 def _q(v) -> str:
     """Quote override values containing Hydra-grammar characters."""
     s = str(v)
@@ -84,7 +89,8 @@ def expand(sweep: dict, out_root: str = "runs", sync_root: str = "") -> list[dic
         group = sweep["group"]
         ov += [f"wandb_group={_q(group)}", f"wandb_run_name={_q(name)}", f"out_dir={_q(f'{out_root}/{group}/{name}')}"]
         if sync_root:
-            ov.append(f"vllm_sync_dir={_q(f'{sync_root}/{group}/{name}')}")
+            # plain characters only (no '='): these paths are handed to vLLM's model loader
+            ov.append(f"vllm_sync_dir={_q(f'{sync_root}/{slug(group)}/{_plain(name)}')}")
         if sweep.get("project"):
             ov.append(f"wandb_project={_q(sweep['project'])}")
         if "vllm_port" in sweep:
@@ -182,6 +188,8 @@ def run_lane(runs: list[dict], sweep: dict, lane: dict, idx: int, logdir: str, l
                     env["GPU_UTIL"] = str(sweep.get("vllm_gpu_util_shared", 0.3))
                 elif sweep.get("vllm_gpu_util"):
                     env["GPU_UTIL"] = str(sweep["vllm_gpu_util"])
+                elif cfg.lora_rank == 0:   # full-weight reloads need headroom for a second copy of the largest tensor
+                    env["GPU_UTIL"] = str(sweep.get("vllm_gpu_util_full", 0.7))
                 server = subprocess.Popen([os.path.join(ROOT, "scripts/launch_vllm.sh"), cfg.model,
                                            str(lane["vllm_port"]), str(lane["vllm_gpu"]),
                                            *map(str, sweep.get("vllm_args", {}).get(cfg.model, []))],

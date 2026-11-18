@@ -52,6 +52,11 @@ def job_definition(cfg: dict, image: str) -> dict:
             # vLLM / torch multiprocessing need a real /dev/shm (Docker's default is 64 MB)
             "linuxParameters": {"sharedMemorySize": int(cfg.get("shm_mib", 65536))},
             "ulimits": [{"name": "nofile", "softLimit": 65536, "hardLimit": 65536}],
+            # host_scratch: a big host disk (e.g. instance NVMe mounted by the compute environment's launch
+            # template) for the HF cache and the per-step weight files; job_entry picks the scratch with most space
+            **({"volumes": [{"name": "scratch", "host": {"sourcePath": cfg["host_scratch"]}}],
+                "mountPoints": [{"sourceVolume": "scratch", "containerPath": "/opt/ml/scratch"}]}
+               if cfg.get("host_scratch") else {}),
         },
         "tags": {k: str(v) for k, v in (cfg.get("tags") or {}).items()},
         "propagateTags": True,
