@@ -41,4 +41,14 @@ uv pip install -p .venv wandb-workspaces
 python scripts/make_wandb_report.py --group pointmaze-small-v5 --takeaways takeaways.md [--dry_run]
 ```
 
+`scripts/make_smolvlm_procgen_report.py` is a narrative report for one experiment (the SmolVLM procgen runs,
+group `smolvlm-procgen-v1`): headline eval curve, runs grouped by `env_kwargs.prompt_style`, per-eval-set
+generalization curves plus a latest-value bar chart, learning dynamics, behaviour, eval/train episode videos, cost,
+setup and a run comparer. All panels are live, so curves keep updating while runs train; the takeaways and setup
+text are static. `--url <report>` rewrites an existing report in place (e.g. to refresh the takeaways).
+
+```bash
+python scripts/make_smolvlm_procgen_report.py --takeaways runs/smolvlm-procgen-v1/takeaways.md [--url REPORT_URL]
+```
+
 Offline logging works too (`WANDB_MODE=offline`), and is covered by a test.
