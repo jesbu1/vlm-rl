@@ -65,4 +65,19 @@ Logs: `runs/<group>/<run>/train.log`, `runs/<group>/vllm_<model>_<port>.log`.
 **One sweep per GPU (small models).** With `train_gpu == vllm_gpu` the trainer and its server share a GPU;
 cap the server with `vllm_gpu_util` (e.g. 0.35). Two such sweep files with different `train_gpu` / `vllm_port`
 can run side by side in the same group, e.g. `configs/sweeps/smolvlm_procgen_gpu{0,1}.yaml` (SmolVLM-256M full
-fine-tuning, one lr each).
+fine-tuning, one lr each). With `--lanes N --gpus_per_lane 1`, one sweep runs N such shared lanes itself.
+
+## On a shared machine
+
+Several sweeps, agents or people often share one box. Run anything memory-hungry (a full fine-tune, a large
+model loaded on CPU, `make test-slow`) under a hard RAM cap, so a runaway process is killed instead of the
+machine:
+
+```bash
+scripts/memcap.sh 64G python scripts/sweep.py configs/sweeps/pointmaze_small.yaml
+```
+
+`scripts/memcap.sh` uses a transient systemd user scope (cgroup v2 `MemoryMax`, no swap). It refuses to start
+when less than the cap plus 10% is available (exit 75), and exits 137 if the command exceeded the cap. Start
+long jobs detached (`setsid nohup … &` or tmux), so a dropped SSH session or VPN doesn't kill them.
+
