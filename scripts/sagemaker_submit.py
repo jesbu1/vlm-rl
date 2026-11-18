@@ -63,6 +63,17 @@ def load_config(path: str) -> dict:
     return cfg
 
 
+def for_queue(cfg: dict, queue: str = "") -> dict:
+    """cfg with `queue` selected and its `queues.<name>` overrides applied (`env` is merged, the rest replaced)."""
+    out = {k: v for k, v in cfg.items() if k != "queues"}
+    if queue:
+        out["queue"] = queue
+    over = (cfg.get("queues") or {}).get(out["queue"]) or {}
+    for k, v in over.items():
+        out[k] = {**(out.get(k) or {}), **v} if k == "env" else v
+    return out
+
+
 def git_commit() -> str:
     return subprocess.run(["git", "rev-parse", "--short=12", "HEAD"], capture_output=True, text=True,
                           cwd=ROOT, check=True).stdout.strip()
@@ -131,6 +142,7 @@ def main(argv=None):
     ap.add_argument("sweep", nargs="?", help="sweep file, relative to the repo root")
     ap.add_argument("--config", default=DEFAULT_CONFIG, help="local (git-ignored) account settings")
     ap.add_argument("--tag", default="", help="image tag (default: the current git commit)")
+    ap.add_argument("--queue", default="", help="Batch queue (default: config `queue`; per-queue settings: `queues`)")
     ap.add_argument("--lanes", type=int, default=None, help="parallel lanes (default: #GPUs // 2)")
     ap.add_argument("--group", default="", help="override the sweep's group (wandb group + run dirs)")
     ap.add_argument("--set", action="append", default=[], metavar="KEY=VALUE", help="Hydra override for every run")
@@ -140,7 +152,7 @@ def main(argv=None):
     ap.add_argument("--dry_run", action="store_true")
     ap.add_argument("--image", action="store_true", help="print the image URI for this commit and exit")
     a = ap.parse_args(argv)
-    cfg = load_config(a.config)
+    cfg = for_queue(load_config(a.config), a.queue)
 
     account = aws(cfg, "sts", "get-caller-identity")["Account"]
     image = image_uri(cfg, account, a.tag or git_commit())

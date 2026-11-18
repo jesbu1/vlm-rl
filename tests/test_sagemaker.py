@@ -112,3 +112,13 @@ def test_no_aws_account_ids_in_tracked_files():
             continue
         hits += [f for _ in pat.finditer(text)]
     assert not hits, f"AWS account-specific identifiers in tracked files: {sorted(set(hits))}"
+
+
+def test_per_queue_overrides():
+    cfg = {**CFG, "queue": "od", "env": {"A": "1"},
+           "queues": {"od": {"env": {"R": "1"}}, "spot": {"instance_type": "ml.x", "retry_attempts": 3}}}
+    od = submit.for_queue(cfg)
+    assert od["queue"] == "od" and od["env"] == {"A": "1", "R": "1"} and "queues" not in od
+    sp = submit.for_queue(cfg, "spot")
+    assert sp["queue"] == "spot" and sp["env"] == {"A": "1"} and sp["instance_type"] == "ml.x" and sp["retry_attempts"] == 3
+    assert submit.for_queue(cfg, "other")["instance_type"] == CFG["instance_type"]

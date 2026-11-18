@@ -19,7 +19,8 @@ no demonstrations.
   ([PointMaze](docs/environments/pointmaze.md), [prompts](docs/environments/prompts.md))
 - **Faithful PEAR algorithm**: GRPO z-score advantages, DAPO group filter, REINFORCE without clipping,
   score centering ([how PEAR works](docs/pear/index.md), [mapping](docs/pear/mapping.md))
-- **Hydra configs, a vLLM rollout server, sweeps, wandb** ([training](docs/training/index.md))
+- **Hydra configs, a vLLM rollout server (LoRA or full-weight sync), sweeps, wandb** ([training](docs/training/index.md))
+- **Docker image + SageMaker jobs** (AWS Batch queues, multi-run nodes, resumable) ([SageMaker](docs/training/sagemaker.md))
 
 ## Quickstart
 
@@ -37,6 +38,55 @@ CUDA_VISIBLE_DEVICES=0 python scripts/train.py experiment=pointmaze_q3vl4b_vllm 
 On 2×A6000, Qwen3-VL-4B + LoRA reaches PointMaze UMaze eval success **0.625 → 1.0 within 20 RL steps**
 ([experiment log](docs/training/experiments.md)).
 
+## Docker
+
+One image holds the repo and both Python environments (trainer + vLLM server), pinned to the versions verified
+on the dev box (`docker/requirements-*.txt`). `docker/build.sh` builds from `git archive HEAD`, so only committed,
+tracked files go in. Uncommitted edits, local configs and keys never do.
+
+```bash
+PUSH=0 docker/build.sh vlmrl:dev                       # build only (x86-64 Linux + Docker; no GPU needed)
+docker run --rm vlmrl:dev python -m pytest -q          # the test suite inside the image
+docker run --rm --gpus all vlmrl:dev python scripts/sweep.py configs/sweeps/sagemaker_gemma4_fft.yaml --lanes 4
+```
+
+Inside the image, the trainer env is on `PATH` (`/opt/venv-train`) and the server is `$VLLM_BIN`
+(`/opt/venv-vllm`). If the host's NVIDIA driver is older than the image's CUDA 13.2, `docker/entrypoint.sh`
+switches to CUDA forward-compatibility libraries automatically.
+
+## SageMaker
+
+A [sweep](docs/training/sweeps.md) runs as **one SageMaker training job on one 8-GPU node**, submitted through
+an **AWS Batch service-job queue**. On the node, `scripts/sweep.py --lanes 4` trains 4 runs side by side, each
+with one training GPU and one vLLM GPU. Run dirs are synced to S3 continuously, and retried or preempted jobs
+resume. Full guide: [docs/training/sagemaker.md](docs/training/sagemaker.md).
+
+```bash
+# 1. once: account settings (git-ignored; never commit account ids, roles, buckets or keys) + an ECR repository
+cp configs/sagemaker/example.yaml configs/sagemaker/local.yaml        # then fill it in
+aws ecr create-repository --repository-name <ecr_repository> --profile <profile> --region <region>
+
+# 2. per commit: build and push the image (tag = git commit). Log in from the machine with AWS credentials
+IMAGE=$(python scripts/sagemaker_submit.py --image)
+aws ecr get-login-password --profile <profile> --region <region> | docker login --username AWS --password-stdin ${IMAGE%%/*}
+docker/build.sh $IMAGE && docker logout ${IMAGE%%/*}
+
+# 3. submit (secrets listed in secret_env are read from your shell at submit time)
+export WANDB_API_KEY=...
+python scripts/sagemaker_submit.py configs/sweeps/sagemaker_gemma4_fft.yaml --dry_run          # print the request
+python scripts/sagemaker_submit.py configs/sweeps/sagemaker_gemma4_fft.yaml \
+    --group gemma4-fft-smoke --set steps=2 --max_hours 1                                          # smoke test first
+python scripts/sagemaker_submit.py configs/sweeps/sagemaker_gemma4_fft.yaml [--queue <other queue>]
+
+# 4. monitor
+aws batch describe-service-job --job-id <jobId> --query '{status:status,reason:statusReason}'
+aws logs tail /aws/sagemaker/TrainingJobs --log-stream-name-prefix AWSBatch<job-name> --follow
+aws s3 ls <s3_output>/<job-name>/checkpoints/<group>/
+```
+
+The shipped sweep, `configs/sweeps/sagemaker_gemma4_fft.yaml`, is **Gemma 4 E2B full fine-tuning**. It keeps fp32
+master weights and syncs the full weights into vLLM each step, over a maze × learning-rate grid.
+
 ## Documentation map
 
 | section | pages |
@@ -46,7 +96,7 @@ On 2×A6000, Qwen3-VL-4B + LoRA reaches PointMaze UMaze eval success **0.625 →
 | [Concepts](docs/concepts/index.md) | architecture · rollouts & episodes · algorithm · rewards & preferences |
 | [Environments](docs/environments/index.md) | PointMaze · prompts · world-action models · adding an environment |
 | [Models](docs/models/index.md) | Gemma 4 E2B · Qwen3-VL-4B · Qwen3-VL-2B · Qwen2.5-VL-3B · Qwen2.5-VL-7B · MiniCPM-V 4.6 · SmolVLM2-2.2B · SmolVLM-256M · adding a model |
-| [Training](docs/training/index.md) | configuration (Hydra) · rollout backends · sweeps · wandb · experiment log |
+| [Training](docs/training/index.md) | configuration (Hydra) · rollout backends · sweeps · wandb · SageMaker + Docker · experiment log |
 | [Development](docs/development/index.md) | testing · performance · writing docs · roadmap |
 | [Reference](docs/reference/index.md) | configuration fields · code layout |
 

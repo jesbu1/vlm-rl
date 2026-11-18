@@ -19,3 +19,7 @@ env:                                  # plain (non-secret) environment variables
   # SM_USE_RESERVED_CAPACITY: "1"     # required by queues backed by reserved capacity (Batch says so if missing)
 secret_env:                           # copied from your shell's environment at submit time, never stored
   - WANDB_API_KEY
+queues:                               # optional per-queue settings, applied with --queue <name> (env is merged)
+  my-spot-queue:
+    instance_type: ml.p5.48xlarge
+    retry_attempts: 3                 # spot capacity can be reclaimed; retried jobs resume from checkpoints

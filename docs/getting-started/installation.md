@@ -43,3 +43,18 @@ uv pip install -p ~/venvs/vllm/bin/python vllm
 ```bash
 make test     # fast tests, CPU only, no downloads, ~20 s
 ```
+
+## Docker
+
+`docker/Dockerfile` builds one image with the repo and both environments (trainer at `/opt/venv-train`, on
+`PATH`; vLLM at `/opt/venv-vllm`, `$VLLM_BIN`), pinned to the verified versions in `docker/requirements-*.txt`.
+`docker/build.sh` builds from `git archive HEAD`, so only committed, tracked files are included.
+
+```bash
+PUSH=0 docker/build.sh vlmrl:dev                      # x86-64 Linux with Docker; no GPU needed to build
+docker run --rm vlmrl:dev python -m pytest -q         # run the tests inside the image
+docker run --rm --gpus all vlmrl:dev python scripts/sweep.py <sweep.yaml> --lanes 4
+```
+
+The same image runs SageMaker jobs: see [SageMaker](../training/sagemaker.md).
+

@@ -45,7 +45,9 @@ flowchart TB
     | key | what |
     |---|---|
     | `profile`, `region` | AWS CLI profile (e.g. an SSO profile in `~/.aws/config`) and region |
-    | `queue`, `share_identifier` | the Batch queue (type `SAGEMAKER_TRAINING`) and its fair-share identifier |
+    | `queue`, `share_identifier` | the default Batch queue (type `SAGEMAKER_TRAINING`) and its fair-share identifier |
+    | `scheduling_priority`, `retry_attempts` | fair-share queues require a priority (higher runs sooner within the share); Batch retries (runs resume) |
+    | `queues` | per-queue settings applied with `--queue <name>`, e.g. `instance_type`, `retry_attempts`, extra `env` |
     | `instance_type`, `volume_gb`, `max_hours` | must match the queue's service environment; default time limit |
     | `ecr_repository` | image repository; images are tagged with the git commit |
     | `role_arn` | SageMaker execution role (needs S3 access to `s3_output`) |
@@ -97,6 +99,7 @@ python scripts/sagemaker_submit.py configs/sweeps/sagemaker_gemma4_fft.yaml
 | `--lanes N` | parallel lanes (default: number of GPUs // 2) |
 | `--max_hours H` | time limit (default `max_hours` from the config) |
 | `--tag TAG` | image tag (default: the current commit; the script checks that it exists in ECR) |
+| `--queue NAME` | submit to another queue; its `queues.<NAME>` settings apply (instance type, retries, env) |
 
 A **smoke test** before a long job: same image, a few steps, separate group:
 
@@ -104,6 +107,25 @@ A **smoke test** before a long job: same image, a few steps, separate group:
 python scripts/sagemaker_submit.py configs/sweeps/sagemaker_gemma4_fft.yaml \
     --group gemma4-fft-smoke --set steps=2 --set eval_every=1 --set eval_episodes=8 --max_hours 1
 ```
+
+**Choosing a queue.** Any `SAGEMAKER_TRAINING` queue whose nodes have ≥ 2 GPUs per lane works. On-demand and
+spot queues run the same image. Spot capacity can be reclaimed, so give spot queues `retry_attempts: 3`: retried
+jobs resume from the S3 checkpoints. To see which queues have free capacity:
+
+```bash
+for q in $(aws batch describe-job-queues --query "jobQueues[?jobQueueType=='SAGEMAKER_TRAINING'].jobQueueName" --output text); do
+  echo "$q running=$(aws batch list-service-jobs --job-queue $q --job-status RUNNING --query 'length(jobSummaryList)' --output text)" \
+       "waiting=$(aws batch list-service-jobs --job-queue $q --job-status RUNNABLE --query 'length(jobSummaryList)' --output text)"
+done
+```
+
+**Batch rules learned on the first submissions** (`sagemaker_submit.py` handles them):
+
+- Tags may not be set inside the SageMaker request. They go on the Batch job, which propagates them to the
+  training job (`tags` in the config).
+- Fair-share queues reject jobs without a `schedulingPriority`.
+- Queues backed by reserved capacity reject jobs without `SM_USE_RESERVED_CAPACITY=1` in the environment.
+  Set it in that queue's `queues.<name>.env`.
 
 The submitted request is a plain SageMaker `CreateTrainingJob` request
 (`scripts/sagemaker_submit.py::build_request`): the sweep, lanes, group and overrides travel as
