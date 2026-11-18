@@ -156,6 +156,9 @@ def build_reward(spec: str, max_turns: int = 1) -> RewardFn:
         "return": return_reward,
         "format": lambda: format_penalty(1.0),
         "neg_dist": lambda: info_reward("dist", "last", -1.0),
+        # PointMaze: final shortest-path distance in cells (walls respected), so moving toward the goal through a
+        # wall or into a dead end is not rewarded the way Euclidean distance rewards it
+        "neg_geo_dist": lambda: info_reward("geo_dist", "last", -1.0),
         "efficiency": lambda: efficiency_bonus(1.0, max_turns),
         # preference pipeline driven by a privileged-state oracle: prefers lower final distance, then success
         "pref_oracle_dist": lambda: preference_reward(ScoreFnPreference(

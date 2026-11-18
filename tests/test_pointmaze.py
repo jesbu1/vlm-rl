@@ -375,20 +375,44 @@ def test_vec_env_follows_each_episodes_maze_and_reuses_envs(rng):
         assert env.maze_map_of(k) == get_maze_map(s["maze"])
         np.testing.assert_array_equal(obs[k].image, render_topdown(get_maze_map(s["maze"]), s["qpos"], s["goal"], 48))
     made = env._n_made
-    env.reset(starts)                       # same mazes again: every env comes from the pool
+    assert made == len({s["maze"] for s in starts})   # one simulator per maze, not per slot
+    env.reset(starts)                       # same mazes again: no new simulators
     assert env._n_made == made
     env.reset([{**starts[0], "maze": None}])  # no maze name -> the env's default maze
     assert env.maze_map_of(0) == env.maze_map
     env.close()
 
 
-def test_idle_env_pool_is_bounded(rng):
+def test_idle_simulators_are_bounded(rng):
     b = make_pointmaze(maze="gen7x7", train_mazes=40, image_size=16)
     env = b.make_vec_env()
+    env.max_sims = 10
     for _ in range(6):
         env.reset(b.train_sampler.sample(12, rng))
-    assert sum(len(p) for p in env._pool.values()) <= 32      # cap = max(32, #slots)
+        assert len(env._sims) <= max(10, len({m for m in env._slot_maze}))
     env.close()
+
+
+def test_slots_sharing_a_simulator_keep_independent_state(rng):
+    """Slots on the same maze share one MuJoCo env; stepping one must not move the others, and the result must
+    match an env that holds only that slot."""
+    b = make_pointmaze(maze="umaze", image_size=16)
+    starts = b.train_sampler.sample(6, rng)
+    shared, solo = b.make_vec_env(), b.make_vec_env()
+    shared.reset(starts)
+    acts = [rng.uniform(-1, 1, 2) for _ in starts]
+    for t in range(3):
+        res = shared.step(list(range(6)), acts)
+        if t == 0:
+            before = [r.obs.state.copy() for r in res]
+    shared.step([0], [np.zeros(2)])
+    for k in range(1, 6):
+        solo.reset([starts[k]])
+        for _ in range(3):
+            r = solo.step([0], [acts[k]])[0]
+        np.testing.assert_allclose(r.obs.state, res[k].obs.state, atol=1e-6)
+        np.testing.assert_allclose(shared._qpos[k][:2], res[k].obs.state[:2], atol=1e-9)
+    assert shared._n_made == 1 and before
 
 
 @pytest.mark.parametrize("split", ["train", "heldout"])

@@ -7,11 +7,12 @@
 set -euo pipefail
 MODEL=${1:?model}; PORT=${2:-8000}; GPU=${3:-1}
 VLLM_BIN=${VLLM_BIN:-$HOME/venvs/vllm/bin/vllm}
-export VLLM_ALLOW_RUNTIME_LORA_UPDATING=True   # enables /v1/load_lora_adapter (LoRA weight sync)
 export VLLM_SERVER_DEV_MODE=1                  # enables /collective_rpc + /reset_prefix_cache (full-weight sync)
 export VLLM_USE_FLASHINFER_SAMPLER=0           # avoid FlashInfer JIT (needs nvcc) for sampling
 LORA_ARGS=()
 if [ "${ENABLE_LORA:-1}" != "0" ]; then
+  # enables /v1/load_lora_adapter (LoRA weight sync); vLLM rejects it with --api-server-count > 1
+  export VLLM_ALLOW_RUNTIME_LORA_UPDATING=True
   LORA_ARGS=(--enable-lora --max-lora-rank "${MAX_LORA_RANK:-64}" --max-loras 2)
 fi
 # dev mode exposes admin endpoints, so listen on localhost only by default

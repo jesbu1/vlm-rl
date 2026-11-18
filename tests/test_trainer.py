@@ -393,3 +393,20 @@ def test_log_episodes_mixes_train_successes_and_failures(tmp_path):
     assert heads == ["success=True", "success=True", "success=False", "success=False"]
     t.log_episodes("train", 8, [make_traj(success=True)] * 5)  # no failures: fill with wins
     assert len(list((tmp_path / "episodes").glob("train_step8*.txt"))) == 4
+
+
+@pytest.mark.parametrize("epochs,loss", [(1, "reinforce"), (2, "ppo_clip")])
+def test_update_is_invariant_to_micro_batch_size(tmp_path, epochs, loss):
+    """Batches are built lazily and gradients rescaled by the global token count afterwards, so the
+    update must not depend on how samples are split into micro-batches."""
+    import copy
+    reward = lambda gs: [[float(i) for i in range(len(g))] for g in gs]  # noqa: E731
+    thetas = []
+    for mb in (1, 3, 64):
+        tr = _trainer(tmp_path / str(mb), random_generate(0), reward_fn=reward, micro_batch_size=mb,
+                      ppo_epochs=epochs, policy_loss=loss, grad_clip=1e9)
+        kept, _, _ = copy.deepcopy(_trainer(tmp_path / "src", random_generate(0), reward_fn=reward).collect())
+        m = tr.update(kept)
+        thetas.append(tr.policy.model.theta.detach().clone())
+        assert m["train/sequences"] == 8
+    assert all(torch.allclose(thetas[0], t, atol=1e-6) for t in thetas[1:])

@@ -11,8 +11,8 @@ lora_rank: 0
 lr: 1.0e-5
 ```
 
-Small enough to run on a laptop CPU (~500 MB download). It's for **testing the pipeline**, not for
-learning the task.
+Small enough to run on a laptop CPU (~500 MB download). Originally for **testing the pipeline**; with the
+`compact` prompt it is also being trained on procedural mazes (below).
 
 | | |
 |---|---|
@@ -40,3 +40,29 @@ Both presets run on PointMaze medium to test whether a very small model can lear
 Under the PEAR prompt, the one-step smoke run (2026-11-16) was 100% invalid: it echoes the state JSON
 without a fenced block (`{"ball": {...}, "end": {...}}`). With `on_invalid=terminate` that ends every
 episode after round 1 with identical scores, so groups have zero variance and nothing trains.
+
+## Procedural mazes (`smolvlm-procgen-v1`, 2026-11-17)
+
+Zero-shot on `experiment=pointmaze_procgen` (64 eval episodes per set, 20 rounds):
+
+| prompt | valid turns | success |
+|---|---|---|
+| `pear` | 0% (flat `{"x": .., "y": ..}` echoing the state, no `"ball"` key) | 0 |
+| `simple` (with / without "Think briefly") | 0% (prose: "The best path is to move the ball into the green circle.") | 0 |
+| `compact`, greedy | 18% | 0 |
+| `compact`, T=1 | 15% | 0 |
+
+With `compact` and `on_invalid=noop` (an invalid reply is a no-op, the episode continues), ~2% of sampled
+episodes reach the goal, enough for the **sparse** success reward with a large batch: in a 2-step pilot
+(64 groups × 16, 3 resampling rounds, lr 1e-5) rollout success went 1.7% → 3.4% and the groups with signal
+17 → 31 of 64.
+
+Settings (`configs/sweeps/smolvlm_procgen_gpu{0,1}.yaml`, one per GPU, lr 1e-5 / 3e-5):
+
+- full fine-tuning (`policy=smolvlm256m`), vLLM rollouts with full-weight sync; the trainer and its server
+  share one GPU (`train_gpu == vllm_gpu`, `vllm_gpu_util: 0.35`), so each GPU runs its own sweep;
+- vLLM `--api-server-count 4 --max-num-seqs 1024`: every rollout turn sends new images, and a single API
+  server process is CPU-bound on image preprocessing (39 → 130 replies/s for 1024 fresh-image requests);
+- `max_new_tokens=64` (a move is ~15 tokens), `micro_batch_size=64`, 60 steps, eval every 5 steps.
+
+A step (up to 3072 episodes, ~5–9k per-turn samples) takes ~9–11 min, with ~25 GB peak trainer RAM.

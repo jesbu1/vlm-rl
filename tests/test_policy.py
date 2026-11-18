@@ -149,3 +149,25 @@ def test_full_ft_freeze_fp32_master_and_save_format(umaze, rng, tmp_path):
     with safe_open(hf_hub_download(TINY_VLM, "model.safetensors"), "pt") as fh:
         original = set(fh.keys())
     assert set(saved) == original and set(saved.values()) == {"BF16"}
+
+
+@pytest.mark.slow
+@pytest.mark.parametrize("style", ["pear", "compact"])
+def test_fast_reply_span_matches_slow_path(tiny_vlm, rng, style):
+    """Per-turn samples locate the reply from text templates only; the mask must equal the slow path's
+    (re-tokenising the prefix with its images)."""
+    from vlmrl.envs.pointmaze import PointMazeConfig, make_pointmaze
+    b = make_pointmaze(PointMazeConfig(maze="umaze", max_turns=3, image_size=64, prompt_style=style))
+    fmt = random_generate(0) if style == "pear" else (lambda convs: ['{"x": 0.4, "y": -0.2}'] * len(convs))
+    trajs = rollout(fmt, b.make_vec_env(), b.interface, b.train_sampler.sample(2, rng), [0, 1], 3, max_frames=1)
+    samples = to_samples(trajs, None, max_frames=1)
+    fast = tiny_vlm.build_batch(samples)["loss_mask"]
+    orig = tiny_vlm._last_reply_span
+    tiny_vlm._last_reply_span = lambda *a: None
+    try:
+        slow = tiny_vlm.build_batch(samples)["loss_mask"]
+    finally:
+        tiny_vlm._last_reply_span = orig
+    assert torch.equal(fast, slow) and fast.sum() > 0
+    enc = tiny_vlm.build_batch(samples[:1])
+    assert orig(samples[0], enc["input_ids"][0], int(enc["attention_mask"][0].sum())) is not None  # fast path used

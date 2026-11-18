@@ -169,3 +169,18 @@ def test_shipped_sagemaker_sweep_composes():
     c = runs[0]["cfg"]
     assert c.model == "google/gemma-4-E2B-it" and c.lora_rank == 0 and c.fp32_master and c.rollout_backend == "vllm"
     assert "embed_tokens" in c.freeze and c.max_frames == 1 and c.steps == 40
+
+
+def test_smolvlm_procgen_sweeps_one_per_gpu():
+    import yaml
+    d = os.path.join(os.path.dirname(__file__), "..", "configs/sweeps")
+    files = [yaml.safe_load(open(f"{d}/smolvlm_procgen_gpu{g}.yaml")) for g in (0, 1)]
+    assert [(f["train_gpu"], f["vllm_gpu"]) for f in files] == [(0, 0), (1, 1)]
+    assert files[0]["vllm_port"] != files[1]["vllm_port"] and files[0]["group"] == files[1]["group"]
+    for f in files:
+        (r,) = sweep.expand(f)
+        c = r["cfg"]
+        assert c.lora_rank == 0 and c.rollout_backend == "vllm" and c.reward == "success"
+        assert c.env_kwargs["prompt_style"] == "compact" and c.on_invalid == "noop" and c.env_kwargs["maze"] == "gen11x11"
+        assert set(c.eval_sets) == {"id_layouts", "ood_layouts", "ood_larger"}
+    assert {sweep.expand(f)[0]["cfg"].lr for f in files} == {1e-5, 3e-5}

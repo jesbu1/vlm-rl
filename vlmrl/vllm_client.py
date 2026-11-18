@@ -37,7 +37,7 @@ def _post(url: str, payload: dict, timeout: float = 600.0) -> dict:
 
 def _image_url(img) -> str:
     buf = io.BytesIO()
-    img.save(buf, format="PNG")
+    img.save(buf, format="PNG", compress_level=1)  # lossless; level 1 is several times faster to encode
     return "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode()
 
 

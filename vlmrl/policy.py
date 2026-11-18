@@ -183,11 +183,35 @@ class HFPolicy:
             repetition_penalty=1.0, pad_token_id=self.tokenizer.pad_token_id)
 
     # ------------------------------------------------------------------ training
+    def _last_reply_span(self, s: Sample, ids: torch.Tensor, length: int) -> tuple[int, int] | None:
+        """[start, end) of the trained reply when it is the sample's last message, found from the *text*
+        templates (no image processing) and verified against the batch token ids. None -> use the slow path
+        (re-tokenising the prefixes with their images), e.g. for full-history samples."""
+        if s.train_msg_idx != [len(s.messages) - 1]:
+            return None
+        tpl, kw = self.processor.apply_chat_template, self.chat_template_kwargs
+        try:
+            full = tpl(s.messages, add_generation_prompt=False, tokenize=False, **kw)
+            prompt = tpl(s.messages[:-1], add_generation_prompt=True, tokenize=False, **kw)
+        except Exception:  # noqa: BLE001 - processors without text-only rendering fall back
+            return None
+        if not (isinstance(full, str) and isinstance(prompt, str) and full.startswith(prompt)):
+            return None
+        sfx = self.tokenizer(full[len(prompt):], add_special_tokens=False)["input_ids"]
+        start = length - len(sfx)
+        if not sfx or start <= 0 or ids[start:length].tolist() != list(sfx):
+            return None
+        return start, length
+
     def build_batch(self, samples: list[Sample]) -> dict[str, Any]:
         enc = self._apply([s.messages for s in samples], add_generation_prompt=False, padding_side="right")
         B, T = enc["input_ids"].shape
         loss_mask = torch.zeros(B, T)
         for b, s in enumerate(samples):
+            span = self._last_reply_span(s, enc["input_ids"][b], int(enc["attention_mask"][b].sum()))
+            if span is not None:  # fast path: per-turn samples (the trained reply is the last message)
+                loss_mask[b, span[0]:span[1]] = 1
+                continue
             for k in s.train_msg_idx:
                 assert s.messages[k]["role"] == "assistant"
                 start = len(self._len(s.messages[:k], True))

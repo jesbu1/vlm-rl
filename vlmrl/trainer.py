@@ -139,6 +139,15 @@ def write_video(frames, path: str, fps: float = 2.0, min_size: int = 672, crf: i
             wr.append_data(np.pad(f, ((0, ph), (0, pw), (0, 0)), mode="edge") if (ph or pw) else f)
 
 
+def strip_images(tr) -> None:
+    """Free a trajectory's frames and inline images (filtered-out groups are only used for metrics)."""
+    for t in tr.turns:
+        t.obs.image = None
+        t.result.obs.image = None
+    for m in tr.messages:
+        m["content"] = [{"type": "text", "text": "<image>"} if c.get("type") == "image" else c for c in m["content"]]
+
+
 END_REASONS = ("success", "invalid", "max_turns", "context", "terminated", "truncated")
 
 
@@ -227,15 +236,32 @@ class Trainer:
             groups = [trajs[i * c.group_size:(i + 1) * c.group_size] for i in range(n)]
             scores = self.reward_fn(groups)
             advs = algo.group_advantages(scores, c.adv_mode)
+            dropped = 0
             for g, s, a in zip(groups, scores, advs):
                 for tr, si, ai in zip(g, s, a):
                     tr.score, tr.advantage = float(si), float(ai)
                 if not c.filter_groups or algo.keep_group(s):
                     kept.append(g)
+                elif (dropped := dropped + 1) > 1 or rounds > 1:
+                    for tr in g:  # filtered out: only metrics need it (one group keeps its media for logging)
+                        strip_images(tr)
             all_trajs += trajs
         return kept[:c.groups_per_step], all_trajs, rounds
 
     # ------------------------------------------------------------------ update
+    def _batches(self, samples):
+        """Micro-batches built lazily (one ahead, on a worker thread), so a large step never holds every
+        sample's pixel values in memory at once and CPU preprocessing overlaps the GPU forward/backward."""
+        from concurrent.futures import ThreadPoolExecutor
+        mb = self.cfg.micro_batch_size
+        chunks = [samples[i:i + mb] for i in range(0, len(samples), mb)]
+        with ThreadPoolExecutor(1) as ex:
+            nxt = ex.submit(self.policy.build_batch, chunks[0]) if chunks else None
+            for i in range(len(chunks)):
+                b = nxt.result()
+                nxt = ex.submit(self.policy.build_batch, chunks[i + 1]) if i + 1 < len(chunks) else None
+                yield b
+
     def update(self, groups):
         c, pol = self.cfg, self.policy
         trajs = [t for g in groups for t in g if abs(t.advantage) > 1e-8]  # zero-adv => zero gradient
@@ -243,22 +269,25 @@ class Trainer:
             return {"train/skipped": 1.0}
         samples = to_samples(trajs, c.max_images, c.max_frames)
         samples.sort(key=lambda s: len(s.messages))  # length-bucketing -> less padding per micro-batch
-        batches = [pol.build_batch(samples[i:i + c.micro_batch_size])
-                   for i in range(0, len(samples), c.micro_batch_size)]
-        n_tok = sum(float(b["loss_mask"].sum()) for b in batches)  # global token-mean denominator
         # snapshot of the rollout policy mu (needed only when updating more than once per batch)
         sc = c.score_centering and c.policy_loss == "reinforce" and c.ppo_epochs > 1
         old = None
         if c.ppo_epochs > 1:
             with torch.no_grad():
                 old = []
-                for b in batches:
+                for b in self._batches(samples):
                     r = pol.token_logprobs(b, topk=c.score_centering_topk) if sc else pol.token_logprobs(b)
                     old.append({"logp": r[0].detach(), **({k: v.detach() for k, v in r[2].items()} if sc else {})})
+        # Loss = sum over response tokens / global token count. Batches are built on the fly, so each one is
+        # back-propagated as loss_sum / len(samples) and the accumulated gradient is rescaled by
+        # len(samples) / n_tok once n_tok is known: exactly the gradient of the global token mean.
         stats = {"loss": 0.0, "clipfrac_sum": 0.0, "logp_sum": 0.0}
+        scale = float(len(samples))
         for _ in range(c.ppo_epochs):
             self.opt.zero_grad(set_to_none=True)
-            for bi, b in enumerate(batches):
+            n_tok, loss_sum_total = 0.0, 0.0
+            for bi, b in enumerate(self._batches(samples)):
+                n_tok += float(b["loss_mask"].sum())
                 centering, old_logp = None, None
                 if sc:
                     logp, mask, st = pol.token_logprobs(b, gather_ids=old[bi]["topk_ids"])
@@ -270,14 +299,17 @@ class Trainer:
                 adv = b["advantages"].to(logp.device)[:, None].expand_as(logp)
                 loss_sum, st = algo.policy_loss_sum(logp, adv, mask, old_logp, (c.clip_low, c.clip_high),
                                                     centering=centering)
-                loss = loss_sum / n_tok
-                if not torch.isfinite(loss):
+                if not torch.isfinite(loss_sum):
                     print("[warn] non-finite loss, skipping micro-batch")
                     continue
-                loss.backward()
-                stats["loss"] += loss.item()
+                (loss_sum / scale).backward()
+                loss_sum_total += loss_sum.item()
                 stats["clipfrac_sum"] += st.get("clipfrac_sum", 0.0)
                 stats["logp_sum"] += float((logp.detach() * mask).sum())
+            for p in self.params:
+                if p.grad is not None:
+                    p.grad.mul_(scale / max(n_tok, 1.0))
+            stats["loss"] += loss_sum_total / max(n_tok, 1.0)
             gn = torch.nn.utils.clip_grad_norm_(self.params, c.grad_clip)
             if torch.isfinite(gn):
                 self.opt.step()

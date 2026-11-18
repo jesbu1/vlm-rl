@@ -20,7 +20,8 @@ scripts/launch_vllm.sh <model> <port> <gpu> [extra vllm serve args...]
 scripts/launch_vllm.sh Qwen/Qwen3-VL-4B-Instruct 8011 1
 ```
 
-The launcher sets `VLLM_ALLOW_RUNTIME_LORA_UPDATING=True`, `VLLM_SERVER_DEV_MODE=1` (full-weight sync) and
+The launcher sets `VLLM_ALLOW_RUNTIME_LORA_UPDATING=True` (LoRA only: vLLM rejects it with `--api-server-count` > 1, which
+full fine-tuning servers can then use), `VLLM_SERVER_DEV_MODE=1` (full-weight sync) and
 `VLLM_USE_FLASHINFER_SAMPLER=0`, listens on `${VLLM_HOST:-127.0.0.1}` (dev mode exposes admin endpoints), and
 serves with `--enable-lora --max-lora-rank ${MAX_LORA_RANK:-64} --max-loras 2` (dropped with `ENABLE_LORA=0`) `--enable-prefix-caching
 --max-model-len ${MAX_LEN:-32768} --limit-mm-per-prompt '{"image": 32}' --gpu-memory-utilization

@@ -60,4 +60,9 @@ overrides a value for every run, and `--group NAME` renames the group. [SageMake
 Per-model **training** settings (LoRA target names, processor kwargs) live in the
 [policy presets](../models/index.md), so a grid over `policy` picks them up automatically.
 
-Logs: `runs/<group>/<run>/train.log`, `runs/<group>/vllm_<model>.log`.
+Logs: `runs/<group>/<run>/train.log`, `runs/<group>/vllm_<model>_<port>.log`.
+
+**One sweep per GPU (small models).** With `train_gpu == vllm_gpu` the trainer and its server share a GPU;
+cap the server with `vllm_gpu_util` (e.g. 0.35). Two such sweep files with different `train_gpu` / `vllm_port`
+can run side by side in the same group, e.g. `configs/sweeps/smolvlm_procgen_gpu{0,1}.yaml` (SmolVLM-256M full
+fine-tuning, one lr each).

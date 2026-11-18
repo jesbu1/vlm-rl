@@ -142,13 +142,17 @@ class PointMazeSimVecEnv:
     """Batched MuJoCo PointMaze with exact reset-to-state (qpos, qvel, goal).
 
     A start state may name its maze (``"maze": "gen11x11s7"``); otherwise the env's default ``maze`` is used.
-    MuJoCo envs are pooled per maze, so a slot is only rebuilt when its maze changes and envs are reused
-    across resets (a maze-split task draws a different maze per episode)."""
+    There is one MuJoCo simulator per maze, shared by all slots on that maze: each slot keeps its own
+    (qpos, qvel, goal), loaded into the simulator before its step and saved after. Building a MuJoCo env
+    takes ~0.1 s, so a maze-split task (a different maze per episode, ~1000 episodes per step) builds each
+    maze once instead of one env per slot. At most ``max_sims`` idle simulators are kept (least recently used
+    are closed)."""
 
     def __init__(self, maze: str = "umaze", action_mode: str = "delta", action_repeat: int = 40,
                  kp: float = 10.0, kd: float = 1.0, max_delta: float = 1.0, image_size: int = 336,
                  draw_trail: bool = False, seed: int = 0, settle: bool = True, max_substeps: int = 200,
-                 pos_tol: float = 0.05, vel_tol: float = 0.1, blocked_window: int = 20, blocked_eps: float = 0.01):
+                 pos_tol: float = 0.05, vel_tol: float = 0.1, blocked_window: int = 20, blocked_eps: float = 0.01,
+                 max_sims: int = 256):
         """``settle=True`` (PEAR's EXECUTION semantics, delta mode): run the controller until the target
         is reached and the ball is at rest, or until it is blocked (moved < ``blocked_eps`` over the last
         ``blocked_window`` physics steps), capped at ``max_substeps``. ``settle=False``: exactly
@@ -162,11 +166,13 @@ class PointMazeSimVecEnv:
         self.blocked_window, self.blocked_eps = blocked_window, blocked_eps
         self.image_size, self.draw_trail = image_size, draw_trail
         self.seed = seed
-        self._envs: list = []
+        self.max_sims = max_sims
+        self._sims: dict[str, Any] = {}         # maze name -> MuJoCo env (insertion order = LRU order)
         self._slot_maze: list[str] = []
-        self._pool: dict[str, list] = {}        # maze name -> idle envs
         self._maps: dict[str, list] = {maze: self.maze_map}
         self._n_made = 0
+        self._qpos: list[np.ndarray] = []       # per-slot state, loaded into the maze's simulator to step
+        self._qvel: list[np.ndarray] = []
         self._goals: list[np.ndarray] = []
         self._trails: list[list] = []
 
@@ -182,42 +188,52 @@ class PointMazeSimVecEnv:
         self._n_made += 1
         return env
 
+    def _sim(self, maze: str):
+        env = self._sims.pop(maze, None) or self._make(maze)
+        self._sims[maze] = env                  # most recently used last
+        return env
+
+    def _load(self, k: int):
+        """Put slot k's state (and goal) into its maze's simulator and return the env."""
+        env = self._sim(self._slot_maze[k])
+        env.goal = self._goals[k].copy()
+        env.update_target_site_pos()
+        env.point_env.set_state(self._qpos[k], self._qvel[k])
+        return env
+
     def _obs(self, k: int) -> Obs:
-        d = self._envs[k].point_env.data
-        pos, vel, goal = d.qpos[:2].copy(), d.qvel[:2].copy(), self._goals[k]
+        pos, vel, goal = self._qpos[k][:2].copy(), self._qvel[k][:2].copy(), self._goals[k]
         img = render_topdown(self.maze_map_of(k), pos, goal, self.image_size,
                              trail=self._trails[k] if self.draw_trail else None)
         return Obs(image=img, state=np.concatenate([pos, vel]),
-                   extras={"goal": goal.copy(), "dist": float(np.linalg.norm(pos - goal))})
+                   extras={"goal": goal.copy(), "dist": float(np.linalg.norm(pos - goal)), "geo_dist": self._geo_dist(k, pos)})
+
+    def _geo_dist(self, k: int, pos) -> float:
+        """Shortest-path length in cells (4-connected, through free cells) from the ball's cell to the goal's."""
+        mm = self.maze_map_of(k)
+        r, c = _cell_of(pos, mm)
+        f = self._geo[k]
+        return float(f[r, c]) if 0 <= r < f.shape[0] and 0 <= c < f.shape[1] and np.isfinite(f[r, c]) else float(f.size)
 
     def reset(self, start_states):
-        for env, maze in zip(self._envs, self._slot_maze):     # return every env to its maze's pool
-            self._pool.setdefault(maze, []).append(env)
-        self._envs, self._slot_maze = [], []
-        for s in start_states:
-            maze = str(s.get("maze") or self.maze_name)
-            pool = self._pool.get(maze)
-            self._envs.append(pool.pop() if pool else self._make(maze))
-            self._slot_maze.append(maze)
-        # bound idle envs (with many mazes every pool would keep its high-water mark): drop from the fullest pools
-        cap = max(32, len(start_states))
-        while sum(len(p) for p in self._pool.values()) > cap:
-            max(self._pool.values(), key=len).pop().close()
-        self._goals, self._trails = [], []
-        for k, s in enumerate(start_states):
-            env = self._envs[k]
-            env.goal = np.asarray(s["goal"], dtype=np.float64).copy()
-            env.update_target_site_pos()
-            env.point_env.set_state(np.asarray(s["qpos"], np.float64), np.asarray(s.get("qvel", [0, 0]), np.float64))
-            self._goals.append(env.goal.copy())
-            self._trails.append([np.asarray(s["qpos"][:2], np.float64).copy()])
+        self._slot_maze = [str(s.get("maze") or self.maze_name) for s in start_states]
+        for maze in dict.fromkeys(self._slot_maze):
+            self._sim(maze)
+        in_use = set(self._slot_maze)
+        for maze in [m for m in self._sims if m not in in_use][:max(0, len(self._sims) - self.max_sims)]:
+            self._sims.pop(maze).close()        # evict least recently used idle simulators
+        self._qpos = [np.asarray(s["qpos"], np.float64).copy() for s in start_states]
+        self._qvel = [np.asarray(s.get("qvel", [0, 0]), np.float64).copy() for s in start_states]
+        self._goals = [np.asarray(s["goal"], np.float64).copy() for s in start_states]
+        self._geo = [geodesic_field(self.maze_map_of(k), g) for k, g in enumerate(self._goals)]
+        self._trails = [[q[:2].copy()] for q in self._qpos]
         self._n = len(start_states)
         return [self._obs(k) for k in range(self._n)]
 
     def step(self, ids, actions):
         out = []
         for k, a in zip(ids, actions):
-            env = self._envs[k]
+            env = self._load(k)
             d = env.point_env.data
             a = np.asarray(a, dtype=np.float64)
             if self.action_mode == "delta":
@@ -248,22 +264,26 @@ class PointMazeSimVecEnv:
                     if i >= self.blocked_window and np.linalg.norm(pos - hist[-1 - self.blocked_window]) < self.blocked_eps:
                         stop = "blocked"
                         break
-            dist = float(np.linalg.norm(d.qpos[:2] - self._goals[k]))
+            self._qpos[k], self._qvel[k] = d.qpos.copy(), d.qvel.copy()
+            ob = self._obs(k)
             out.append(StepResult(
-                obs=self._obs(k), reward=float(success), terminated=success,
-                info={"success": success, "dist": dist, "low_level_actions": np.stack(low), "stop": stop}))
+                obs=ob, reward=float(success), terminated=success,
+                info={"success": success, "dist": ob.extras["dist"], "geo_dist": ob.extras["geo_dist"],
+                      "low_level_actions": np.stack(low), "stop": stop}))
         return out
 
     def close(self):
-        for e in self._envs + [e for pool in self._pool.values() for e in pool]:
+        for e in self._sims.values():
             e.close()
-        self._envs, self._slot_maze, self._pool = [], [], {}
+        self._sims, self._slot_maze = {}, []
 
 
 # ----------------------------------------------------------------------------- agent interface
 
 _ACTION_RE = re.compile(r"<action>(.*?)</action>", re.DOTALL | re.IGNORECASE)
 _NUM = r"[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?"
+_COMPACT_X = re.compile(r'"?\bd?x"?\s*[:=]\s*(' + _NUM + ")", re.IGNORECASE)   # compact style: first x / y value
+_COMPACT_Y = re.compile(r'"?\bd?y"?\s*[:=]\s*(' + _NUM + ")", re.IGNORECASE)
 
 
 class PointMazeTextInterface:
@@ -273,7 +293,10 @@ class PointMazeTextInterface:
     is one part ``ball`` with quantities ``x, y``; each turn starts with the state JSON, then the
     image; the action is the *change* ``{"ball": {"x": dx, "y": dy}}`` in a final fenced json block.
     ``prompt_style="simple"`` is a shorter custom prompt with ``<action>{"dx":..,"dy":..}</action>``.
-    ``think`` adds / drops the "Think briefly, then ..." cue (default: on for simple, off for pear).
+    ``prompt_style="compact"`` is a few-sentence prompt for small models (<1B): each turn is the image +
+    "Ball: x=.., y=... Goal: x=.., y=... Move:", and the reply is ``{"x": dx, "y": dy}``, parsed leniently
+    (the first x and y values anywhere in the reply).
+    ``think`` adds / drops the "Think briefly, then ..." cue (default: on for simple, off for pear / compact).
     """
 
     SCHEMA = {"ball": ["x", "y"]}
@@ -281,9 +304,9 @@ class PointMazeTextInterface:
     def __init__(self, maze_map, action_mode: str = "delta", include_state: bool = True,
                  max_delta: float = 1.0, image_size: int = 336, prompt_style: str = "pear",
                  think: bool | None = None):
-        assert prompt_style in ("pear", "simple")
-        if prompt_style == "pear":
-            assert action_mode == "delta", "PEAR protocol actions are changes of quantities (delta mode)"
+        assert prompt_style in ("pear", "simple", "compact")
+        if prompt_style in ("pear", "compact"):
+            assert action_mode == "delta", f"{prompt_style} actions are changes of position (delta mode)"
         self.maze_map, self.action_mode = maze_map, action_mode
         self.include_state, self.max_delta = include_state, max_delta
         self.keys = ("dx", "dy") if action_mode == "delta" else ("fx", "fy")
@@ -333,6 +356,14 @@ class PointMazeTextInterface:
             return text
         mm = self._map_for(start_state)
         h, w = len(mm), len(mm[0])
+        if self.prompt_style == "compact":
+            return (
+                "You move a blue ball through a maze to the green circle. The image shows the maze from above: "
+                f"dark cells are walls, light cells are floor. The maze is {w} by {h} cells; x points right, "
+                "y points up, 1 unit = 1 cell. Each turn, reply with only the move as JSON, for example "
+                '{"x": 1.0, "y": -0.5}. ' f"The ball moves by that amount (at most {self.max_delta:g} per turn) "
+                "and stops at walls." + (" Think briefly first." if self.think else "")
+            )
         if self.action_mode == "delta":
             act = (f'a relative waypoint {{"dx": <float>, "dy": <float>}} in maze units; the robot moves by '
                    f"roughly that offset this round (clipped to length {self.max_delta}). "
@@ -365,6 +396,12 @@ class PointMazeTextInterface:
                 parts.append(protocol.format_state(self.SCHEMA, obs.state[:2]))
             # PEAR: the state JSON comes first, followed by the camera images
             return ([{"type": "text", "text": "\n".join(parts)}] if parts else []) + [img]
+        if self.prompt_style == "compact":
+            text = "No valid move last turn. " if parse_error else ""
+            if self.include_state and obs.state is not None:
+                p, g = obs.state[:2], obs.extras["goal"]
+                text += f"Ball: x={p[0]:.2f}, y={p[1]:.2f}. Goal: x={g[0]:.2f}, y={g[1]:.2f}. "
+            return [img, {"type": "text", "text": text + "Move:"}]
         text = []
         if parse_error:
             text.append("Your previous reply had no valid <action> tag, so the ball did nothing.")
@@ -381,6 +418,12 @@ class PointMazeTextInterface:
         if self.prompt_style == "pear":
             from vlmrl.envs import protocol
             return protocol.parse_action(text, self.SCHEMA)
+        if self.prompt_style == "compact":
+            mx, my = _COMPACT_X.search(text), _COMPACT_Y.search(text)
+            if not (mx and my):
+                return None
+            a = np.array([float(mx.group(1)), float(my.group(1))])
+            return a if np.all(np.isfinite(a)) else None
         m = _ACTION_RE.findall(text)
         if not m:
             return None
@@ -403,6 +446,8 @@ class PointMazeTextInterface:
         if self.prompt_style == "pear":
             from vlmrl.envs import protocol
             return protocol.example_action(self.SCHEMA, a)
+        if self.prompt_style == "compact":
+            return f'{{"x": {a[0]:.2f}, "y": {a[1]:.2f}}}'
         return f'<action>{{"{self.keys[0]}": {a[0]:.3f}, "{self.keys[1]}": {a[1]:.3f}}}</action>'
 
     def noop_action(self):
@@ -419,6 +464,24 @@ def _cell_of(xy, maze_map):
 def _centre_of(cell, maze_map):
     h, w = len(maze_map), len(maze_map[0])
     return np.array([cell[1] + 0.5 - w / 2, h / 2 - cell[0] - 0.5])
+
+
+def geodesic_field(maze_map, goal) -> np.ndarray:
+    """BFS distance in cells from the goal's cell to every free cell (inf for walls / unreachable)."""
+    from collections import deque
+    walls = _walls(maze_map)
+    f = np.full(walls.shape, np.inf)
+    g = _cell_of(goal, maze_map)
+    f[g] = 0
+    q = deque([g])
+    while q:
+        c = q.popleft()
+        for di, dj in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+            n = (c[0] + di, c[1] + dj)
+            if 0 <= n[0] < walls.shape[0] and 0 <= n[1] < walls.shape[1] and not walls[n] and f[n] == np.inf:
+                f[n] = f[c] + 1
+                q.append(n)
+    return f
 
 
 def oracle_delta(maze_map, pos, goal, max_delta: float = 1.0) -> np.ndarray:
@@ -610,7 +673,7 @@ class PointMazeConfig:
     max_delta: float = 1.0
     image_size: int = 336
     include_state: bool = True
-    prompt_style: str = "pear"        # "pear" (paper Appendix H protocol) | "simple"
+    prompt_style: str = "pear"        # "pear" (paper Appendix H protocol) | "simple" | "compact" (small models)
     think: bool | None = None         # "Think briefly" cue; None = style default (simple: on, pear: off)
     settle: bool = True               # PEAR execution: act until target reached & at rest, or blocked
     max_turns: int = 12

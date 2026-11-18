@@ -1,0 +1,37 @@
+# SmolVLM-256M full fine-tuning on procedural mazes with layout generalization eval (experiment=pointmaze_procgen:
+# train on 64 11x11 layouts; eval sets id_layouts / ood_layouts (16 held-out 11x11) / ood_larger (held-out 15x15)).
+# One self-contained sweep per GPU: trainer and its vLLM server share GPU 1 (the model is 256M), so two sweeps run
+# side by side (smolvlm_procgen_gpu0.yaml / _gpu1.yaml, same wandb group; they differ only in lr).
+# Why these settings (zero-shot diagnosis in docs/models/smolvlm-256m.md):
+#   - prompt_style=compact: under the PEAR / simple prompts SmolVLM-256M is 100% invalid (it echoes the state
+#     JSON or writes prose); the compact prompt asks for {"x": dx, "y": dy}, ~17-23% of turns parse zero-shot.
+#   - on_invalid=noop: an unparseable reply is a no-op instead of ending the episode, so episodes last long
+#     enough to occasionally reach the goal (~2% zero-shot), which is all the sparse reward needs.
+#   - reward=success (sparse) with a large batch: 64 groups x 16, up to 3 DAPO resampling rounds (<= 3072
+#     episodes / step), so enough groups mix successes and failures at a ~2% success rate.
+group: smolvlm-procgen-v1
+project: vlm-rl-pointmaze
+train_gpu: 1
+vllm_gpu: 1
+vllm_port: 8012
+vllm_gpu_util: 0.35
+overrides:
+  - experiment=pointmaze_procgen
+  - policy=smolvlm256m
+  - env_kwargs.prompt_style=compact
+  - on_invalid=noop
+  - reward=success
+  - steps=60
+  - groups_per_step=64
+  - group_size=16
+  - max_resample_rounds=3
+  - micro_batch_size=64
+  - max_new_tokens=64
+  - eval_every=5
+  - eval_episodes=64
+  - wandb_entity=tri
+  - "wandb_tags='pointmaze,procgen,smolvlm,fft,sweep'"
+grid:
+  lr: [3.0e-5]
+vllm_args:
+  HuggingFaceTB/SmolVLM-256M-Instruct: [--max-model-len, "8192", --mm-processor-kwargs, '{"do_image_splitting": false}', --api-server-count, "4", --max-num-seqs, "1024"]

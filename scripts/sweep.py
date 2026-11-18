@@ -157,7 +157,7 @@ def run_lane(runs: list[dict], sweep: dict, lane: dict, idx: int, logdir: str):
                 if server:
                     stop_server(server)
                 suffix = f"_lane{idx}" if idx >= 0 else ""
-                log = open(os.path.join(logdir, f"vllm_{slug(cfg.model)}{suffix}.log"), "w")
+                log = open(os.path.join(logdir, f"vllm_{slug(cfg.model)}{suffix}_{lane['vllm_port']}.log"), "w")
                 env = {**os.environ, "MAX_LORA_RANK": str(max(16, cfg.lora_rank)),
                        "ENABLE_LORA": "1" if cfg.lora_rank > 0 else "0"}
                 if sweep.get("vllm_gpu_util"):

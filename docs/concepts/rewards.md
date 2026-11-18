@@ -18,6 +18,7 @@ judgments (preferences) are the same kind of object.
 | `success` | 1 if any step reported `info["success"]` (PEAR) |
 | `return` | sum of env rewards |
 | `neg_dist` | −final distance to the goal (PointMaze; carried through invalid-action endings) |
+| `neg_geo_dist` | −final shortest-path distance in cells (PointMaze `info["geo_dist"]`; walls respected, unlike `neg_dist`) |
 | `format` | −fraction of turns with an unparseable action |
 | `efficiency` | `1 − turns/max_turns` for successful episodes, else 0 |
 | `pref_oracle_dist` | preference pipeline with a privileged oracle judge (success first, then lower final distance) |

@@ -50,7 +50,7 @@ order to train a WAM on Minari data. `Obs.extras` carries `goal` and `dist`.
 | `max_turns` | 10 (task preset) | step limit per episode |
 | `image_size` | 336 | rendered frame size (px) |
 | `include_state` | true | state JSON in each turn and goal coordinates in the TASK; false = image-only |
-| `prompt_style` | `pear` | `pear` (paper protocol) or `simple` (`<action>{"dx","dy"}</action>`) |
+| `prompt_style` | `pear` | `pear` (paper protocol), `simple` (`<action>{"dx","dy"}</action>`), or `compact` (small models, below) |
 | `settle` | true | PEAR execution semantics (above) |
 | `action_mode` | `delta` | `force` only with `prompt_style=simple` |
 | `max_delta` | 1.0 | maximum move per action |
@@ -63,6 +63,20 @@ order to train a WAM on Minari data. `Obs.extras` carries `goal` and `dist`.
 | `eval_split` | `heldout` | part the eval sampler draws from: `heldout`, `train`, `all` (start–goal pairs with `split` ≠ `none`; layouts for a procedural family) |
 | `train_mazes` | 64 | procedural family: training layouts are seeds `[0, train_mazes)` |
 | `eval_mazes` | 16 | procedural family: held-out layouts are seeds `[10000, 10000 + eval_mazes)` |
+
+## Small-model prompt (`prompt_style=compact`)
+
+Models below ~1B parameters (SmolVLM-256M) do not follow the PEAR or simple formats: zero-shot on
+`pointmaze_procgen` they are 100% invalid (echoing the state JSON, or prose). `compact` is a few-sentence
+system prompt; each turn is the image followed by `Ball: x=.., y=... Goal: x=.., y=... Move:`, and the reply is
+`{"x": dx, "y": dy}`, parsed leniently (the first `x` / `y` (or `dx` / `dy`) values anywhere in the reply).
+With it, ~17–23% of SmolVLM-256M's turns parse zero-shot.
+
+## Distances in `info`
+
+Every step reports `dist` (Euclidean distance to the goal) and `geo_dist`: the shortest-path length in cells
+(4-connected, through free cells, BFS from the goal once per episode) from the ball's cell to the goal's cell.
+`geo_dist` respects walls, so it is the better distance for maze shaping (reward `neg_geo_dist`).
 
 ## Start states
 
@@ -104,7 +118,11 @@ The D4RL layouts are fixed and small (UMaze is solved within ~20 RL steps). `tas
 - `maze: gen11x11` (a family, no seed) draws a **different layout per episode**. Training uses seeds
   `[0, train_mazes)`. The eval sampler uses the held-out seeds `[10000, 10000 + eval_mazes)`
   (`eval_split: heldout`), the training layouts (`train`), or both (`all`). Each start state carries its
-  `maze` name. The VecEnv builds and pools one MuJoCo env per layout (an env is rebuilt only when a slot's
+  `maze` name. The VecEnv keeps **one MuJoCo simulator per layout**, shared by every slot on that layout: each
+  slot stores its own (qpos, qvel, goal) and loads it into the simulator for its step. Building a MuJoCo env
+  takes ~0.1 s, so this builds each layout once instead of one env per episode (a step of ~1000 episodes
+  used to spend ~100 s in `reset`); at most `max_sims` (256) idle simulators are kept, least recently used
+  closed first. (Formerly: pooled per-slot envs, an env was rebuilt only when a slot's
   layout changes, and idle envs are capped). The prompt's ENVIRONMENT section and the rendered image follow
   the episode's layout.
 - Paths are tens of cells long, so the preset allows moves of up to 3 cells (`max_delta: 3.0`) and 20 rounds,
