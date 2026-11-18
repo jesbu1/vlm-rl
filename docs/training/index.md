@@ -6,6 +6,7 @@
 | [Rollout backends](backends.md) | in-process HF `generate` vs a vLLM server with prefix caching and LoRA / full-weight sync |
 | [Sweeps](sweeps.md) | reward × model grids with one vLLM server per model, parallel lanes, resumable |
 | [Weights & Biases](wandb.md) | what is logged, grouping, building comparison reports |
+| [AWS Batch (GPU containers)](batch.md) | a sweep split over parallel GPU machines (Batch array job on an EC2 GPU queue): same image, S3-synced, resumable |
 | [SageMaker](sagemaker.md) | a sweep as one SageMaker job (AWS Batch queue): Docker image, submit, monitor, resume |
 | [Experiment log](experiments.md) | every run so far and what it showed |
 

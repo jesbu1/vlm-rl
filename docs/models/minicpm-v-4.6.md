@@ -1,6 +1,6 @@
 # MiniCPM-V 4.6
 
-**Preset:** `policy=minicpmv46_lora` · **HF:** [`openbmb/MiniCPM-V-4.6`](https://huggingface.co/openbmb/MiniCPM-V-4.6)
+**Presets:** `policy=minicpmv46_lora`, `policy=minicpmv46_full` · **HF:** [`openbmb/MiniCPM-V-4.6`](https://huggingface.co/openbmb/MiniCPM-V-4.6)
 
 ```yaml
 model: openbmb/MiniCPM-V-4.6
@@ -35,3 +35,12 @@ so groups have zero variance and nothing trains. Watch `rollout/end_invalid`.
 ## Status
 
 In the `pointmaze-small-v4` sweep (see [Experiment log](../training/experiments.md)).
+
+## Full fine-tuning
+
+`policy=minicpmv46_full`: every parameter trained, with fp32 master weights and a bf16 autocast forward pass. See
+the memory table in [Models](index.md#memory); it fits one 48 GB GPU. vLLM rollouts use the
+[full-weight sync](../training/backends.md#how-weight-sync-works). The saved checkpoint has exactly the original
+tensor names (checked on CPU). Shipped sweep: `configs/sweeps/batch_small_fft.yaml` (simple prompt, dense
+reward, UMaze + medium), run on L40S machines through [AWS Batch](../training/batch.md).
+

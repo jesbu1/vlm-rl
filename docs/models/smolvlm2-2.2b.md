@@ -1,6 +1,6 @@
 # SmolVLM2-2.2B-Instruct
 
-**Preset:** `policy=smolvlm2_2b_lora` · **HF:** [`HuggingFaceTB/SmolVLM2-2.2B-Instruct`](https://huggingface.co/HuggingFaceTB/SmolVLM2-2.2B-Instruct)
+**Presets:** `policy=smolvlm2_2b_lora`, `policy=smolvlm2_2b_full` · **HF:** [`HuggingFaceTB/SmolVLM2-2.2B-Instruct`](https://huggingface.co/HuggingFaceTB/SmolVLM2-2.2B-Instruct)
 
 ```yaml
 model: HuggingFaceTB/SmolVLM2-2.2B-Instruct
@@ -46,3 +46,12 @@ CUDA_VISIBLE_DEVICES=0 python scripts/train.py experiment=pointmaze_q3vl4b_vllm 
 Was the third model in the `pointmaze-small-v1`–`v3` sweep grids, but those sweeps were stopped before
 reaching it, so it has **no training results yet**. It is not in v4. One-step smoke runs on puget confirmed
 that the preset and vLLM flags work (see [Experiment log](../training/experiments.md)).
+
+## Full fine-tuning
+
+`policy=smolvlm2_2b_full`: every parameter trained, with fp32 master weights and a bf16 autocast forward pass. See
+the memory table in [Models](index.md#memory); it fits one 48 GB GPU. vLLM rollouts use the
+[full-weight sync](../training/backends.md#how-weight-sync-works). The saved checkpoint has exactly the original
+tensor names (checked on CPU). Shipped sweep: `configs/sweeps/batch_small_fft.yaml` (simple prompt, dense
+reward, UMaze + medium), run on L40S machines through [AWS Batch](../training/batch.md).
+

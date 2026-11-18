@@ -1,6 +1,6 @@
 # Qwen3-VL-2B-Instruct
 
-**Preset:** `policy=qwen3vl2b_lora` · **HF:** [`Qwen/Qwen3-VL-2B-Instruct`](https://huggingface.co/Qwen/Qwen3-VL-2B-Instruct)
+**Presets:** `policy=qwen3vl2b_lora`, `policy=qwen3vl2b_full` · **HF:** [`Qwen/Qwen3-VL-2B-Instruct`](https://huggingface.co/Qwen/Qwen3-VL-2B-Instruct)
 
 Same settings as [Qwen3-VL-4B](qwen3-vl-4b.md) (LoRA r=64, α=128, language-model targets, lr 2e-5),
 and the same processor: 102 tokens per 336-px frame. Shipped generation config:
@@ -40,3 +40,12 @@ scripts/launch_vllm.sh Qwen/Qwen3-VL-2B-Instruct 8011 1
 CUDA_VISIBLE_DEVICES=0 python scripts/train.py experiment=pointmaze_q3vl4b_vllm policy=qwen3vl2b_lora \
     reward='success+0.5*neg_dist'
 ```
+
+## Full fine-tuning
+
+`policy=qwen3vl2b_full`: every parameter trained, with fp32 master weights and a bf16 autocast forward pass. See
+the memory table in [Models](index.md#memory); it fits one 48 GB GPU. vLLM rollouts use the
+[full-weight sync](../training/backends.md#how-weight-sync-works). The saved checkpoint has exactly the original
+tensor names (checked on CPU). Shipped sweep: `configs/sweeps/batch_small_fft.yaml` (simple prompt, dense
+reward, UMaze + medium), run on L40S machines through [AWS Batch](../training/batch.md).
+

@@ -22,7 +22,8 @@ scripts/
   train.py            Hydra CLI
   sweep.py            reward x model grids, one vLLM server per model, parallel lanes, resumable
   sagemaker_submit.py submit a sweep as one SageMaker job via an AWS Batch queue (runs where your AWS login is)
-  job_entry.py  in-container runner: hyperparameters -> sweep.py lanes, checkpoints synced to S3
+  batch_submit.py     submit a sweep to an AWS Batch GPU-container queue as an array job (one machine per shard)
+  job_entry.py        in-container runner (SageMaker or Batch): job settings -> sweep.py shard + lanes, S3 sync
   make_wandb_report.py  wandb Report for a sweep group
   demo_pointmaze.py   oracle / random policy through the text protocol, GIFs + prompt dump
   gen_docs.py         generated docs pages (config reference, prompts)
@@ -38,6 +39,7 @@ tests/                pytest suites, one per module, + conftest tiers and fixtur
 |---|---|
 | train from the CLI | `python scripts/train.py <overrides>` |
 | run a sweep on SageMaker | `python scripts/sagemaker_submit.py <sweep>` ([guide](../training/sagemaker.md)) |
+| run a sweep on parallel GPU machines (AWS Batch) | `python scripts/batch_submit.py <sweep>` ([guide](../training/batch.md)) |
 | train from Python | `Trainer(compose([...])).train()` or `Trainer(TrainConfig(...), policy=, bundle=, reward_fn=)` |
 | roll out without training | `vlmrl.rollout.rollout(generate, env, interface, starts, group_ids, max_turns)` |
 | score groups | `vlmrl.rewards.build_reward(spec)(groups)` |

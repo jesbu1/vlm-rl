@@ -20,7 +20,7 @@ no demonstrations.
 - **Faithful PEAR algorithm**: GRPO z-score advantages, DAPO group filter, REINFORCE without clipping,
   score centering ([how PEAR works](docs/pear/index.md), [mapping](docs/pear/mapping.md))
 - **Hydra configs, a vLLM rollout server (LoRA or full-weight sync), sweeps, wandb** ([training](docs/training/index.md))
-- **Docker image + SageMaker jobs** (AWS Batch queues, multi-run nodes, resumable) ([SageMaker](docs/training/sagemaker.md))
+- **Docker image + cloud jobs**: SageMaker via AWS Batch queues, or parallel GPU machines on AWS Batch; multi-run nodes, resumable ([SageMaker](docs/training/sagemaker.md), [AWS Batch](docs/training/batch.md))
 
 ## Quickstart
 
@@ -84,6 +84,17 @@ aws logs tail /aws/sagemaker/TrainingJobs --log-stream-name-prefix AWSBatch<job-
 aws s3 ls <s3_output>/<job-name>/checkpoints/<group>/
 ```
 
+**AWS Batch GPU queues** (EC2 instances, no SageMaker): `scripts/batch_submit.py` submits a sweep as an
+**array job, one machine per shard, all in parallel**, with run dirs synced to S3
+([docs/training/batch.md](docs/training/batch.md)). Same image; settings in git-ignored
+`configs/sagemaker/local_batch.yaml` (template `example_batch.yaml`):
+
+```bash
+IMAGE=$(python scripts/batch_submit.py --image)       # push the image to that account's ECR as above
+python scripts/batch_submit.py configs/sweeps/batch_small_fft.yaml --dry_run
+python scripts/batch_submit.py configs/sweeps/batch_small_fft.yaml        # 8 small-model full-FT runs, 4 machines
+```
+
 The shipped sweep, `configs/sweeps/sagemaker_gemma4_fft.yaml`, is **Gemma 4 E2B full fine-tuning**. It keeps fp32
 master weights and syncs the full weights into vLLM each step, over a maze × learning-rate grid.
 
@@ -96,7 +107,7 @@ master weights and syncs the full weights into vLLM each step, over a maze × le
 | [Concepts](docs/concepts/index.md) | architecture · rollouts & episodes · algorithm · rewards & preferences |
 | [Environments](docs/environments/index.md) | PointMaze · prompts · world-action models · adding an environment |
 | [Models](docs/models/index.md) | Gemma 4 E2B · Qwen3-VL-4B · Qwen3-VL-2B · Qwen2.5-VL-3B · Qwen2.5-VL-7B · MiniCPM-V 4.6 · SmolVLM2-2.2B · SmolVLM-256M · adding a model |
-| [Training](docs/training/index.md) | configuration (Hydra) · rollout backends · sweeps · wandb · SageMaker + Docker · experiment log |
+| [Training](docs/training/index.md) | configuration (Hydra) · rollout backends · sweeps · wandb · SageMaker + Docker · AWS Batch · experiment log |
 | [Development](docs/development/index.md) | testing · performance · writing docs · roadmap |
 | [Reference](docs/reference/index.md) | configuration fields · code layout |
 

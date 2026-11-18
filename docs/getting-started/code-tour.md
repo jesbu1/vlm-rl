@@ -138,3 +138,4 @@ an `base.py::EnvBundle` holding the dynamics (`base.py::VecEnv`), the prompt/par
 | change a default setting | `trainer.py::TrainConfig` (all fields: [reference](../reference/config.md)) |
 | change how episodes end | `rollout.py::rollout` |
 | run on SageMaker | `sagemaker_submit.py::build_request`, `job_entry.py::main`; see [SageMaker](../training/sagemaker.md) |
+| run on parallel GPU machines | `batch_submit.py::submit_request`, `job_entry.py::S3Syncer`; see [AWS Batch](../training/batch.md) |

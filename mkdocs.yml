@@ -92,6 +92,7 @@ nav:
       - Sweeps: training/sweeps.md
       - Weights & Biases: training/wandb.md
       - SageMaker: training/sagemaker.md
+      - AWS Batch (GPU containers): training/batch.md
       - Experiment log: training/experiments.md
   - Development:
       - development/index.md
