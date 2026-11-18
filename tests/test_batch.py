@@ -155,3 +155,10 @@ def test_each_shard_syncs_only_its_own_runs():
     assert cmd[cmd.index("--exclude"):cmd.index("--exclude") + 2] == ["--exclude", "*"]
     assert cmd[-2:] == ["--exclude", "*.tmp"] and cmd.count("--include") == 3
     assert "--include" not in entry.s3_sync_command("/runs", "s3://b/p/")
+
+
+def test_queue_settings_override_machine_size():
+    cfg = {**CFG, "queues": {"big": {"gpus": 8, "vcpus": 192}}}
+    big = batch.sm.for_queue(cfg, "big")
+    assert big["queue"] == "big" and big["gpus"] == 8 and big["vcpus"] == 192 and big["memory_mib"] == 262144
+    assert batch.job_definition(big, "img")["jobDefinitionName"] == "me-vlm-rl-gpu8"

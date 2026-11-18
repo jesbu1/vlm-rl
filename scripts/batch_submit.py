@@ -112,6 +112,7 @@ def main(argv=None):
     ap.add_argument("--config", default=DEFAULT_CONFIG, help="local (git-ignored) account settings")
     ap.add_argument("--tag", default="", help="image tag (default: the current git commit)")
     ap.add_argument("--lanes", type=int, default=None, help="lanes per machine (default: gpus // gpus_per_lane)")
+    ap.add_argument("--queue", default="", help="job queue (default: config `queue`; per-queue settings: `queues`)")
     ap.add_argument("--gpus", type=int, default=None, help="GPUs per machine (overrides the config)")
     ap.add_argument("--vcpus", type=int, default=None, help="vCPUs per machine (overrides the config)")
     ap.add_argument("--memory_mib", type=int, default=None, help="memory per machine (overrides the config)")
@@ -127,7 +128,7 @@ def main(argv=None):
     ap.add_argument("--dry_run", action="store_true")
     ap.add_argument("--image", action="store_true", help="print the image URI for this commit and exit")
     a = ap.parse_args(argv)
-    cfg = sm.load_config(a.config, REQUIRED, "example_batch.yaml")
+    cfg = sm.for_queue(sm.load_config(a.config, REQUIRED, "example_batch.yaml"), a.queue)
     for k in ("gpus", "vcpus", "memory_mib"):
         if getattr(a, k):
             cfg[k] = getattr(a, k)

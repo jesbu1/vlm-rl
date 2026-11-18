@@ -19,3 +19,5 @@ env:
   WANDB_BASE_URL: https://api.wandb.ai
 secret_env:                           # copied from your shell's environment at submit time, never stored
   - WANDB_API_KEY
+queues:                               # optional per-queue settings, applied with --queue <name> (env is merged)
+  my-multi-gpu-queue: {gpus: 4, vcpus: 48, memory_mib: 350000}
