@@ -112,8 +112,9 @@ class VLLMServerGenerator:
     def _sync_full(self, policy, step: int):
         """Full-weight sync through vLLM's dev endpoints (server needs ``VLLM_SERVER_DEV_MODE=1``;
         ``scripts/launch_vllm.sh`` sets it). The checkpoint is written in HF format, i.e. exactly what vLLM
-        loads at startup, then reloaded in place on every worker. Cached prefixes were computed with the old
-        weights, so the prefix cache is reset too. Step 0 is the base model the server already has."""
+        loads at startup, then reloaded in place on every worker. Cached prefixes and image embeddings were computed
+        with the old weights, so the prefix and encoder caches are reset too. Step 0 is the base model the server
+        already has."""
         if step == 0:
             return
         path = os.path.abspath(os.path.join(self.adapter_dir, f"full_{self.tag}_step{step}"))
@@ -124,6 +125,9 @@ class VLLMServerGenerator:
         _post(f"{self.url}/collective_rpc", {"method": "reload_weights", "kwargs": {"weights_path": path}},
               timeout=1800)
         _post(f"{self.url}/reset_prefix_cache", {})
+        # the worker drops its cached image embeddings on reload, but the scheduler would still count them as
+        # cached ("Encoder cache miss" crash on the next image request); this resets both sides
+        _post(f"{self.url}/reset_encoder_cache", {})
         if self._prev_adapter:
             shutil.rmtree(self._prev_adapter[1], ignore_errors=True)
         self._prev_adapter = (self.base_model, path)

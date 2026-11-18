@@ -50,12 +50,14 @@ python scripts/train.py rollout=vllm vllm_url=http://localhost:8011
    tensor names as the original checkpoint) to `vllm_sync_dir` (default `out_dir/adapters`) as
    `full_<tag>_step{N}`. Step 0 is skipped: the server already serves the base weights.
 2. `POST /collective_rpc {"method": "reload_weights", "kwargs": {"weights_path": ...}}` reloads it in place on
-   every worker, and `POST /reset_prefix_cache` drops KV blocks computed with the old weights.
+   every worker. `POST /reset_prefix_cache` drops KV blocks computed with the old weights, and
+   `POST /reset_encoder_cache` drops cached image embeddings on both the scheduler and the worker. Without it, the
+   next image request crashes the engine with "Encoder cache miss".
 3. Requests keep using the base model name. The previous checkpoint directory is deleted.
 
 Both are simple and robust and need no NCCL. The full-weight path costs one disk round trip per step
-(seconds for a few-B model on local NVMe). Verified on puget: perturbed weights change the server's
-log-probs, and restoring them reproduces the original log-probs exactly.
+(seconds for a few-B model on local NVMe). Verified on puget, with image prompts and CUDA graphs on: perturbed
+weights change the server's log-probs, and restoring them reproduces the original log-probs exactly.
 
 ### Messages and tokens
 

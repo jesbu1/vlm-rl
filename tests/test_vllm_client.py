@@ -126,10 +126,10 @@ def test_full_weight_sync_reloads_in_place(server, tmp_path):
     assert _Handler.log == [] and pol.saved == []
     g.sync(pol, 1)
     g.sync(pol, 2)
-    assert [p for p, _ in _Handler.log] == ["/collective_rpc", "/reset_prefix_cache"] * 2
+    assert [p for p, _ in _Handler.log] == ["/collective_rpc", "/reset_prefix_cache", "/reset_encoder_cache"] * 2
     p1, p2 = (f"{tmp_path}/full_{g.tag}_step{s}" for s in (1, 2))
     assert _Handler.log[0][1] == {"method": "reload_weights", "kwargs": {"weights_path": p1}}
-    assert _Handler.log[2][1]["kwargs"]["weights_path"] == p2
+    assert _Handler.log[3][1]["kwargs"]["weights_path"] == p2
     assert pol.saved == [(p1, False), (p2, False)]       # weights only, no processor files
     assert not os.path.exists(p1) and os.path.exists(p2)  # only the served checkpoint is kept
     assert g.current == "base" and g.generate([_conv()[:2]])[0].startswith("base|")

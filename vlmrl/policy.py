@@ -69,6 +69,11 @@ def chunked_token_stats(logits: torch.Tensor, targets: torch.Tensor, chunk: int 
     return out
 
 
+def _to(v, device):
+    """Move tensors to ``device``; leave other processor outputs (lists, e.g. SmolVLM2's per-image metadata) as is."""
+    return v.to(device) if torch.is_tensor(v) else v
+
+
 class HFPolicy:
     def __init__(self, model_name: str, device: str | None = None, dtype: str = "auto",
                  attn_implementation: str | None = None, gradient_checkpointing: bool = True,
@@ -129,11 +134,14 @@ class HFPolicy:
     # ------------------------------------------------------------------ tokenisation helpers
     def _apply(self, convs, add_generation_prompt: bool, padding_side: str = "right", tensors: bool = True):
         pk = {"padding": True, "padding_side": padding_side}
+        top = {}
         if tensors:
-            pk["return_tensors"] = "pt"
+            # some processors (e.g. SmolVLM2's) only honour return_tensors at the top level and would otherwise
+            # return input_ids / attention_mask as lists; others read it from processor_kwargs: pass both
+            pk["return_tensors"] = top["return_tensors"] = "pt"
         return self.processor.apply_chat_template(
             convs, add_generation_prompt=add_generation_prompt, tokenize=True, return_dict=True,
-            processor_kwargs=pk, **self.chat_template_kwargs)
+            processor_kwargs=pk, **top, **self.chat_template_kwargs)
 
     def _len(self, messages, add_generation_prompt: bool) -> list[int]:
         return self._apply([messages], add_generation_prompt, tensors=False)["input_ids"][0]
@@ -163,7 +171,7 @@ class HFPolicy:
 
     def _generate_chunk(self, convs, max_new_tokens, temperature, top_p):
         enc = self._apply(convs, add_generation_prompt=True, padding_side="left")
-        enc = {k: v.to(self.device) for k, v in enc.items()}
+        enc = {k: _to(v, self.device) for k, v in enc.items()}
         if "pixel_values" in enc:
             enc["pixel_values"] = enc["pixel_values"].to(self.dtype)
         greedy = temperature <= 0
@@ -235,7 +243,7 @@ class HFPolicy:
         mask = batch["loss_mask"]
         first = int(mask.any(0).nonzero().min())
         T = mask.shape[1]
-        inputs = {k: v.to(self.device) for k, v in batch.items() if k not in ("loss_mask", "advantages")}
+        inputs = {k: _to(v, self.device) for k, v in batch.items() if k not in ("loss_mask", "advantages")}
         if "pixel_values" in inputs:
             inputs["pixel_values"] = inputs["pixel_values"].to(self.dtype)
         # only compute LM-head logits from the first response token on (prompt logits are wasted work)
