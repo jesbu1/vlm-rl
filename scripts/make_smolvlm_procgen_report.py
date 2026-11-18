@@ -4,7 +4,8 @@ episode videos and cost.
 
     python scripts/make_smolvlm_procgen_report.py --takeaways takeaways.md [--group smolvlm-procgen-v1]
 
-A "related runs" section (other models / fixed mazes, run by another agent) is included by default: its text is
+A "prompt styles at a glance" section (every prompt as the model reads it, rendered from the code, plus what happened
+with each; scripts/report_notes/prompts_results.md) and a "related runs" section (other models / fixed mazes, run by another agent) is included by default: its text is
 scripts/report_notes/smolvlm_procgen_related.md and its panels query --related_groups (`--related ''` drops it).
 
 Every panel queries the runs live, so curves keep updating while runs train; only the takeaways and setup text are
@@ -47,6 +48,57 @@ about 5 points at 25% success, so differences of a few points are noise.
 
 
 RELATED = "scripts/report_notes/smolvlm_procgen_related.md"
+PROMPT_RESULTS = "scripts/report_notes/prompts_results.md"
+PROMPT_STYLES = {  # style -> (who uses it, where the goal is given)
+    "pear": ("PEAR paper protocol, App. H", "absolute, once in the system prompt (TASK)"),
+    "simple": ("short custom prompt", "absolute, every turn"),
+    "compact": ("< 1B models", "absolute, every turn"),
+    "compact_rel": ("< 1B models", "**relative to the ball**, every turn"),
+}
+
+
+def prompt_table() -> str:
+    """'What the model reads' for every prompt style, rendered from the code on one fixed procedural-maze state, so
+    the report always shows the prompts the runs actually used."""
+    import re
+    import sys
+
+    import numpy as np
+    sys.path.insert(0, ".")
+    from vlmrl.envs.pointmaze import make_pointmaze
+    rows = ["| prompt | system prompt | each turn the model reads | it replies | goal given as |",
+            "|---|---|---|---|---|"]
+    for style, (who, goal) in PROMPT_STYLES.items():
+        b = make_pointmaze(maze="gen11x11", train_mazes=1, max_delta=3.0, min_goal_dist=3.0, prompt_style=style,
+                           image_size=16)
+        s = b.train_sampler.sample(1, np.random.default_rng(0))[0]
+        env = b.make_vec_env()
+        obs = env.reset([s])[0]
+        env.close()
+        sp = b.interface.system_prompt(s)
+        heads = re.findall(r"^## (\w[\w ]*)$", sp, flags=re.M)
+        first = sp.split(". ")[0].split("\n")[0] + "."
+        desc = f"{len(sp):,} chars; " + (f"sections {' / '.join(heads)}" if heads else f"\"{first}\"")
+        parts = b.interface.observation_message(obs, 0, None, False)
+        text = " ".join(c["text"] for c in parts if c["type"] == "text").replace("\n", " ")
+        order = " + ".join("image" if c["type"] == "image" else "text" for c in parts)
+        reply = b.interface.format_action(np.array([0.5, -1.0])).replace("\n", " ")
+        code = (lambda t: f"`` {t} ``" if "`" in t else f"`{t}`")
+        if style == "pear":
+            goal += f": {code(b.interface.instruction(s))}"
+        rows.append(f"| `{style}` ({who}) | {desc} | {order}: {code(text)} | {code(reply)} | {goal} |")
+    return "\n".join(rows)
+
+
+def prompt_blocks(a, wr) -> list:
+    import os
+    if not a.prompts:
+        return []
+    md = ("Same ball, goal and maze for every style (procedural 11x11 layout, first turn). The image is the same "
+          "top-down render in all of them.\n\n" + prompt_table())
+    if os.path.exists(PROMPT_RESULTS):
+        md += "\n\n" + open(PROMPT_RESULTS).read()
+    return [wr.H1("Prompt styles at a glance"), wr.MarkdownBlock(md)]
 RELATED_GROUPS = "pointmaze-small-fft-batch-v1,pointmaze-small-fft-batch-v2"
 
 
@@ -105,6 +157,7 @@ def build(a) -> str:
         wr.TableOfContents(),
         wr.H1("Takeaways"),
         wr.MarkdownBlock(f"_Written {stamp}; the panels below are live and may have moved on since._\n\n" + takeaways),
+        *prompt_blocks(a, wr),
         *related_blocks(a, wr),
         wr.H1("Headline: greedy eval success"),
         wr.P("Mean over the three eval sets. Each line is one run; the run name gives the prompt and learning rate "
@@ -174,6 +227,7 @@ def main():
     ap.add_argument("--url", default=None, help="update this existing report in place instead of creating one")
     ap.add_argument("--draft", action="store_true", help="save as an unpublished draft")
     ap.add_argument("--related", default=RELATED, help="markdown for the related-runs section ('' = omit)")
+    ap.add_argument("--no_prompts", dest="prompts", action="store_false", help="omit the prompt-styles section")
     ap.add_argument("--related_groups", default=RELATED_GROUPS, help="comma-separated wandb groups for its panels")
     print(build(ap.parse_args()))
 
