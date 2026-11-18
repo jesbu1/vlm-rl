@@ -171,3 +171,26 @@ def test_fast_reply_span_matches_slow_path(tiny_vlm, rng, style):
     assert torch.equal(fast, slow) and fast.sum() > 0
     enc = tiny_vlm.build_batch(samples[:1])
     assert orig(samples[0], enc["input_ids"][0], int(enc["attention_mask"][0].sum())) is not None  # fast path used
+
+@pytest.mark.parametrize("honors_keep", [True, False])
+def test_token_logprobs_whether_or_not_the_model_honors_logits_to_keep(honors_keep):
+    """MiniCPM-V 4.6 ignores logits_to_keep and returns logits for every position; both must give the same
+    log-probs of the response tokens."""
+    from vlmrl.policy import HFPolicy
+    V, T, first = 11, 9, 5
+    torch.manual_seed(0)
+    table = torch.randn(T, V)
+
+    class M(torch.nn.Module):
+        def forward(self, input_ids, attention_mask=None, use_cache=False, logits_to_keep=0):
+            full = table.unsqueeze(0).expand(input_ids.shape[0], T, V)
+            return type("O", (), {"logits": full[:, -logits_to_keep:] if honors_keep and logits_to_keep else full})()
+    pol = HFPolicy.__new__(HFPolicy)
+    pol.model, pol.device, pol.logprob_chunk, pol._autocast, pol.dtype = M(), "cpu", 3, False, torch.float32
+    ids = torch.randint(0, V, (1, T))
+    mask = torch.zeros(1, T)
+    mask[0, first:] = 1
+    logp, m = pol.token_logprobs({"input_ids": ids, "attention_mask": torch.ones(1, T), "loss_mask": mask,
+                                  "advantages": torch.ones(1)})
+    ref = table.log_softmax(-1)[first - 1:T - 1].gather(-1, ids[0, first:, None]).squeeze(-1)
+    assert logp.shape == (1, T - first) and torch.allclose(logp[0], ref, atol=1e-6) and m.sum() == T - first

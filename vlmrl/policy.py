@@ -241,7 +241,8 @@ class HFPolicy:
         # only compute LM-head logits from the first response token on (prompt logits are wasted work)
         with self._amp():
             out = self.model(**inputs, use_cache=False, logits_to_keep=T - first + 1)
-        logits = out.logits[:, :-1]
+        # some models ignore logits_to_keep (e.g. MiniCPM-V 4.6 returns all T positions): keep the last ones
+        logits = out.logits[:, -(T - first + 1):][:, :-1]
         targets = inputs["input_ids"][:, first:]
         mask = mask[:, first:].to(self.device)
         if not topk and gather_ids is None:
