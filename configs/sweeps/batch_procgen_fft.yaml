@@ -1,0 +1,36 @@
+# Full fine-tuning of larger VLMs on the procedural-maze generalization setup (experiment=pointmaze_procgen: train on 64
+# 11x11 layouts; eval sets id_layouts / ood_layouts (16 held-out 11x11) / ood_larger (held-out 15x15), 64 episodes
+# each), with the settings of the SmolVLM-256M runs (configs/sweeps/smolvlm_procgen_*.yaml) so the curves compare:
+# sparse success reward, on_invalid=noop, groups of 16 with up to 3 DAPO resampling rounds, 64-token replies.
+# Difference: 32 groups per step instead of 64 (these models are 5-20x larger; 64 groups would be ~1 h per step).
+# Prompt grid: compact_rel (the SmolVLM runs' best) and pear (the paper's protocol, which ~4B models learn on fixed
+# mazes). Submit subsets with --only, e.g. on 4-GPU machines (2 GPUs per lane):
+#   python scripts/batch_submit.py configs/sweeps/batch_procgen_fft.yaml --queue <4-gpu queue> \
+#       --only 'gemma4' --set micro_batch_size=2
+group: procgen-fft-larger-v1
+project: vlm-rl-pointmaze
+vllm_port: 8011
+overrides:
+  - experiment=pointmaze_procgen
+  - on_invalid=noop
+  - reward=success
+  - steps=40
+  - groups_per_step=32
+  - group_size=16
+  - max_resample_rounds=3
+  - micro_batch_size=4
+  - max_new_tokens=64
+  - eval_every=5
+  - eval_episodes=64
+  - save_every=40
+  - resume_every=5
+  - wandb_entity=tri
+  - "wandb_tags='pointmaze,procgen,fft,larger,batch'"
+grid:
+  policy: [gemma4_e2b_full_48gb, qwen3vl2b_full, smolvlm2_2b_full, minicpmv46_full]
+  env_kwargs.prompt_style: [compact_rel, pear]
+vllm_args:
+  google/gemma-4-E2B-it: [--mm-processor-cache-gb, "0"]
+  Qwen/Qwen3-VL-2B-Instruct: [--mm-processor-cache-gb, "0"]
+  openbmb/MiniCPM-V-4.6: [--mm-processor-cache-gb, "0"]
+  HuggingFaceTB/SmolVLM2-2.2B-Instruct: [--max-model-len, "8192", --mm-processor-kwargs, '{"do_image_splitting": false}', --mm-processor-cache-gb, "0"]
