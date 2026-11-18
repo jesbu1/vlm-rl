@@ -1,0 +1,14 @@
+# @package _global_
+# Harder mazes + layout generalization: train on 64 procedural 11x11 layouts (task=pointmaze_procgen), evaluate on
+#   id_layouts   new episodes on the training layouts (in distribution)
+#   ood_layouts  16 held-out 11x11 layouts never seen in training
+#   ood_larger   held-out 15x15 layouts (bigger than anything in training; longer paths, 30 rounds)
+# All sets run pooled in one batched rollout (eval_sets); eval/success is the mean over the sets.
+defaults:
+  - pointmaze_q3vl4b_vllm
+  - override /task: pointmaze_procgen
+eval_sets:
+  id_layouts: {eval_split: train}
+  ood_layouts: {eval_split: heldout}
+  ood_larger: {maze: gen15x15, eval_split: heldout, max_turns: 30}
+out_dir: runs/pointmaze_procgen

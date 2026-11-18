@@ -306,3 +306,140 @@ def test_think_cue_defaults_and_overrides():
     assert "Think briefly, then end your reply" in sp(prompt_style="simple")
     simple_no = sp(prompt_style="simple", think=False)
     assert "Think briefly" not in simple_no and "End your reply with exactly one action tag" in simple_no
+
+
+# ----------------------------------------------------------------------------- procedural mazes + split
+
+def _components(m):
+    from collections import deque
+    free = {(i, j) for i, r in enumerate(m) for j, c in enumerate(r) if c == 0}
+    seen, comps = set(), 0
+    for s in free:
+        if s in seen:
+            continue
+        comps += 1
+        q = deque([s])
+        seen.add(s)
+        while q:
+            i, j = q.popleft()
+            for n in ((i + 1, j), (i - 1, j), (i, j + 1), (i, j - 1)):
+                if n in free and n not in seen:
+                    seen.add(n)
+                    q.append(n)
+    edges = sum(1 for (i, j) in free for n in ((i + 1, j), (i, j + 1)) if n in free)
+    return comps, len(free), edges
+
+
+@pytest.mark.parametrize("rows,cols,seed", [(11, 11, 0), (11, 11, 1), (7, 13, 5), (15, 15, 3)])
+def test_generated_maze_is_connected_bordered_and_has_loops(rows, cols, seed):
+    from vlmrl.envs.pointmaze import generate_maze
+    m = generate_maze(rows, cols, seed)
+    assert len(m) == rows and all(len(r) == cols for r in m)
+    assert all(c == 1 for c in m[0] + m[-1]) and all(r[0] == 1 and r[-1] == 1 for r in m)
+    comps, nodes, edges = _components(m)
+    assert comps == 1                       # every free cell reachable
+    assert edges > nodes - 1                # more edges than a tree: there are loops
+    assert m == generate_maze(rows, cols, seed) and m != generate_maze(rows, cols, seed + 1)
+    assert generate_maze(rows, cols, seed, loop_frac=0.0) != m
+
+
+def test_generated_maze_names():
+    from vlmrl.envs.pointmaze import maze_family
+    assert np.array(get_maze_map("gen7x9s3")).shape == (7, 9)
+    assert maze_family("gen11x11", 3, 10) == ["gen11x11s10", "gen11x11s11", "gen11x11s12"]
+    with pytest.raises(ValueError):
+        maze_family("umaze", 2)
+    with pytest.raises(AssertionError):
+        get_maze_map("gen10x11s0")          # even size
+
+
+def test_maze_split_train_and_heldout_layouts_are_disjoint(rng):
+    from vlmrl.envs.pointmaze import TEST_SEED_OFFSET
+    b = make_pointmaze(maze="gen9x9", train_mazes=6, eval_mazes=3, image_size=32)
+    tr = {s["maze"] for s in b.train_sampler.sample(200, rng)}
+    te = {s["maze"] for s in b.eval_sampler.sample(200, rng)}
+    assert tr == {f"gen9x9s{i}" for i in range(6)}
+    assert te == {f"gen9x9s{TEST_SEED_OFFSET + i}" for i in range(3)} and not tr & te
+    in_dist = make_pointmaze(maze="gen9x9", train_mazes=6, eval_split="train", image_size=32)
+    assert {s["maze"] for s in in_dist.eval_sampler.sample(100, rng)} <= tr
+    with pytest.raises(AssertionError):
+        make_pointmaze(maze="gen9x9", start_states="D4RL/pointmaze/umaze-v2")
+
+
+def test_vec_env_follows_each_episodes_maze_and_reuses_envs(rng):
+    b = make_pointmaze(maze="gen9x9", train_mazes=4, image_size=48)
+    env = b.make_vec_env()
+    starts = b.train_sampler.sample(8, rng)
+    obs = env.reset(starts)
+    for k, s in enumerate(starts):
+        assert env.maze_map_of(k) == get_maze_map(s["maze"])
+        np.testing.assert_array_equal(obs[k].image, render_topdown(get_maze_map(s["maze"]), s["qpos"], s["goal"], 48))
+    made = env._n_made
+    env.reset(starts)                       # same mazes again: every env comes from the pool
+    assert env._n_made == made
+    env.reset([{**starts[0], "maze": None}])  # no maze name -> the env's default maze
+    assert env.maze_map_of(0) == env.maze_map
+    env.close()
+
+
+def test_idle_env_pool_is_bounded(rng):
+    b = make_pointmaze(maze="gen7x7", train_mazes=60, image_size=16)
+    env = b.make_vec_env()
+    for _ in range(4):
+        env.reset(b.train_sampler.sample(40, rng))
+    assert sum(len(p) for p in env._pool.values()) <= 40
+    env.close()
+
+
+@pytest.mark.parametrize("split", ["train", "heldout"])
+def test_oracle_solves_procedural_mazes(split, rng):
+    b = make_pointmaze(maze="gen11x11", train_mazes=8, eval_mazes=4, max_delta=3.0, min_goal_dist=3.0, image_size=16)
+    env = b.make_vec_env()
+    for s in (b.train_sampler if split == "train" else b.eval_sampler).sample(6, rng):
+        env.reset([s])
+        for _ in range(20):
+            o = env._obs(0)
+            r = env.step([0], [oracle_delta(env.maze_map_of(0), o.state[:2], o.extras["goal"], 3.0)])[0]
+            if r.terminated:
+                break
+        assert r.terminated, f"oracle failed on {s['maze']}"
+
+
+def test_prompt_describes_the_episodes_maze():
+    itf = PointMazeTextInterface(get_maze_map("umaze"))
+    assert "5 cells wide and 5 cells tall" in itf.system_prompt({"goal": [0, 0]})
+    assert "13 cells wide and 7 cells tall" in itf.system_prompt({"goal": [0, 0], "maze": "gen7x13s1"})
+    simple = PointMazeTextInterface(get_maze_map("umaze"), prompt_style="simple")
+    assert "13 cells wide and 7 cells tall" in simple.system_prompt({"maze": "gen7x13s1"})
+
+
+def test_procgen_task_preset_composes():
+    from vlmrl.config import compose
+    c = compose(["experiment=pointmaze_q3vl4b_vllm", "task=pointmaze_procgen"])
+    assert c.env_kwargs["maze"] == "gen11x11" and c.env_kwargs["eval_split"] == "heldout"
+    b = make_pointmaze(PointMazeConfig(**{**c.env_kwargs, "image_size": 16}))
+    assert b.max_turns == 20 and len(b.eval_sampler.mazes) == 16
+
+
+def test_procgen_experiment_eval_sets_build_and_are_solvable(rng):
+    """Every eval set of experiment=pointmaze_procgen builds (as Trainer.build_eval_sets does) and the oracle
+    solves its starts within that set's round limit, including the larger held-out layouts."""
+    from vlmrl.config import compose
+    c = compose(["experiment=pointmaze_procgen"])
+    seen = {}
+    for name, spec in c.eval_sets.items():
+        kw = {**c.env_kwargs, **spec, "image_size": 16}
+        b = make_pointmaze(PointMazeConfig(**kw))
+        seen[name] = {s["maze"] for s in b.eval_sampler.sample(64, rng)}
+        env = b.make_vec_env()
+        for s in b.eval_sampler.sample(3, rng):
+            env.reset([s])
+            for _ in range(b.max_turns):
+                o = env._obs(0)
+                r = env.step([0], [oracle_delta(env.maze_map_of(0), o.state[:2], o.extras["goal"], kw["max_delta"])])[0]
+                if r.terminated:
+                    break
+            assert r.terminated, f"{name}: oracle failed on {s['maze']} within {b.max_turns} rounds"
+        env.close()
+    assert seen["id_layouts"] <= {f"gen11x11s{i}" for i in range(64)}
+    assert not seen["ood_layouts"] & seen["id_layouts"] and all(m.startswith("gen15x15") for m in seen["ood_larger"])

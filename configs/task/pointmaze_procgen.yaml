@@ -1,0 +1,23 @@
+# @package _global_
+# Harder PointMaze with a train/test split over *maze layouts*: every episode draws a procedural 11x11 maze
+# (recursive backtracker + 15% of interior walls removed for loops). Training uses seeds 0..63; eval uses 16
+# held-out layouts (seeds 10000..10015) never seen in training, so eval measures generalization to new mazes.
+# Paths are long (tens of cells), so actions may move up to 3 cells and episodes get 20 rounds; the BFS oracle
+# solves every start in ~6 rounds on average (<= 11).
+env: pointmaze
+env_kwargs:
+  maze: gen11x11           # procedural family gen<rows>x<cols> (odd sizes); a concrete layout: gen11x11s7
+  train_mazes: 64          # training layouts: seeds [0, 64)
+  eval_mazes: 16           # held-out layouts: seeds [10000, 10016)
+  eval_split: heldout      # heldout = held-out layouts | train = the training layouts | all
+  max_delta: 3.0
+  max_turns: 20
+  min_goal_dist: 3.0
+  image_size: 336
+  include_state: true
+  prompt_style: pear
+  think: null
+  settle: true
+  start_states: random
+  eval_start_states: random
+reward: success

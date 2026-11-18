@@ -33,7 +33,52 @@ from vlmrl.types import Obs, StepResult
 GOAL_RADIUS = 0.45  # gymnasium-robotics success threshold
 
 
+_GEN_RE = re.compile(r"gen(\d+)x(\d+)s(\d+)")
+_GEN_FAMILY_RE = re.compile(r"gen(\d+)x(\d+)")
+
+
+def generate_maze(rows: int, cols: int, seed: int, loop_frac: float = 0.15) -> list[list]:
+    """Procedural maze: a recursive-backtracker spanning tree on the odd-indexed cells of a ``rows`` x ``cols``
+    grid (walls = 1 on the border and between corridors), then a fraction ``loop_frac`` of the remaining interior
+    walls between two corridors is knocked out so there are loops (several routes, fewer pure dead ends).
+    Deterministic in ``seed``; every free cell is reachable. ``rows``/``cols`` must be odd and >= 5."""
+    assert rows % 2 and cols % 2 and rows >= 5 and cols >= 5, "maze sizes must be odd and >= 5"
+    rng = np.random.default_rng(seed)
+    m = np.ones((rows, cols), dtype=np.int64)
+    start = (2 * int(rng.integers((rows - 1) // 2)) + 1, 2 * int(rng.integers((cols - 1) // 2)) + 1)
+    m[start] = 0
+    stack = [start]
+    while stack:
+        i, j = stack[-1]
+        nbrs = [(i + di, j + dj, di // 2, dj // 2) for di, dj in ((2, 0), (-2, 0), (0, 2), (0, -2))
+                if 0 < i + di < rows - 1 and 0 < j + dj < cols - 1 and m[i + di, j + dj] == 1]
+        if not nbrs:
+            stack.pop()
+            continue
+        ni, nj, si, sj = nbrs[int(rng.integers(len(nbrs)))]
+        m[i + si, j + sj] = m[ni, nj] = 0
+        stack.append((ni, nj))
+    # interior walls separating two corridors (horizontally or vertically) -> candidates for loops
+    cand = [(i, j) for i in range(1, rows - 1) for j in range(1, cols - 1) if m[i, j] == 1 and
+            ((i % 2 == 1 and j % 2 == 0 and m[i, j - 1] == 0 and m[i, j + 1] == 0) or
+             (i % 2 == 0 and j % 2 == 1 and m[i - 1, j] == 0 and m[i + 1, j] == 0))]
+    for k in rng.permutation(len(cand))[:int(round(loop_frac * len(cand)))]:
+        m[cand[k]] = 0
+    return m.tolist()
+
+
+def maze_family(spec: str, n: int, offset: int = 0) -> list[str]:
+    """``"gen11x11"`` -> ``["gen11x11s<offset>", ..., "gen11x11s<offset+n-1>"]``."""
+    if not _GEN_FAMILY_RE.fullmatch(spec):
+        raise ValueError(f"not a procedural maze family: {spec!r} (expected gen<rows>x<cols>)")
+    return [f"{spec}s{offset + i}" for i in range(n)]
+
+
 def get_maze_map(name: str) -> list[list]:
+    """A gymnasium-robotics map (``umaze``, ``medium``, ``large``, ...) or a procedural one, ``gen<rows>x<cols>s<seed>``."""
+    g = _GEN_RE.fullmatch(name)
+    if g:
+        return generate_maze(int(g[1]), int(g[2]), int(g[3]))
     from gymnasium_robotics.envs.maze import maps
     table = {
         "open": maps.OPEN, "umaze": maps.U_MAZE, "medium": maps.MEDIUM_MAZE, "large": maps.LARGE_MAZE,
@@ -41,7 +86,7 @@ def get_maze_map(name: str) -> list[list]:
         "large_diverse_gr": maps.LARGE_MAZE_DIVERSE_GR,
     }
     if name not in table:
-        raise ValueError(f"unknown maze {name!r}; options: {sorted(table)}")
+        raise ValueError(f"unknown maze {name!r}; options: {sorted(table)} or gen<rows>x<cols>s<seed>")
     return table[name]
 
 
@@ -94,7 +139,11 @@ def render_topdown(maze_map, agent_xy, goal_xy, size: int = 336, trail: Sequence
 # ----------------------------------------------------------------------------- dynamics
 
 class PointMazeSimVecEnv:
-    """Batched MuJoCo PointMaze with exact reset-to-state (qpos, qvel, goal)."""
+    """Batched MuJoCo PointMaze with exact reset-to-state (qpos, qvel, goal).
+
+    A start state may name its maze (``"maze": "gen11x11s7"``); otherwise the env's default ``maze`` is used.
+    MuJoCo envs are pooled per maze, so a slot is only rebuilt when its maze changes and envs are reused
+    across resets (a maze-split task draws a different maze per episode)."""
 
     def __init__(self, maze: str = "umaze", action_mode: str = "delta", action_repeat: int = 40,
                  kp: float = 10.0, kd: float = 1.0, max_delta: float = 1.0, image_size: int = 336,
@@ -114,26 +163,46 @@ class PointMazeSimVecEnv:
         self.image_size, self.draw_trail = image_size, draw_trail
         self.seed = seed
         self._envs: list = []
+        self._slot_maze: list[str] = []
+        self._pool: dict[str, list] = {}        # maze name -> idle envs
+        self._maps: dict[str, list] = {maze: self.maze_map}
+        self._n_made = 0
         self._goals: list[np.ndarray] = []
         self._trails: list[list] = []
 
-    def _make(self):
+    def maze_map_of(self, k: int) -> list[list]:
+        return self._maps[self._slot_maze[k]]
+
+    def _make(self, maze: str):
         from gymnasium_robotics.envs.maze.point_maze import PointMazeEnv
-        env = PointMazeEnv(maze_map=self.maze_map, continuing_task=False, reward_type="sparse")
-        env.reset(seed=self.seed + len(self._envs))
+        if maze not in self._maps:
+            self._maps[maze] = get_maze_map(maze)
+        env = PointMazeEnv(maze_map=self._maps[maze], continuing_task=False, reward_type="sparse")
+        env.reset(seed=self.seed + self._n_made)
+        self._n_made += 1
         return env
 
     def _obs(self, k: int) -> Obs:
         d = self._envs[k].point_env.data
         pos, vel, goal = d.qpos[:2].copy(), d.qvel[:2].copy(), self._goals[k]
-        img = render_topdown(self.maze_map, pos, goal, self.image_size,
+        img = render_topdown(self.maze_map_of(k), pos, goal, self.image_size,
                              trail=self._trails[k] if self.draw_trail else None)
         return Obs(image=img, state=np.concatenate([pos, vel]),
                    extras={"goal": goal.copy(), "dist": float(np.linalg.norm(pos - goal))})
 
     def reset(self, start_states):
-        while len(self._envs) < len(start_states):
-            self._envs.append(self._make())
+        for env, maze in zip(self._envs, self._slot_maze):     # return every env to its maze's pool
+            self._pool.setdefault(maze, []).append(env)
+        self._envs, self._slot_maze = [], []
+        for s in start_states:
+            maze = str(s.get("maze") or self.maze_name)
+            pool = self._pool.get(maze)
+            self._envs.append(pool.pop() if pool else self._make(maze))
+            self._slot_maze.append(maze)
+        # bound idle envs (with many mazes every pool would keep its high-water mark): drop from the fullest pools
+        cap = max(32, len(start_states))
+        while sum(len(p) for p in self._pool.values()) > cap:
+            max(self._pool.values(), key=len).pop().close()
         self._goals, self._trails = [], []
         for k, s in enumerate(start_states):
             env = self._envs[k]
@@ -186,9 +255,9 @@ class PointMazeSimVecEnv:
         return out
 
     def close(self):
-        for e in self._envs:
+        for e in self._envs + [e for pool in self._pool.values() for e in pool]:
             e.close()
-        self._envs = []
+        self._envs, self._slot_maze, self._pool = [], [], {}
 
 
 # ----------------------------------------------------------------------------- agent interface
@@ -222,8 +291,19 @@ class PointMazeTextInterface:
         self.think = prompt_style == "simple" if think is None else think
 
     # ---------------------------------------------------------------- prompts
-    def environment_section(self) -> str:
-        h, w = len(self.maze_map), len(self.maze_map[0])
+    def _map_for(self, start_state) -> list[list]:
+        """The maze of this episode (start states of maze-split tasks carry a ``maze`` name)."""
+        name = (start_state or {}).get("maze")
+        if not name:
+            return self.maze_map
+        cache = self.__dict__.setdefault("_maps", {})
+        if name not in cache:
+            cache[name] = get_maze_map(str(name))
+        return cache[name]
+
+    def environment_section(self, maze_map=None) -> str:
+        maze_map = maze_map or self.maze_map
+        h, w = len(maze_map), len(maze_map[0])
         return (
             "Robot and frame:\n"
             f"- The robot is a ball (the BLUE dot) rolling on the floor of a 2D maze {w} cells wide and {h} cells tall.\n"
@@ -246,12 +326,13 @@ class PointMazeTextInterface:
     def system_prompt(self, start_state):
         if self.prompt_style == "pear":
             from vlmrl.envs import protocol
-            text = protocol.system_prompt(self.environment_section(), self.instruction(start_state),
+            text = protocol.system_prompt(self.environment_section(self._map_for(start_state)), self.instruction(start_state),
                                           length_unit="maze cells")
             if self.think:
                 text = text.replace("End your response with", "Think briefly, then end your response with", 1)
             return text
-        h, w = len(self.maze_map), len(self.maze_map[0])
+        mm = self._map_for(start_state)
+        h, w = len(mm), len(mm[0])
         if self.action_mode == "delta":
             act = (f'a relative waypoint {{"dx": <float>, "dy": <float>}} in maze units; the robot moves by '
                    f"roughly that offset this round (clipped to length {self.max_delta}). "
@@ -343,6 +424,7 @@ def _centre_of(cell, maze_map):
 def oracle_delta(maze_map, pos, goal, max_delta: float = 1.0) -> np.ndarray:
     """BFS over free cells; aim at the next cell centre on the shortest path (or the goal itself)."""
     from collections import deque
+    pos = np.asarray(pos, dtype=float)
     walls = _walls(maze_map)
     s, g = _cell_of(pos, maze_map), _cell_of(goal, maze_map)
     prev, q = {s: None}, deque([s])
@@ -360,7 +442,15 @@ def oracle_delta(maze_map, pos, goal, max_delta: float = 1.0) -> np.ndarray:
         path.append(c)
         c = prev[c]
     path = path[::-1]
-    target = np.asarray(goal) if len(path) <= 1 else _centre_of(path[1], maze_map)
+    if len(path) <= 1:
+        target = np.asarray(goal)
+    else:
+        # go as far as possible along the straight run of path cells in the current row / column
+        j = 1
+        while (j + 1 < len(path) and (path[j + 1][0] == path[0][0] or path[j + 1][1] == path[0][1])
+               and np.linalg.norm(_centre_of(path[j + 1], maze_map) - pos) <= max_delta):
+            j += 1
+        target = np.asarray(goal) if j == len(path) - 1 else _centre_of(path[j], maze_map)
     delta = target - np.asarray(pos)
     n = np.linalg.norm(delta)
     return delta * (max_delta / n) if n > max_delta else delta
@@ -444,6 +534,27 @@ class RandomStartSampler:
         return {"qpos": p, "qvel": np.zeros(2), "goal": g}
 
 
+class MazeSetSampler:
+    """A maze drawn uniformly from ``mazes`` per episode, then a random start/goal in it (RandomStartSampler).
+    The state carries the maze name, which the VecEnv and the text interface follow."""
+
+    def __init__(self, mazes: Sequence[str], min_dist: float = 1.0, noise: float = 0.25):
+        assert mazes, "empty maze set"
+        self.mazes, self.min_dist, self.noise = list(mazes), min_dist, noise
+        self._samplers: dict[str, RandomStartSampler] = {}
+
+    def sample(self, n, rng):
+        out = []
+        for _ in range(n):
+            m = self.mazes[int(rng.integers(len(self.mazes)))]
+            if m not in self._samplers:
+                self._samplers[m] = RandomStartSampler(get_maze_map(m), self.min_dist, self.noise)
+            s = self._samplers[m].sample(1, rng)[0]
+            s["maze"] = m
+            out.append(s)
+        return out
+
+
 class OfflineStartSampler:
     """Draw start states (qpos, qvel, goal) from offline trajectories.
 
@@ -488,9 +599,12 @@ class OfflineStartSampler:
 
 # ----------------------------------------------------------------------------- factory
 
+TEST_SEED_OFFSET = 10_000   # held-out procedural mazes use seeds >= this; training mazes use seeds < it
+
+
 @dataclass
 class PointMazeConfig:
-    maze: str = "umaze"
+    maze: str = "umaze"               # a named / generated maze, or a procedural family "gen<rows>x<cols>" (split)
     action_mode: str = "delta"
     action_repeat: int = 40
     max_delta: float = 1.0
@@ -503,16 +617,35 @@ class PointMazeConfig:
     start_states: str = "random"      # "random" | minari dataset id | path.npz
     eval_start_states: str = "random"
     min_goal_dist: float = 1.5
-    # train / eval split of random starts (see split_pairs): "none" | "pair" | "goal"
+    # train / eval split of random starts within one maze (see split_pairs): "none" | "pair" | "goal"
     split: str = "none"
     holdout_frac: float = 0.25
     split_seed: int = 0
-    eval_split: str = "heldout"       # part the eval sampler draws from when split != "none": heldout | train | all
+    # which part the eval sampler draws from: heldout | train | all. Within one maze (split != "none"): the
+    # (start, goal) pairs of split_pairs. For a procedural family (maze=gen<rows>x<cols>): the *layouts*, training
+    # seeds [0, train_mazes) vs held-out seeds [TEST_SEED_OFFSET, TEST_SEED_OFFSET + eval_mazes).
+    eval_split: str = "heldout"
+    train_mazes: int = 64
+    eval_mazes: int = 16
 
 
 def make_pointmaze(cfg: PointMazeConfig | None = None, **kw) -> EnvBundle:
     cfg = cfg or PointMazeConfig(**kw)
-    maze_map = get_maze_map(cfg.maze)
+    if _GEN_FAMILY_RE.fullmatch(cfg.maze):   # maze split: a different procedural maze per episode
+        assert cfg.start_states == cfg.eval_start_states == "random", "procedural mazes have no offline data"
+        assert cfg.split == "none", "a procedural family already splits by layout; split= is for a single maze"
+        assert cfg.eval_split in ("heldout", "train", "all"), cfg.eval_split
+        assert cfg.train_mazes <= TEST_SEED_OFFSET, "training seeds would overlap the held-out ones"
+        train = maze_family(cfg.maze, cfg.train_mazes)
+        held = maze_family(cfg.maze, cfg.eval_mazes, TEST_SEED_OFFSET)
+        test = {"heldout": held, "train": train, "all": train + held}[cfg.eval_split]
+        default_maze = train[0]
+        train_sampler = MazeSetSampler(train, min_dist=cfg.min_goal_dist)
+        eval_sampler = MazeSetSampler(test, min_dist=cfg.min_goal_dist)
+    else:
+        default_maze = cfg.maze
+        train_sampler = eval_sampler = None
+    maze_map = get_maze_map(default_maze)
 
     def sampler(spec, part):
         if spec == "random":
@@ -523,12 +656,12 @@ def make_pointmaze(cfg: PointMazeConfig | None = None, **kw) -> EnvBundle:
         return OfflineStartSampler(spec, min_goal_dist=cfg.min_goal_dist)
 
     return EnvBundle(
-        make_vec_env=lambda: PointMazeSimVecEnv(cfg.maze, cfg.action_mode, cfg.action_repeat,
+        make_vec_env=lambda: PointMazeSimVecEnv(default_maze, cfg.action_mode, cfg.action_repeat,
                                                 max_delta=cfg.max_delta, image_size=cfg.image_size,
                                                 settle=cfg.settle),
         interface=PointMazeTextInterface(maze_map, cfg.action_mode, cfg.include_state, cfg.max_delta,
                                          cfg.image_size, cfg.prompt_style, cfg.think),
-        train_sampler=sampler(cfg.start_states, "train"),
-        eval_sampler=sampler(cfg.eval_start_states, cfg.eval_split),
+        train_sampler=train_sampler or sampler(cfg.start_states, "train"),
+        eval_sampler=eval_sampler or sampler(cfg.eval_start_states, cfg.eval_split),
         max_turns=cfg.max_turns,
     )
