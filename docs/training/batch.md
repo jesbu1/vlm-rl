@@ -27,6 +27,10 @@ flowchart LR
 - **Outputs and resuming:** Batch has no checkpoint sync, so `scripts/job_entry.py::S3Syncer` restores
   `<s3_output>/<job>/` into the run dirs at start, uploads them every `VLMRL_SYNC_EVERY` seconds (300), and
   uploads once more at exit. A retried child picks up its runs' `resume/state.pt` and continues.
+  **Each machine syncs only its own runs** (`<group>/<run>/*` for the runs of its shard, plus its own
+  `vllm_*_shard<i>_*` logs; `scripts/job_entry.py::own_paths`). The machines share one S3 prefix. Syncing the
+  whole prefix would make a machine that starts later restore early copies of other machines' runs, then upload
+  those stale copies over the newer files. That happened in the first full sweep (fixed since).
 
 ## One-time setup
 

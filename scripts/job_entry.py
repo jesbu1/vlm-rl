@@ -126,26 +126,50 @@ def gpu_count() -> int:
         return 0
 
 
-def s3_sync_command(src: str, dst: str) -> list[str]:
-    # the trainer rewrites resume/state.pt atomically via state.pt.tmp; never upload the partial file
-    return ["aws", "s3", "sync", src, dst, "--no-progress", "--only-show-errors", "--exclude", "*.tmp"]
+def s3_sync_command(src: str, dst: str, include: list[str] | None = None) -> list[str]:
+    """``include``: only these paths (globs relative to the synced dir). Machines of one array job share an S3
+    prefix, so each must touch only its own runs: syncing everything restored other machines' runs at start and
+    later uploaded those stale copies over their newer files."""
+    filt = []
+    if include is not None:
+        filt = ["--exclude", "*"] + [x for p in include for x in ("--include", p)]
+    # the trainer rewrites resume/state.pt atomically via state.pt.tmp; never upload the partial file (last
+    # filter wins in `aws s3 sync`, so this comes after the includes)
+    return ["aws", "s3", "sync", src, dst, "--no-progress", "--only-show-errors", *filt, "--exclude", "*.tmp"]
+
+
+def own_paths(sweep_path: str, hp: dict) -> list[str]:
+    """Sync globs for the runs this job trains: <group>/<run>/* and this shard's server logs."""
+    import yaml
+    sw = load_sweep_module()
+    with open(sweep_path) as f:
+        sweep = yaml.safe_load(f)
+    sweep["overrides"] = sw.merge_overrides(sweep.get("overrides", []), [str(o) for o in hp.get("overrides") or []])
+    if hp.get("group"):
+        sweep["group"] = str(hp["group"])
+    runs = sw.select(sw.expand(sweep), hp.get("shard", ""), str(hp.get("only") or ""))
+    g = sweep["group"]
+    logs = f"{g}/vllm_*_shard{hp['shard'].split('/')[0]}_*" if hp.get("shard") else f"{g}/vllm_*"
+    return [f"{g}/{r['name']}/*" for r in runs] + [logs]
 
 
 class S3Syncer:
     """Periodic `aws s3 sync out_root -> s3_output` in a background thread (Batch has no checkpoint sync)."""
 
-    def __init__(self, local: str, remote: str, every: float = 300.0, run=subprocess.call):
+    def __init__(self, local: str, remote: str, every: float = 300.0, run=subprocess.call,
+                 include: list[str] | None = None):
         self.local, self.remote, self.every, self._run = local, remote.rstrip("/") + "/", every, run
+        self.include = include
         self._stop = threading.Event()
         self._thread = threading.Thread(target=self._loop, daemon=True)
 
     def restore(self):
         os.makedirs(self.local, exist_ok=True)
-        rc = self._run(s3_sync_command(self.remote, self.local))
+        rc = self._run(s3_sync_command(self.remote, self.local, self.include))
         print(f"[entry] restored run dirs from {self.remote} (exit {rc})", flush=True)
 
     def push(self):
-        rc = self._run(s3_sync_command(self.local, self.remote))
+        rc = self._run(s3_sync_command(self.local, self.remote, self.include))
         if rc:
             print(f"[entry] s3 sync to {self.remote} exited {rc}", flush=True)
 
@@ -180,7 +204,8 @@ def main() -> int:
     out_root = CKPT_DIR if sagemaker else os.path.join(scratch, "runs")
     syncer = None
     if not sagemaker and hp.get("s3_output"):
-        syncer = S3Syncer(out_root, str(hp["s3_output"]), float(os.environ.get("VLMRL_SYNC_EVERY", 300)))
+        syncer = S3Syncer(out_root, str(hp["s3_output"]), float(os.environ.get("VLMRL_SYNC_EVERY", 300)),
+                          include=own_paths(os.path.join(ROOT, hp["sweep"]), hp))
         syncer.restore()
         syncer.start()
 

@@ -16,6 +16,31 @@ Smoke runs (2 steps × 4 groups × 4) passed for all 8 runs after fixing what th
 steps, MiniCPM-V on UMaze went from 94% to 7% invalid actions after one update. Qwen3-VL-2B reached 0.25 (UMaze) and
 0.125 (medium) eval success from 0. SmolVLM-256M stayed at ~100% invalid, so it has almost no learning signal.
 
+Full runs (eval success every 5 steps, 32 greedy episodes; from wandb):
+
+| model | maze | eval success, steps 0 → 40 | best | invalid (last) |
+|---|---|---|---|---|
+| Qwen3-VL-2B | UMaze | 0.00 → 0.84 (step 5) … 0.62 | 0.84 | 0% |
+| Qwen3-VL-2B | medium | 0.03 → 0.38 → 0.75 → 0.78 … 0.59 | 0.78 | 0% |
+| SmolVLM2-2.2B | UMaze | 0.00 → 0.06 → 0.44 … 0.78 | 0.78 | 0% |
+| SmolVLM2-2.2B | medium | 0.00 → 0.22 → 0.38 → 0.53 (step 35) | 0.53 | 0% |
+| MiniCPM-V 4.6 | UMaze | 0.00 → 0.62 (step 5) … 0.56 | 0.62 | 0% |
+| MiniCPM-V 4.6 | medium | 0.00 throughout | 0.00 | 100% (6 of 40 steps had a usable group) |
+| SmolVLM-256M | UMaze | 0.00 throughout | 0.00 | 100% |
+| SmolVLM-256M | medium | 0.00 → 0.03, crashed at step 16 (literal `<image>` in a reply; fixed in `1ae1d2e`) | 0.03 | 95% |
+
+- **The ~2B models all learn the format first** (invalid actions to 0% within 5–10 steps), then the task. Qwen3-VL-2B
+  peaks early and drifts down at lr 5e-6; a lower lr or more steps per eval would tell whether that is noise
+  (32 episodes ≈ ±3 points per episode) or over-fitting.
+- **MiniCPM-V on medium never produced a valid action often enough** to get a group with mixed outcomes, so it never
+  trained. SmolVLM-256M needs the compact prompts (`prompt_style=compact_rel`), with which it does learn (see the
+  procedural-maze runs).
+- In-process generation (`rollout=hf`, the two ~2B models) took 6–10 minutes per step; MiniCPM-V with a shared-GPU
+  vLLM server 10–16 minutes on UMaze (many turns per episode once it is valid).
+- Bug found by this sweep: every machine of the array job synced the whole S3 prefix, so later machines uploaded stale
+  copies of other machines' runs. The S3 `metrics.jsonl` of some runs is truncated (wandb and the final
+  `ckpt_step40` checkpoints are intact). Fixed: each machine syncs only its own runs.
+
 ## 2026-11-16 · Qwen3-VL-4B, PointMaze UMaze, success reward (wandb group `dev`)
 
 `policy=qwen3vl4b_lora rollout=vllm`, 8 groups × 8, ≤10 rounds, lr 2e-5, LoRA r=64 on the language

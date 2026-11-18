@@ -141,3 +141,17 @@ def test_one_gpu_submit_request():
     assert env["VLMRL_GPUS_PER_LANE"] == "1" and env["VLMRL_LANES"] == "1" and req["arrayProperties"] == {"size": 8}
     jd = batch.job_definition({**CFG, "gpus": 1, "vcpus": 16, "memory_mib": 120000}, "img")
     assert jd["jobDefinitionName"] == "me-vlm-rl-gpu1"
+
+
+def test_each_shard_syncs_only_its_own_runs():
+    """Machines of one array job share an S3 prefix; a shard must never restore or upload another shard's runs."""
+    hp = {"sweep": SWEEP, "shards": 4, "shard": "1/4", "group": "g"}
+    paths = entry.own_paths(os.path.join(ROOT, SWEEP), hp)
+    assert paths == ["g/policy=qwen3vl2b_full__env_kwargs.maze=medium/*",
+                     "g/policy=minicpmv46_full__env_kwargs.maze=medium/*", "g/vllm_*_shard1_*"]
+    other = set(entry.own_paths(os.path.join(ROOT, SWEEP), {**hp, "shard": "0/4"}))
+    assert not other & set(paths)
+    cmd = entry.s3_sync_command("/runs", "s3://b/p/", paths)
+    assert cmd[cmd.index("--exclude"):cmd.index("--exclude") + 2] == ["--exclude", "*"]
+    assert cmd[-2:] == ["--exclude", "*.tmp"] and cmd.count("--include") == 3
+    assert "--include" not in entry.s3_sync_command("/runs", "s3://b/p/")
