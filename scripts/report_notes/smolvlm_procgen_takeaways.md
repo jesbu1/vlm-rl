@@ -12,7 +12,8 @@
 | run | step 0 | 5 | 10 | 15 | 20 | status |
 |---|---|---|---|---|---|---|
 | `compact_rel`, lr=1e-5 | 1.6 | 10.4 | 20.8 | **22.9** | | running (GPU1) |
-| `compact_rel`, lr=1e-5, top_p=0.95 | 1.6 | | | | | running (GPU0), started after the lr=3e-5 collapse |
+| `compact_rel`, lr=3e-5, **kl_coef=0.05** | 1.6 | | | | | running (GPU0): tests the KL fix on the setting that collapsed |
+| `compact_rel`, lr=1e-5, top_p=0.95 | 1.6 | 5.7 | | | | stopped @5 (behind top_p=1 at step 5) |
 | `compact_rel`, lr=3e-5 | 1.6 | 22.9 | **24.5** | 18.2 | 0.0 | degenerated, stopped @20 |
 | `compact`, lr=3e-5 | 0.0 | 2.6 | 6.8 | 5.7 | 4.2 | stopped @25 (2.6) |
 | `compact`, lr=1e-5 | 0.5 | 1.6 | 4.7 | 5.2 | | stopped @18 |
@@ -30,9 +31,11 @@
   * mean log-prob of sampled tokens -2.3 -> -4.9 -> -8.3; replies became `X=+ Haguepite facequeenue...`;
   * 99.9% invalid, 0 of 64 groups with a GRPO signal, so no gradient and no way back.
   * Likely cause: no KL to the reference policy and T=1 sampling over the full vocabulary.
-* lr=1e-5: smooth so far, but mean log-prob is starting to slide (-3.8 -> -4.2 over steps 13-15): **watch it**.
-* `top_p=0.95` run (GPU0) tests whether cutting the low-probability tail prevents the slide. If both lr=1e-5 runs
-  still drift, the next fix is a KL penalty (not implemented yet).
+* lr=1e-5: no collapse so far, but mean log-prob slid -3.8 -> -5.3 (steps 13-17), then held near -5.0 through step
+  19; invalid replies 18% -> 23-31%; rollout success still 30-36%. **Watch it.**
+* `top_p=0.95` (lr=1e-5) was slower (5.7% vs 10.4% eval at step 5), so it was stopped.
+* **New: `kl_coef`** (k3 KL to the pretrained model, off by default as in PEAR). GPU0 now runs lr=3e-5 with
+  `kl_coef=0.05`: if it keeps lr=3e-5's fast start without the step-17 collapse, it is the setting to use.
 
 **Scale / cost**
 * <= 3072 episodes per step (64 groups x 16, up to 3 DAPO rounds), 13-16 min/step, one A6000 per run (trainer +
