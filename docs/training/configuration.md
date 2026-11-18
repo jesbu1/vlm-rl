@@ -12,12 +12,15 @@ configs/
   train.yaml        defaults: [train_schema, _self_, policy: qwen3vl4b_lora, task: pointmaze, rollout: hf, experiment: null]
   policy/           which VLM + finetuning mode   (qwen3vl4b_lora, qwen3vl2b_lora, qwen25vl3b_lora,
                                                    qwen25vl7b_full, smolvlm2_2b_lora, smolvlm256m,
-                                                   smolvlm256m_lora, gemma4_e2b_lora, minicpmv46_lora)
-  task/             env + env_kwargs + reward     (pointmaze, toy_wam)
+                                                   smolvlm256m_lora, gemma4_e2b_lora, gemma4_e2b_full,
+                                                   minicpmv46_lora)
+  task/             env + env_kwargs + reward     (pointmaze, pointmaze_procgen, toy_wam)
   rollout/          generation backend            (hf, vllm)
   experiment/       full presets, applied last    (pointmaze_q3vl4b_vllm, pointmaze_q3vl4b_vllm_legacy,
-                                                   pointmaze_generalization, pear_recipe, toy_wam_prefs, smoke)
+                                                   pointmaze_generalization, pointmaze_procgen, pear_recipe,
+                                                   toy_wam_prefs, smoke)
   sweeps/           grids for scripts/sweep.py (not loaded by Hydra)
+  sagemaker/        example.yaml: template for the git-ignored local.yaml (scripts/sagemaker_submit.py)
 ```
 
 - Every group file starts with `# @package _global_`, so it sets **top-level** fields.

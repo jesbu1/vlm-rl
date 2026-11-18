@@ -383,11 +383,11 @@ def test_vec_env_follows_each_episodes_maze_and_reuses_envs(rng):
 
 
 def test_idle_env_pool_is_bounded(rng):
-    b = make_pointmaze(maze="gen7x7", train_mazes=60, image_size=16)
+    b = make_pointmaze(maze="gen7x7", train_mazes=40, image_size=16)
     env = b.make_vec_env()
-    for _ in range(4):
-        env.reset(b.train_sampler.sample(40, rng))
-    assert sum(len(p) for p in env._pool.values()) <= 40
+    for _ in range(6):
+        env.reset(b.train_sampler.sample(12, rng))
+    assert sum(len(p) for p in env._pool.values()) <= 32      # cap = max(32, #slots)
     env.close()
 
 
