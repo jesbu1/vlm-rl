@@ -5,14 +5,17 @@
   points of the training layouts.
 * It has learned **"head straight for the goal"**, not maze navigation: episodes fail where a wall blocks the straight
   line. Getting past ~25-35% needs routing around walls, which hasn't appeared yet.
-* **lr=1e-5 works; lr=3e-5 learns faster, then degenerates into gibberish** (eval 24.5% at step 10, 0% at step 20).
+* **Without a KL penalty both lrs degenerate into gibberish**: lr=3e-5 peaks at 24.5% (step 10) and is at 0% by step 20;
+  lr=1e-5 peaks at 22.9% (step 15) and is at 0.5% by step 25. The fix being tested is `kl_coef=0.05` (k3 KL to the
+  pretrained model), on both lrs.
 
 **Eval success by run** (greedy, mean of 3 sets x 64 episodes; SE ~5 points at 25%)
 
 | run | step 0 | 5 | 10 | 15 | 20 | status |
 |---|---|---|---|---|---|---|
-| `compact_rel`, lr=1e-5 | 1.6 | 10.4 | 20.8 | **22.9** | | running (GPU1) |
-| `compact_rel`, lr=3e-5, **kl_coef=0.05** | 1.6 | | | | | running (GPU0): tests the KL fix on the setting that collapsed |
+| `compact_rel`, lr=3e-5, **kl_coef=0.05** | 1.6 | 13.5 | | | | running (GPU0) |
+| `compact_rel`, lr=1e-5, **kl_coef=0.05** | | | | | | running (GPU1), started 11:32 |
+| `compact_rel`, lr=1e-5 | 1.6 | 10.4 | 20.8 | **22.9** | 20.8 | degenerated at step 25 (0.5%), stopped |
 | `compact_rel`, lr=1e-5, top_p=0.95 | 1.6 | 5.7 | | | | stopped @5 (behind top_p=1 at step 5) |
 | `compact_rel`, lr=3e-5 | 1.6 | 22.9 | **24.5** | 18.2 | 0.0 | degenerated, stopped @20 |
 | `compact`, lr=3e-5 | 0.0 | 2.6 | 6.8 | 5.7 | 4.2 | stopped @25 (2.6) |
@@ -31,11 +34,13 @@
   * mean log-prob of sampled tokens -2.3 -> -4.9 -> -8.3; replies became `X=+ Haguepite facequeenue...`;
   * 99.9% invalid, 0 of 64 groups with a GRPO signal, so no gradient and no way back.
   * Likely cause: no KL to the reference policy and T=1 sampling over the full vocabulary.
-* lr=1e-5: no collapse so far, but mean log-prob slid -3.8 -> -5.3 (steps 13-17), then held near -5.0 through step
-  19; invalid replies 18% -> 23-31%; rollout success still 30-36%. **Watch it.**
+* lr=1e-5 degenerated the same way, 5 steps later: mean log-prob -3.8 (step 13) -> -5.0 (steps 18-20) -> -6.9 (step 25);
+  rollout invalid 15% -> 73%; greedy eval invalid 98% at step 25 (eval 0.5%). Rollout success peaked at 39% (step 20).
+  * The mean log-prob slide preceded the eval drop by ~8 steps in both runs: it is the early warning.
 * `top_p=0.95` (lr=1e-5) was slower (5.7% vs 10.4% eval at step 5), so it was stopped.
-* **New: `kl_coef`** (k3 KL to the pretrained model, off by default as in PEAR). GPU0 now runs lr=3e-5 with
-  `kl_coef=0.05`: if it keeps lr=3e-5's fast start without the step-17 collapse, it is the setting to use.
+* **New: `kl_coef`** (k3 KL to the pretrained model, off by default as in PEAR); both GPUs now run `kl_coef=0.05`.
+  * lr=3e-5 + KL, first 5 steps: mean log-prob stays at -1.8 to -2.4 (no drift); eval 13.5% at step 5 (vs 22.9% without KL).
+  * One spike at step 2 (KL 222, grad norm 5157, clipped to 1.0) from a few tokens with a huge k3 ratio; recovered by step 4.
 
 **Scale / cost**
 * <= 3072 episodes per step (64 groups x 16, up to 3 DAPO rounds), 13-16 min/step, one A6000 per run (trainer +
