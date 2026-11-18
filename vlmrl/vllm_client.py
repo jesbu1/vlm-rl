@@ -28,10 +28,19 @@ import uuid
 from concurrent.futures import ThreadPoolExecutor
 
 
+class ServerError(RuntimeError):
+    """An HTTP error from the vLLM server, with its response body (the server log often has no details)."""
+
+
 def _post(url: str, payload: dict, timeout: float = 600.0) -> dict:
+    import urllib.error
     req = urllib.request.Request(url, data=json.dumps(payload).encode(), headers={"Content-Type": "application/json"})
-    with urllib.request.urlopen(req, timeout=timeout) as r:
-        body = r.read().decode()
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            body = r.read().decode()
+    except urllib.error.HTTPError as e:
+        detail = e.read().decode(errors="replace")[:2000]
+        raise ServerError(f"POST {url} -> HTTP {e.code}: {detail}") from e
     return json.loads(body) if body.strip().startswith("{") else {"text": body}
 
 
@@ -122,8 +131,17 @@ class VLLMServerGenerator:
             policy.save(path, processor=False)
         else:
             policy.model.save_pretrained(path)
-        _post(f"{self.url}/collective_rpc", {"method": "reload_weights", "kwargs": {"weights_path": path}},
-              timeout=1800)
+        for attempt in (1, 2):  # one retry: a reload failed transiently on one machine while identical ones worked
+            try:
+                _post(f"{self.url}/collective_rpc", {"method": "reload_weights", "kwargs": {"weights_path": path}},
+                      timeout=1800)
+                break
+            except ServerError as e:
+                print(f"[vllm] reload_weights failed (attempt {attempt}): {e}", flush=True)
+                if attempt == 2:
+                    raise
+                import time
+                time.sleep(30)
         _post(f"{self.url}/reset_prefix_cache", {})
         # the worker drops its cached image embeddings on reload, but the scheduler would still count them as
         # cached ("Encoder cache miss" crash on the next image request); this resets both sides

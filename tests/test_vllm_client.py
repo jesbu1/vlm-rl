@@ -141,3 +141,25 @@ def test_chat_template_kwargs_forwarded_only_when_set(server):
         [_conv()], max_new_tokens=4)
     bodies = [b for p, b in _Handler.log if p == "/v1/chat/completions"]
     assert "chat_template_kwargs" not in bodies[0] and bodies[1]["chat_template_kwargs"] == {"enable_thinking": True}
+
+
+def test_server_errors_carry_the_response_body():
+    """A 500 from the server must surface its body (vLLM's log often has nothing)."""
+    from vlmrl.vllm_client import ServerError, _post
+
+    class H(BaseHTTPRequestHandler):
+        def do_POST(self):  # noqa: N802
+            self.rfile.read(int(self.headers["Content-Length"]))
+            self.send_response(500)
+            self.end_headers()
+            self.wfile.write(b'{"error": "reload_weights: weights not found"}')
+
+        def log_message(self, *a):
+            pass
+    srv = HTTPServer(("127.0.0.1", 0), H)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    try:
+        with pytest.raises(ServerError, match="HTTP 500.*weights not found"):
+            _post(f"http://127.0.0.1:{srv.server_port}/collective_rpc", {})
+    finally:
+        srv.shutdown()
