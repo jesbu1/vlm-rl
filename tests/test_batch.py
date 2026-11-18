@@ -132,7 +132,7 @@ def test_shared_gpu_lanes(monkeypatch, tmp_path):
     sweep.run_lane(runs, {"vllm_port": 9000, "vllm_gpu_util_shared": 0.25}, lanes[1], 1, str(tmp_path), "_shard0")
     assert seen["server"][0][3] == "1" and seen["server"][1]["GPU_UTIL"] == "0.25"
     assert seen["train"][1]["CUDA_VISIBLE_DEVICES"] == "1"
-    assert (tmp_path / "vllm_MiniCPM-V-4.6_lane1_shard0.log").exists()
+    assert (tmp_path / "vllm_MiniCPM-V-4.6_lane1_shard0_9001.log").exists()
 
 
 def test_one_gpu_submit_request():

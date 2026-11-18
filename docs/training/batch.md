@@ -102,7 +102,7 @@ aws s3 ls <s3_output>/<job-name>/<group>/
 ```
 
 The container log has the entry script's output and each lane's start and exit lines. Each run's `train.log`
-and each lane's `vllm_<model>_lane<k>_shard<i>.log` are synced to S3 with the run dirs.
+and each lane's `vllm_<model>_lane<k>_shard<i>_<port>.log` are synced to S3 with the run dirs.
 
 ## The shipped sweep: small-model full fine-tuning
 
