@@ -43,7 +43,7 @@ def test_build_request():
     assert all(isinstance(v, str) for v in hp.values())   # SageMaker requires string values
     assert hp == {"sweep": "configs/sweeps/x.yaml", "lanes": "4", "group": "smoke", "overrides": '["steps=2"]'}
     assert req["Environment"] == {"WANDB_BASE_URL": "https://x", "WANDB_API_KEY": "secret"}
-    assert req["Tags"] == [{"Key": "owner", "Value": "me"}]
+    assert "Tags" not in req   # Batch rejects payload tags; they are set on the Batch job and propagate
     shown = submit.redacted(req, ["WANDB_API_KEY"])
     assert shown["Environment"]["WANDB_API_KEY"] == "<redacted>" and "secret" not in json.dumps(shown)
     assert req["Environment"]["WANDB_API_KEY"] == "secret"  # redaction copies

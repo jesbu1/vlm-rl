@@ -107,8 +107,8 @@ python scripts/sagemaker_submit.py configs/sweeps/sagemaker_gemma4_fft.yaml \
 
 The submitted request is a plain SageMaker `CreateTrainingJob` request
 (`scripts/sagemaker_submit.py::build_request`): the sweep, lanes, group and overrides travel as
-hyperparameters, secrets as environment variables. Secrets are never written to disk and are redacted in the
-printed request. Anyone who can describe the training job in the account can read its environment, so
+hyperparameters, secrets as environment variables. Secrets are redacted in the printed request and never
+kept. The request reaches the AWS CLI as a 0600 file in a private temp dir, deleted right after the call. Anyone who can describe the training job in the account can read its environment, so
 use keys meant for this.
 
 ## Monitor

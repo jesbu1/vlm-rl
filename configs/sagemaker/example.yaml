@@ -3,7 +3,9 @@
 profile: my-sso-profile               # AWS CLI profile (~/.aws/config) with SageMaker + Batch access
 region: us-west-2
 queue: my-sagemaker-training-queue    # AWS Batch job queue of type SAGEMAKER_TRAINING
-share_identifier: default             # fair-share identifier, if the queue uses a fair-share policy
+share_identifier: default
+scheduling_priority: 100              # fair-share queues require one; higher runs sooner within the share
+retry_attempts: 1                     # >1: Batch retries the job; runs resume from the S3 checkpoints             # fair-share identifier, if the queue uses a fair-share policy
 instance_type: ml.p5.48xlarge         # must match the queue's service environment
 volume_gb: 200
 max_hours: 8                          # default job time limit (--max_hours overrides)
@@ -14,5 +16,6 @@ tags:                                 # cost-allocation tags, if your organizati
   owner: me@example.com
 env:                                  # plain (non-secret) environment variables for the job
   WANDB_BASE_URL: https://api.wandb.ai
+  # SM_USE_RESERVED_CAPACITY: "1"     # required by queues backed by reserved capacity (Batch says so if missing)
 secret_env:                           # copied from your shell's environment at submit time, never stored
   - WANDB_API_KEY

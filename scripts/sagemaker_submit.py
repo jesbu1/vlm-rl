@@ -8,7 +8,8 @@
 Account-specific settings (account, queue, role, bucket, cost tags) come from a *local* YAML file that is
 git-ignored: copy configs/sagemaker/example.yaml to configs/sagemaker/local.yaml and fill it in.
 Secrets (e.g. WANDB_API_KEY) are read from the submitting shell's environment at submit time and passed to
-the job as environment variables; they are never written to disk or printed (--dry_run redacts them).
+the job as environment variables. They are never printed (--dry_run redacts them) or kept: the request reaches
+the AWS CLI as a 0600 file in a private temp dir that is deleted right after the call.
 
 The job runs the image's entrypoint (docker/entrypoint.sh -> scripts/sagemaker_entry.py), which runs
 scripts/sweep.py with parallel lanes on the node's GPUs. Run dirs live in /opt/ml/checkpoints, which
@@ -29,12 +30,21 @@ DEFAULT_CONFIG = os.path.join(ROOT, "configs", "sagemaker", "local.yaml")
 REQUIRED = ("region", "queue", "ecr_repository", "role_arn", "s3_output", "instance_type")
 
 
-def aws(cfg: dict, *args: str, stdin: str | None = None) -> dict:
-    """Call the AWS CLI (uses its credential cache, e.g. SSO). Requests go through stdin, never argv."""
+def aws(cfg: dict, *args: str, input_json: dict | None = None) -> dict:
+    """Call the AWS CLI (uses its credential cache, e.g. SSO). ``input_json`` (which may hold secrets) is
+    passed as a 0600 file in a private temp dir that is deleted as soon as the call returns (never argv)."""
+    import tempfile
     cmd = ["aws", *args, "--region", cfg["region"], "--output", "json"]
     if cfg.get("profile"):
         cmd += ["--profile", cfg["profile"]]
-    r = subprocess.run(cmd, input=stdin, capture_output=True, text=True)
+    with tempfile.TemporaryDirectory() as d:          # created 0700
+        if input_json is not None:
+            path = os.path.join(d, "request.json")
+            fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+            with os.fdopen(fd, "w") as f:
+                json.dump(input_json, f)
+            cmd += ["--cli-input-json", f"file://{path}"]
+        r = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
     if r.returncode != 0:
         raise RuntimeError(f"aws {' '.join(args[:2])} failed: {r.stderr.strip()}")
     return json.loads(r.stdout) if r.stdout.strip() else {}
@@ -93,7 +103,7 @@ def build_request(cfg: dict, image: str, name: str, sweep: str, lanes: int | Non
         hp["group"] = group
     if overrides:
         hp["overrides"] = json.dumps(overrides)
-    tags = [{"Key": k, "Value": str(v)} for k, v in (cfg.get("tags") or {}).items()]
+    # no "Tags" here: Batch rejects them in the payload; tags go on the Batch job and propagate to the training job
     return {
         "TrainingJobName": name,
         "AlgorithmSpecification": {"TrainingImage": image, "TrainingInputMode": "File"},
@@ -105,7 +115,6 @@ def build_request(cfg: dict, image: str, name: str, sweep: str, lanes: int | Non
         "CheckpointConfig": {"S3Uri": f"{out}/{name}/checkpoints", "LocalPath": "/opt/ml/checkpoints"},
         "HyperParameters": hp,
         "Environment": {**{k: str(v) for k, v in (cfg.get("env") or {}).items()}, **env},
-        "Tags": tags,
     }
 
 
@@ -161,8 +170,10 @@ def main(argv=None):
         sys.exit(f"image {image} not found in ECR (build and push it first: docker/build.sh)\n{e}")
     job = {"jobName": name, "jobQueue": cfg["queue"], "serviceJobType": "SAGEMAKER_TRAINING",
            "serviceRequestPayload": json.dumps(req), "shareIdentifier": cfg.get("share_identifier", "default"),
+           "schedulingPriority": int(cfg.get("scheduling_priority", 100)),   # required by fair-share queues
+           "retryStrategy": {"attempts": int(cfg.get("retry_attempts", 1))},  # retries resume from checkpoints
            "tags": tags}
-    r = aws(cfg, "batch", "submit-service-job", "--cli-input-json", "file:///dev/stdin", stdin=json.dumps(job))
+    r = aws(cfg, "batch", "submit-service-job", input_json=job)
     print(f"\nsubmitted {name}: jobId {r['jobId']}\n"
           f"  status:      aws batch describe-service-job --job-id {r['jobId']} --profile {cfg.get('profile')} "
           f"--region {cfg['region']}\n"
