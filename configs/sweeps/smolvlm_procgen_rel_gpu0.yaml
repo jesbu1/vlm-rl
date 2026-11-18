@@ -1,0 +1,41 @@
+# SmolVLM-256M full fine-tuning on procedural mazes with layout generalization eval (experiment=pointmaze_procgen:
+# train on 64 11x11 layouts; eval sets id_layouts / ood_layouts (16 held-out 11x11) / ood_larger (held-out 15x15)).
+# One self-contained sweep per GPU: trainer and its vLLM server share GPU 0 (the model is 256M), so two sweeps run
+# side by side, same wandb group.
+# This GPU0 sweep replaced smolvlm_procgen_gpu0.yaml (compact, lr=1e-5) at step 20: under the compact prompt
+# both lrs collapsed to echoing the goal's *absolute* coordinates as the move (1-3 distinct greedy replies per
+# 20-turn eval episode; eval success stalled at ~5%). compact_rel states the goal relative to the ball, so the
+# same echo is the straight-line move; compare with smolvlm_procgen_gpu1.yaml (compact, lr=3e-5).
+# Why these settings (zero-shot diagnosis in docs/models/smolvlm-256m.md):
+#   - prompt_style=compact: under the PEAR / simple prompts SmolVLM-256M is 100% invalid (it echoes the state
+#     JSON or writes prose); the compact prompt asks for {"x": dx, "y": dy}, ~17-23% of turns parse zero-shot.
+#   - on_invalid=noop: an unparseable reply is a no-op instead of ending the episode, so episodes last long
+#     enough to occasionally reach the goal (~2% zero-shot), which is all the sparse reward needs.
+#   - reward=success (sparse) with a large batch: 64 groups x 16, up to 3 DAPO resampling rounds (<= 3072
+#     episodes / step), so enough groups mix successes and failures at a ~2% success rate.
+group: smolvlm-procgen-v1
+project: vlm-rl-pointmaze
+train_gpu: 0
+vllm_gpu: 0
+vllm_port: 8011
+vllm_gpu_util: 0.35
+overrides:
+  - experiment=pointmaze_procgen
+  - policy=smolvlm256m
+  - on_invalid=noop
+  - reward=success
+  - steps=60
+  - groups_per_step=64
+  - group_size=16
+  - max_resample_rounds=3
+  - micro_batch_size=64
+  - max_new_tokens=64
+  - eval_every=5
+  - eval_episodes=64
+  - wandb_entity=tri
+  - "wandb_tags='pointmaze,procgen,smolvlm,fft,sweep'"
+grid:
+  env_kwargs.prompt_style: [compact_rel]
+  lr: [3.0e-5]
+vllm_args:
+  HuggingFaceTB/SmolVLM-256M-Instruct: [--max-model-len, "8192", --mm-processor-kwargs, '{"do_image_splitting": false}', --api-server-count, "4", --max-num-seqs, "1024", --mm-processor-cache-gb, "0"]

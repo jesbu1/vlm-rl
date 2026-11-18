@@ -296,6 +296,8 @@ class PointMazeTextInterface:
     ``prompt_style="compact"`` is a few-sentence prompt for small models (<1B): each turn is the image +
     "Ball: x=.., y=... Goal: x=.., y=... Move:", and the reply is ``{"x": dx, "y": dy}``, parsed leniently
     (the first x and y values anywhere in the reply).
+    ``prompt_style="compact_rel"`` is ``compact`` with the goal given relative to the ball
+    ("Goal: x=+2.53, y=-1.90 from the ball."), so the straight-line move is in the prompt.
     ``think`` adds / drops the "Think briefly, then ..." cue (default: on for simple, off for pear / compact).
     """
 
@@ -304,14 +306,18 @@ class PointMazeTextInterface:
     def __init__(self, maze_map, action_mode: str = "delta", include_state: bool = True,
                  max_delta: float = 1.0, image_size: int = 336, prompt_style: str = "pear",
                  think: bool | None = None):
-        assert prompt_style in ("pear", "simple", "compact")
-        if prompt_style in ("pear", "compact"):
+        assert prompt_style in ("pear", "simple", "compact", "compact_rel")
+        if prompt_style in ("pear", "compact", "compact_rel"):
             assert action_mode == "delta", f"{prompt_style} actions are changes of position (delta mode)"
         self.maze_map, self.action_mode = maze_map, action_mode
         self.include_state, self.max_delta = include_state, max_delta
         self.keys = ("dx", "dy") if action_mode == "delta" else ("fx", "fy")
         self.image_size, self.prompt_style = image_size, prompt_style
         self.think = prompt_style == "simple" if think is None else think
+
+    @property
+    def _compact(self) -> bool:
+        return self.prompt_style in ("compact", "compact_rel")
 
     # ---------------------------------------------------------------- prompts
     def _map_for(self, start_state) -> list[list]:
@@ -356,7 +362,7 @@ class PointMazeTextInterface:
             return text
         mm = self._map_for(start_state)
         h, w = len(mm), len(mm[0])
-        if self.prompt_style == "compact":
+        if self._compact:
             return (
                 "You move a blue ball through a maze to the green circle. The image shows the maze from above: "
                 f"dark cells are walls, light cells are floor. The maze is {w} by {h} cells; x points right, "
@@ -396,11 +402,15 @@ class PointMazeTextInterface:
                 parts.append(protocol.format_state(self.SCHEMA, obs.state[:2]))
             # PEAR: the state JSON comes first, followed by the camera images
             return ([{"type": "text", "text": "\n".join(parts)}] if parts else []) + [img]
-        if self.prompt_style == "compact":
+        if self._compact:
             text = "No valid move last turn. " if parse_error else ""
             if self.include_state and obs.state is not None:
                 p, g = obs.state[:2], obs.extras["goal"]
-                text += f"Ball: x={p[0]:.2f}, y={p[1]:.2f}. Goal: x={g[0]:.2f}, y={g[1]:.2f}. "
+                text += f"Ball: x={p[0]:.2f}, y={p[1]:.2f}. "
+                if self.prompt_style == "compact_rel":
+                    text += f"Goal: x={g[0] - p[0]:+.2f}, y={g[1] - p[1]:+.2f} from the ball. "
+                else:
+                    text += f"Goal: x={g[0]:.2f}, y={g[1]:.2f}. "
             return [img, {"type": "text", "text": text + "Move:"}]
         text = []
         if parse_error:
@@ -418,7 +428,7 @@ class PointMazeTextInterface:
         if self.prompt_style == "pear":
             from vlmrl.envs import protocol
             return protocol.parse_action(text, self.SCHEMA)
-        if self.prompt_style == "compact":
+        if self._compact:
             mx, my = _COMPACT_X.search(text), _COMPACT_Y.search(text)
             if not (mx and my):
                 return None
@@ -446,7 +456,7 @@ class PointMazeTextInterface:
         if self.prompt_style == "pear":
             from vlmrl.envs import protocol
             return protocol.example_action(self.SCHEMA, a)
-        if self.prompt_style == "compact":
+        if self._compact:
             return f'{{"x": {a[0]:.2f}, "y": {a[1]:.2f}}}'
         return f'<action>{{"{self.keys[0]}": {a[0]:.3f}, "{self.keys[1]}": {a[1]:.3f}}}</action>'
 
@@ -673,7 +683,7 @@ class PointMazeConfig:
     max_delta: float = 1.0
     image_size: int = 336
     include_state: bool = True
-    prompt_style: str = "pear"        # "pear" (paper Appendix H protocol) | "simple" | "compact" (small models)
+    prompt_style: str = "pear"        # "pear" (paper Appendix H protocol) | "simple" | "compact" (small models) | "compact_rel" (goal relative to ball)
     think: bool | None = None         # "Think briefly" cue; None = style default (simple: on, pear: off)
     settle: bool = True               # PEAR execution: act until target reached & at rest, or blocked
     max_turns: int = 12

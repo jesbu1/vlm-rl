@@ -212,6 +212,25 @@ def test_prompt_and_observation_message(itf):
     assert np.array_equal(itf.noop_action(), [0, 0])
 
 
+@pytest.mark.parametrize("style", ["compact", "compact_rel"])
+def test_compact_observation_goal_absolute_or_relative(style):
+    """compact gives the goal's absolute position; compact_rel gives it relative to the ball, so echoing the
+    numbers back is the straight-line move (and parses to exactly goal - ball)."""
+    itf = PointMazeTextInterface(get_maze_map("umaze"), prompt_style=style, max_delta=3.0)
+    obs = Obs(image=np.zeros((8, 8, 3), np.uint8), state=np.array([1.0, 2.0, 0.0, 0.0]),
+              extras={"goal": np.array([-1.0, 0.5])})
+    text = itf.observation_message(obs, 0, None, parse_error=False)[1]["text"]
+    assert text.startswith("Ball: x=1.00, y=2.00. ") and text.endswith("Move:")
+    goal = text.split("Goal: ")[1]
+    if style == "compact":
+        assert goal.startswith("x=-1.00, y=0.50.")
+    else:
+        assert goal.startswith("x=-2.00, y=-1.50 from the ball.")
+        assert np.allclose(itf.parse_action(goal), [-2.0, -1.5])
+    assert '{"x": 1.0, "y": -0.5}' in itf.system_prompt({})
+    assert np.allclose(itf.parse_action(itf.format_action(np.array([0.5, -2.0]))), [0.5, -2.0])
+
+
 # ----------------------------------------------------------------------------- start states
 
 def test_random_sampler_free_cells_and_min_dist(rng):
