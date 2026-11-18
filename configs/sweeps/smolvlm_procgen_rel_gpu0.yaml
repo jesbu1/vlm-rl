@@ -10,6 +10,8 @@
 # logp -4.9 -> -8.3, replies turned to gibberish, 99.9% invalid, 0 groups kept): no KL to the reference and T=1 full-
 # vocabulary sampling. GPU0 now runs lr=1e-5 with top_p=0.95 (cuts the low-probability tail the collapse came from)
 # next to GPU1's lr=1e-5, top_p=1.
+# Step 3 on GPU0: top_p=0.95 (lr=1e-5) stopped after step 5 (eval 5.7% vs 10.4% for top_p=1 at step 5) for a direct
+# test of the new KL penalty on the setting that collapsed: lr=3e-5 with kl_coef=0.05 (k3 KL to the pretrained model).
 # Why these settings (zero-shot diagnosis in docs/models/smolvlm-256m.md):
 #   - prompt_style=compact: under the PEAR / simple prompts SmolVLM-256M is 100% invalid (it echoes the state
 #     JSON or writes prose); the compact prompt asks for {"x": dx, "y": dy}, ~17-23% of turns parse zero-shot.
@@ -40,7 +42,7 @@ overrides:
   - "wandb_tags='pointmaze,procgen,smolvlm,fft,sweep'"
 grid:
   env_kwargs.prompt_style: [compact_rel]
-  lr: [1.0e-5]
-  top_p: [0.95]
+  lr: [3.0e-5]
+  kl_coef: [0.05]
 vllm_args:
   HuggingFaceTB/SmolVLM-256M-Instruct: [--max-model-len, "8192", --mm-processor-kwargs, '{"do_image_splitting": false}', --api-server-count, "4", --max-num-seqs, "1024", --mm-processor-cache-gb, "0"]
