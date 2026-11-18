@@ -15,6 +15,8 @@
 #     enough to occasionally reach the goal (~2% zero-shot), which is all the sparse reward needs.
 #   - reward=success (sparse) with a large batch: 64 groups x 16, up to 3 DAPO resampling rounds (<= 3072
 #     episodes / step), so enough groups mix successes and failures at a ~2% success rate.
+# Relaunched with kl_coef=0.05 after the no-KL lr=1e-5 run degenerated at step 25 (eval 22.9% @15 -> 20.8% @20 ->
+# 0.5% @25; mean logp -5.0 -> -6.9, 98% invalid eval replies): same failure as lr=3e-5 at step 20, just later.
 group: smolvlm-procgen-v1
 project: vlm-rl-pointmaze
 train_gpu: 1
@@ -39,5 +41,6 @@ overrides:
 grid:
   env_kwargs.prompt_style: [compact_rel]
   lr: [1.0e-5]
+  kl_coef: [0.05]
 vllm_args:
   HuggingFaceTB/SmolVLM-256M-Instruct: [--max-model-len, "8192", --mm-processor-kwargs, '{"do_image_splitting": false}', --api-server-count, "4", --max-num-seqs, "1024", --mm-processor-cache-gb, "0"]
