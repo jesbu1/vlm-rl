@@ -54,6 +54,19 @@ def test_shipped_fft_sweep_composes():
         os.path.dirname(__file__), "..", "configs/sweeps/pointmaze_small.yaml")))["group"]
 
 
+def _alive(pid: int) -> bool:
+    """Running (a killed zombie counts as dead: containers without an init process never reap orphans)."""
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    try:
+        with open(f"/proc/{pid}/stat") as f:
+            return f.read().rsplit(")", 1)[1].split()[0] != "Z"
+    except OSError:
+        return True
+
+
 @pytest.mark.skipif(sys.platform == "win32", reason="process groups")
 def test_stop_server_kills_sigterm_ignoring_parent_and_children(tmp_path):
     # parent ignores SIGTERM (like vLLM during startup) and spawns a child (like EngineCore)
@@ -71,9 +84,7 @@ def test_stop_server_kills_sigterm_ignoring_parent_and_children(tmp_path):
     sweep.stop_server(proc, timeout=1)
     assert proc.poll() is not None and time.time() - t0 < 10
     for _ in range(100):  # the child is reparented to init, which reaps it shortly after SIGKILL
-        try:
-            os.kill(child, 0)
-        except ProcessLookupError:
+        if not _alive(child):
             break
         time.sleep(0.05)
     else:

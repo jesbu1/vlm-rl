@@ -7,7 +7,8 @@ set -euo pipefail
 # older than the compat libcuda shipped in the image, put the compat libs first (works on datacenter GPUs).
 if [ -f /usr/local/cuda/compat/libcuda.so.1 ] && [ -r /proc/driver/nvidia/version ]; then
   compat=$(readlink /usr/local/cuda/compat/libcuda.so.1 | sed 's/^libcuda\.so\.//')
-  driver=$(sed -n 's/^NVRM.*Kernel Module[^0-9]*\([0-9.]*\).*$/\1/p' /proc/driver/nvidia/version)
+  # e.g. "NVRM version: NVIDIA UNIX Open Kernel Module for x86_64  580.126.09  Release Build ..."
+  driver=$(head -1 /proc/driver/nvidia/version | grep -oE '[0-9]{3,}\.[0-9]+(\.[0-9]+)?' | head -1 || true)
   if [ -n "$driver" ] && [ "$(printf '%s\n%s\n' "$driver" "$compat" | sort -V | head -1)" = "$driver" ] \
       && [ "$driver" != "$compat" ]; then
     echo "[entrypoint] host driver $driver < $compat: using CUDA forward-compat libs"

@@ -6,6 +6,8 @@ import os
 import re
 import subprocess
 
+import shutil
+
 import pytest
 
 ROOT = os.path.join(os.path.dirname(__file__), "..")
@@ -85,7 +87,7 @@ def test_example_config_has_every_required_key_and_no_account_values():
 
 
 def test_local_sagemaker_config_is_ignored_by_git_and_docker():
-    if subprocess.run(["git", "-C", ROOT, "rev-parse"], capture_output=True).returncode != 0:
+    if not shutil.which("git") or subprocess.run(["git", "-C", ROOT, "rev-parse"], capture_output=True).returncode:
         pytest.skip("not a git checkout")
     r = subprocess.run(["git", "-C", ROOT, "check-ignore", "-q", "configs/sagemaker/local.yaml"])
     assert r.returncode == 0
@@ -94,6 +96,8 @@ def test_local_sagemaker_config_is_ignored_by_git_and_docker():
 
 def test_no_aws_account_ids_in_tracked_files():
     """The repo is public: account ids belong in configs/sagemaker/local.yaml (git-ignored)."""
+    if not shutil.which("git"):
+        pytest.skip("git not installed")
     r = subprocess.run(["git", "-C", ROOT, "ls-files", "-co", "--exclude-standard"], capture_output=True, text=True)
     if r.returncode != 0:
         pytest.skip("not a git checkout")
