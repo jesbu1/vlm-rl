@@ -41,14 +41,20 @@ uv pip install -p .venv wandb-workspaces
 python scripts/make_wandb_report.py --group pointmaze-small-v5 --takeaways takeaways.md [--dry_run]
 ```
 
-`scripts/make_smolvlm_procgen_report.py` is a narrative report for one experiment (the SmolVLM procgen runs,
-group `smolvlm-procgen-v1`): headline eval curve, runs grouped by `env_kwargs.prompt_style`, per-eval-set
-generalization curves plus a latest-value bar chart, learning dynamics, behaviour, and per split (train + each eval set) the episode video next to its transcript plus the samples table, cost,
-setup and a run comparer. All panels are live, so curves keep updating while runs train; the takeaways and setup
-text are static. `--url <report>` rewrites an existing report in place (e.g. to refresh the takeaways).
+`scripts/make_smolvlm_procgen_report.py` is a narrative report for one experiment (the SmolVLM procgen runs, group
+`smolvlm-procgen-v1`), written as bullets:
+* takeaways (`scripts/report_notes/smolvlm_procgen_takeaways.md`);
+* prompts compared: every prompt style as the model reads it (rendered from the code), what differs, what the models
+  actually wrote, plus `scripts/report_notes/prompts_results.md`;
+* related runs from other agents (`scripts/report_notes/smolvlm_procgen_related.md` + live panels);
+* live panels: headline, by prompt, per-eval-set generalization, learning dynamics, behaviour, episodes (video +
+  transcript + samples table per split), cost; then setup and a run comparer.
+
+Panels are live; the markdown is static. By default the script rewrites the existing report in place (`--url ''`
+creates a new one), so edit the notes files rather than the report UI, or UI edits are lost on the next run.
 
 ```bash
-python scripts/make_smolvlm_procgen_report.py --takeaways runs/smolvlm-procgen-v1/takeaways.md [--url REPORT_URL]
+python scripts/make_smolvlm_procgen_report.py [--takeaways FILE] [--url REPORT_URL]
 ```
 
 Offline logging works too (`WANDB_MODE=offline`), and is covered by a test.

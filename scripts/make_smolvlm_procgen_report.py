@@ -1,19 +1,22 @@
-"""wandb Report for the SmolVLM-256M procedural-maze runs (group smolvlm-procgen-v1): live panels for the prompt
-comparison (compact vs compact_rel), layout generalization (id / ood eval sets), learning dynamics, behaviour,
-episode videos and cost.
+"""wandb Report for the SmolVLM-256M procedural-maze runs (group smolvlm-procgen-v1). Text is bullets; panels are live.
 
-    python scripts/make_smolvlm_procgen_report.py --takeaways takeaways.md [--group smolvlm-procgen-v1]
+    python scripts/make_smolvlm_procgen_report.py            # rewrite the existing report (REPORT_URL) in place
+    python scripts/make_smolvlm_procgen_report.py --url ''   # create a new report instead
 
-A "prompt styles at a glance" section (every prompt as the model reads it, rendered from the code, plus what happened
-with each; scripts/report_notes/prompts_results.md) and a "related runs" section (other models / fixed mazes, run by another agent) is included by default: its text is
-scripts/report_notes/smolvlm_procgen_related.md and its panels query --related_groups (`--related ''` drops it).
+Sections: takeaways (scripts/report_notes/smolvlm_procgen_takeaways.md), prompts compared (every prompt style as the
+model reads it, rendered from the code, what differs, what the models actually wrote, and
+scripts/report_notes/prompts_results.md), related runs from the AWS Batch agent (scripts/report_notes/
+smolvlm_procgen_related.md + live panels over --related_groups; `--related ''` drops it), then live panels: headline,
+by prompt, generalization (per eval set), learning dynamics, behaviour, episodes (video + transcript + samples table
+per split), cost, setup and a run comparer.
 
-Every panel queries the runs live, so curves keep updating while runs train; only the takeaways and setup text are
-static (rerun the script, or edit the report in the UI, to refresh them).
+Every panel queries the runs live, so curves keep updating while runs train; the markdown text is static (rerun the
+script, or edit the report in the UI, to refresh it).
 """
 from __future__ import annotations
 
 import argparse
+import os
 from datetime import datetime
 from urllib.parse import urlparse
 
@@ -24,50 +27,72 @@ SETS = {"id_layouts": "the 64 training layouts (new start/goal pairs)",
         "ood_larger": "16 held-out 15x15 layouts, 30 turns"}
 
 SETUP = """\
-**Task.** PointMaze on procedurally generated mazes (`experiment=pointmaze_procgen`): every episode draws an 11x11
-layout from 64 training seeds, a random start and a goal at least 3 cells away. The model sees a top-down image plus a
-short text line each turn and replies with a move `{"x": dx, "y": dy}` (at most 3 cells per turn, the ball stops at
-walls); 20 turns per episode.
+**Task**
+* PointMaze on procedurally generated mazes (`experiment=pointmaze_procgen`).
+* Each episode: an 11x11 layout from 64 training seeds, random start, goal >= 3 cells away, 20 turns.
+* Each turn: top-down image + one text line; reply = a move `{"x": dx, "y": dy}` (<= 3 cells; the ball stops at walls).
 
-**Prompts** (`env_kwargs.prompt_style`):
-* `compact`: `Ball: x=0.31, y=1.32. Goal: x=0.07, y=0.92. Move:` (absolute goal position).
-* `compact_rel`: `Ball: x=0.31, y=1.32. Goal: x=-0.24, y=-0.40 from the ball. Move:` (goal relative to the ball).
+**Training**
+* SmolVLM-256M-Instruct, full fine-tuning (fp32 master weights), GRPO + DAPO group filter; no KL to the reference.
+* **Sparse success reward only** (1 if the ball reaches the goal, else 0).
+* 64 groups x 16 rollouts per step; groups whose 16 rollouts all got the same reward carry no signal and are resampled
+  (up to 3 rounds, so <= 3072 episodes / step).
+* Rollouts sampled at T=1 by vLLM; an unparseable reply is a no-op (`on_invalid=noop`).
+* One run per A6000 (trainer + vLLM server on the same GPU).
 
-**Training.** SmolVLM-256M-Instruct, full fine-tuning, GRPO with the **sparse success reward only** (1 if the ball
-reaches the goal, else 0). 64 groups x 16 rollouts per step with DAPO filtering (groups where all 16 rollouts got the
-same reward carry no signal and are resampled, up to 3 rounds, so <= 3072 episodes / step). Rollouts are sampled at
-T=1 with vLLM; an unparseable reply is a no-op (`on_invalid=noop`). One run per GPU, trainer and vLLM server on the
-same A6000.
-
-**Eval.** Greedy (T=0) every 5 steps on three fixed sets of 64 episodes each:
+**Eval** (greedy, every 5 steps, 64 episodes per set)
 """ + "\n".join(f"* `{k}`: {v}." for k, v in SETS.items()) + """
-
-`eval/success` is the unweighted mean of the three. One seed per config; a 64-episode set has a standard error of
-about 5 points at 25% success, so differences of a few points are noise.
+* `eval/success` = unweighted mean of the three. SE ~5 points at 25% success; one seed per config.
 """
 
-
+TAKEAWAYS = "scripts/report_notes/smolvlm_procgen_takeaways.md"
 RELATED = "scripts/report_notes/smolvlm_procgen_related.md"
 PROMPT_RESULTS = "scripts/report_notes/prompts_results.md"
-PROMPT_STYLES = {  # style -> (who uses it, where the goal is given)
-    "pear": ("PEAR paper protocol, App. H", "absolute, once in the system prompt (TASK)"),
-    "simple": ("short custom prompt", "absolute, every turn"),
+RELATED_GROUPS = "pointmaze-small-fft-batch-v1,pointmaze-small-fft-batch-v2"
+REPORT_URL = ("https://forge.coreweave.com/wandb/tri/vlm-rl-pointmaze/reports/"
+              "SmolVLM-256M-learns-procedural-mazes-from-sparse-reward--VmlldzoxODMzMDEyNg==")
+
+PROMPT_STYLES = {  # style -> (who it is for, where the goal is given)
+    "pear": ("PEAR paper protocol, App. H; 4B-class models", "absolute, once, in the system prompt's TASK section"),
+    "simple": ("short custom prompt; ~2B models", "absolute, every turn (with position and velocity)"),
     "compact": ("< 1B models", "absolute, every turn"),
     "compact_rel": ("< 1B models", "**relative to the ball**, every turn"),
 }
+OBSERVED = {  # what the models actually wrote (from the run transcripts)
+    "pear": "small models fail the format: Qwen3-VL-2B echoes the state JSON; SmolVLM-256M / MiniCPM-V ~100% invalid",
+    "simple": "~2B models learn the tag in 5-10 steps; SmolVLM-256M stays ~100% invalid (prose, no tag)",
+    "compact": "after training, `x=2.24, y=-4.10. Move right.` every turn: the goal's absolute position, whatever "
+               "the ball's position",
+    "compact_rel": "after training, `Goal: x=-1.78, y=-2.98 from the ball.` -> `x=-1.78, y=-2.98.`: the "
+                   "straight-line move; lr=3e-5 later degenerated to `X=+ Haguepite facequeenue...`",
+}
 
 
-def prompt_table() -> str:
-    """'What the model reads' for every prompt style, rendered from the code on one fixed procedural-maze state, so
-    the report always shows the prompts the runs actually used."""
+def prompt_md() -> str:
+    """Every prompt style as the model reads it, rendered from the code on one fixed procedural-maze state (first
+    turn), so the report always shows the prompts the runs actually used."""
     import re
     import sys
 
     import numpy as np
     sys.path.insert(0, ".")
     from vlmrl.envs.pointmaze import make_pointmaze
-    rows = ["| prompt | system prompt | each turn the model reads | it replies | goal given as |",
-            "|---|---|---|---|---|"]
+
+    def code(t):
+        return f"`` {t} ``" if "`" in t else f"`{t}`"
+
+    out = ["**What differs between the prompts**",
+           "* **Where the goal is**: `pear` gives the absolute goal once, in the system prompt; `simple` and `compact` "
+           "repeat the absolute goal every turn; `compact_rel` gives it **relative to the ball** every turn.",
+           "* **Length**: `pear` ~1.8k-char structured system prompt; `simple` ~0.9k; `compact` / `compact_rel` "
+           "~0.36k with identical system prompts (only the per-turn line differs).",
+           "* **Reply format**: `pear` a fenced json block with the change of every quantity; `simple` an "
+           "`<action>` tag; `compact` / `compact_rel` bare JSON, parsed leniently (first x and y values anywhere).",
+           "* **Why `compact_rel` works for a 256M model**: copying the numbers it is given is already a good move, "
+           "so RL only has to refine it.",
+           "",
+           "**Each prompt as the model reads it** (same ball, goal and 11x11 maze; first turn; same image in all)"]
+    seen: dict[str, str] = {}
     for style, (who, goal) in PROMPT_STYLES.items():
         b = make_pointmaze(maze="gen11x11", train_mazes=1, max_delta=3.0, min_goal_dist=3.0, prompt_style=style,
                            image_size=16)
@@ -77,34 +102,36 @@ def prompt_table() -> str:
         env.close()
         sp = b.interface.system_prompt(s)
         heads = re.findall(r"^## (\w[\w ]*)$", sp, flags=re.M)
-        first = sp.split(". ")[0].split("\n")[0] + "."
-        desc = f"{len(sp):,} chars; " + (f"sections {' / '.join(heads)}" if heads else f"\"{first}\"")
         parts = b.interface.observation_message(obs, 0, None, False)
-        text = " ".join(c["text"] for c in parts if c["type"] == "text").replace("\n", " ")
-        order = " + ".join("image" if c["type"] == "image" else "text" for c in parts)
+        turn = " + ".join("[image]" if c["type"] == "image" else code(c["text"].replace("\n", " ")) for c in parts)
         reply = b.interface.format_action(np.array([0.5, -1.0])).replace("\n", " ")
-        code = (lambda t: f"`` {t} ``" if "`" in t else f"`{t}`")
-        if style == "pear":
-            goal += f": {code(b.interface.instruction(s))}"
-        rows.append(f"| `{style}` ({who}) | {desc} | {order}: {code(text)} | {code(reply)} | {goal} |")
-    return "\n".join(rows)
+        same = [k for k, v in seen.items() if v == sp]
+        seen[style] = sp
+        if same:
+            system = f"identical to `{same[0]}`'s"
+        elif heads:
+            system = f"{len(sp):,} chars, sections {' / '.join(heads)}; goal: {code(b.interface.instruction(s))}"
+        else:
+            system = f"{len(sp):,} chars: " + code(sp.replace("\n", " ") if len(sp) < 500 else sp.split("\n")[0])
+        out += [f"* **`{style}`** ({who}); goal given {goal}",
+                f"  * system prompt: {system}",
+                f"  * each turn: {turn}",
+                f"  * expected reply: {code(reply)}",
+                f"  * observed: {OBSERVED[style]}"]
+    return "\n".join(out)
 
 
 def prompt_blocks(a, wr) -> list:
-    import os
     if not a.prompts:
         return []
-    md = ("Same ball, goal and maze for every style (procedural 11x11 layout, first turn). The image is the same "
-          "top-down render in all of them.\n\n" + prompt_table())
+    md = prompt_md()
     if os.path.exists(PROMPT_RESULTS):
         md += "\n\n" + open(PROMPT_RESULTS).read()
-    return [wr.H1("Prompt styles at a glance"), wr.MarkdownBlock(md)]
-RELATED_GROUPS = "pointmaze-small-fft-batch-v1,pointmaze-small-fft-batch-v2"
+    return [wr.H1("Prompts compared"), wr.MarkdownBlock(md)]
 
 
 def related_blocks(a, wr) -> list:
-    """Companion experiments (other models, fixed mazes) with their own live panels, after the takeaways."""
-    import os
+    """Companion experiments (other models, fixed mazes) with their own live panels, after the prompts."""
     if not a.related or not os.path.exists(a.related):
         return []
     groups = [g for g in a.related_groups.split(",") if g]
@@ -121,6 +148,11 @@ def related_blocks(a, wr) -> list:
                      + [wr.BarPlot(title="Latest eval success", metrics=["eval/success"], orientation="h",
                                    max_runs_to_show=30)]),
     ]
+
+
+def bullets(*items) -> "object":
+    import wandb_workspaces.reports.v2 as wr
+    return wr.MarkdownBlock("\n".join(f"* {x}" for x in items))
 
 
 def build(a) -> str:
@@ -156,49 +188,54 @@ def build(a) -> str:
     blocks = [
         wr.TableOfContents(),
         wr.H1("Takeaways"),
-        wr.MarkdownBlock(f"_Written {stamp}; the panels below are live and may have moved on since._\n\n" + takeaways),
+        wr.MarkdownBlock(f"_Text written {stamp}; the panels below are live and may have moved on since._\n\n"
+                         + takeaways),
         *prompt_blocks(a, wr),
         *related_blocks(a, wr),
         wr.H1("Headline: greedy eval success"),
-        wr.P("Mean over the three eval sets. Each line is one run; the run name gives the prompt and learning rate "
-             "(the two runs named only lr=... use the compact prompt and were stopped early)."),
+        bullets("One line per run; run names give prompt and lr (runs named only `lr=...` use `compact`).",
+                "Eval = greedy, mean of 3 sets; rollout = T=1 training episodes."),
         grid(lines(["eval/success", "rollout/success"],
                    ["Eval success (greedy, mean of 3 sets)", "Training rollout success (T=1)"])),
-        wr.H1("Prompt: absolute vs relative goal"),
-        wr.P("Runs grouped by prompt (line = mean over learning rates, band = min/max). With the absolute goal "
-             "(compact) the policy collapsed to echoing the goal's coordinates as its move; with the goal relative "
-             "to the ball (compact_rel) the same echo is the straight-line move."),
-        grid(lines(["eval/success", "rollout/success", "rollout/invalid_frac"],
-                   ["Eval success by prompt", "Rollout success by prompt", "Invalid replies by prompt"],
+        wr.H1("By prompt: absolute vs relative goal"),
+        bullets("Runs grouped by `env_kwargs.prompt_style`: line = mean over runs, band = min/max.",
+                "`compact` echoes the absolute goal: eval stays < 7%. `compact_rel`: the echo is the straight-line "
+                "move, ~20-25% (the band's floor late on is the degenerated lr=3e-5 run)."),
+        grid(lines(["eval/success", "rollout/success", "rollout/invalid_frac", "train/mean_logp"],
+                   ["Eval success by prompt", "Rollout success by prompt", "Invalid replies by prompt",
+                    "Mean log-prob of sampled tokens by prompt"],
                    groupby_aggfunc="mean", groupby_rangefunc="minmax"), by_prompt),
         wr.H1("Generalization: in vs out of distribution"),
-        wr.P("Greedy success on each eval set. A model that memorized the training layouts would do much better on "
-             "id_layouts than on the held-out sets; similar curves mean the skill transfers to unseen mazes."),
+        bullets("Memorizing the training layouts would show as `id_layouts` >> the held-out sets.",
+                "Similar curves = the skill transfers to unseen (and larger) mazes."),
         grid(lines(set_keys, [f"{s}: {d}" for s, d in SETS.items()])
              + [wr.BarPlot(title="Latest eval success per set", metrics=set_keys, orientation="h",
                            max_runs_to_show=20)]),
         wr.H1("Learning dynamics"),
-        wr.P("groups_kept = groups out of 64 whose 16 rollouts had mixed outcomes (the only ones with a GRPO "
-             "signal; few means the task is too hard or already solved). grad_norm spikes and falling mean_logp "
-             "mark unstable updates (compact_rel at lr=3e-5 had one at step 5 and recovered)."),
+        bullets("`groups_kept`: groups (of 64) with mixed outcomes, the only ones with a GRPO signal.",
+                "`mean_logp` falling steadily = sampling ever-less-likely tokens; it preceded the lr=3e-5 collapse "
+                "(-2.3 -> -8.3) and is the early warning to watch.",
+                "`grad_norm` spikes = unstable updates (gradients are clipped at 1.0)."),
         grid(lines(["rollout/groups_kept", "train/grad_norm", "train/mean_logp", "rollout/invalid_frac"])),
         wr.H1("Behaviour"),
-        wr.P("Turns per episode (lower = faster solves; 20 = timed out), how episodes end, and reply length. "
-             "A policy stuck against a wall repeats the same move until max_turns."),
+        bullets("Turns per episode: lower = faster solves; 20 (30 on `ood_larger`) = timed out.",
+                "A policy stuck against a wall repeats the same move until max_turns.",
+                "Reply length jumps when replies degenerate into free text."),
         grid(lines(["eval/turns", "rollout/turns", "rollout/end_success", "rollout/end_max_turns",
                     "rollout/resp_chars"])),
         wr.H1("Episodes: videos, transcripts and sampled actions"),
-        wr.P("What the models actually do. For each split: the logged episode video (top-down frames, use the step "
-             "slider; the caption gives success / turns / end reason) next to its transcript (exact prompts and "
-             "replies), then the samples table with one row per logged episode (success, turns, reply length, "
-             "transcript, video) across all runs and steps. Training episodes are sampled at T=1; eval episodes "
-             "are greedy. The compact runs' transcripts show the goal-echo collapse (the same reply every turn); "
-             "compact_rel replies copy the relative offset."),
+        bullets("Per split: episode video (step slider; caption = success / turns / end reason) next to its "
+                "transcript (exact prompts and replies).",
+                "Below each: the samples table, one row per logged episode (4 per eval) across runs and steps; sort "
+                "by success to compare wins and failures.",
+                "Train = T=1 samples, eval = greedy. Look for: `compact` repeating the goal's absolute coordinates; "
+                "`compact_rel` copying the offset; lr=3e-5 gibberish from step 17."),
         *[blk for name, title in [("train", "Training rollouts (T=1)")] + [(f"eval/{s}", f"Eval {s}: {d}")
                                                                       for s, d in SETS.items()]
           for blk in episode_blocks(name, title)],
         wr.H1("Cost"),
-        wr.P("Seconds per step for rollouts (incl. DAPO resampling) and the update, and sequences trained per step."),
+        bullets("Seconds per step for rollouts (incl. DAPO resampling) and the update; sequences trained and "
+                "resampling rounds per step."),
         grid(lines(["time/rollout", "time/train", "train/sequences", "rollout/rounds"])),
         wr.H1("Setup"),
         wr.MarkdownBlock(SETUP),
@@ -223,11 +260,11 @@ def main():
     ap.add_argument("--entity", default="tri")
     ap.add_argument("--project", default="vlm-rl-pointmaze")
     ap.add_argument("--title", default="SmolVLM-256M learns procedural mazes from sparse reward")
-    ap.add_argument("--takeaways", default=None, help="markdown file for the takeaways section")
-    ap.add_argument("--url", default=None, help="update this existing report in place instead of creating one")
+    ap.add_argument("--takeaways", default=TAKEAWAYS, help="markdown file for the takeaways section")
+    ap.add_argument("--url", default=REPORT_URL, help="report to update in place ('' = create a new one)")
     ap.add_argument("--draft", action="store_true", help="save as an unpublished draft")
     ap.add_argument("--related", default=RELATED, help="markdown for the related-runs section ('' = omit)")
-    ap.add_argument("--no_prompts", dest="prompts", action="store_false", help="omit the prompt-styles section")
+    ap.add_argument("--no_prompts", dest="prompts", action="store_false", help="omit the prompts section")
     ap.add_argument("--related_groups", default=RELATED_GROUPS, help="comma-separated wandb groups for its panels")
     print(build(ap.parse_args()))
 
