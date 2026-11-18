@@ -61,8 +61,9 @@ Settings (`configs/sweeps/smolvlm_procgen_gpu{0,1}.yaml`, one per GPU, lr 1e-5 /
 
 - full fine-tuning (`policy=smolvlm256m`), vLLM rollouts with full-weight sync; the trainer and its server
   share one GPU (`train_gpu == vllm_gpu`, `vllm_gpu_util: 0.35`), so each GPU runs its own sweep;
-- vLLM `--api-server-count 4 --max-num-seqs 1024`: every rollout turn sends new images, and a single API
-  server process is CPU-bound on image preprocessing (39 → 130 replies/s for 1024 fresh-image requests);
+- vLLM `--api-server-count 4 --max-num-seqs 1024 --mm-processor-cache-gb 0`: every rollout turn sends new images, and a single API
+  server process is CPU-bound on image preprocessing (39 → 130 replies/s for 1024 fresh-image requests); the
+  per-process multimodal cache never hits (images never repeat) and cost ~59 GB RAM across 8 API processes;
 - `max_new_tokens=64` (a move is ~15 tokens), `micro_batch_size=64`, 60 steps, eval every 5 steps.
 
 A step (up to 3072 episodes, ~5–9k per-turn samples) takes ~9–11 min, with ~25 GB peak trainer RAM.
