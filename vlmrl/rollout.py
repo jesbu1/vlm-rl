@@ -1,6 +1,7 @@
 """Batched multi-turn rollouts and conversion of trajectories into training samples."""
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Callable, Sequence
 
 import numpy as np
@@ -39,6 +40,16 @@ def context_view(messages: list[dict], max_images: int | None, max_frames: int |
     return out
 
 
+@dataclass
+class RolloutTask:
+    """One batch of episodes on one env: its own dynamics, prompt interface and turn limit."""
+    env: VecEnv
+    interface: TextInterface
+    start_states: Sequence[dict]
+    group_ids: Sequence[int]
+    max_turns: int
+
+
 def rollout(generate: Generate, env: VecEnv, interface: TextInterface, start_states: Sequence[dict],
             group_ids: Sequence[int], max_turns: int, max_images: int | None = None,
             on_invalid: str = "terminate", max_context_tokens: int | None = None,
@@ -54,52 +65,68 @@ def rollout(generate: Generate, env: VecEnv, interface: TextInterface, start_sta
     ``last_tokens()`` returns the context length (prompt + reply tokens) of each item of the most
     recent ``generate`` call; it is needed only for ``max_context_tokens``.
     """
+    return rollout_pooled(generate, [RolloutTask(env, interface, start_states, group_ids, max_turns)],
+                          max_images, on_invalid, max_context_tokens, last_tokens, max_frames)[0]
+
+
+def rollout_pooled(generate: Generate, tasks: Sequence[RolloutTask], max_images: int | None = None,
+                   on_invalid: str = "terminate", max_context_tokens: int | None = None,
+                   last_tokens: Callable[[], list[int]] | None = None,
+                   max_frames: int | None = None) -> list[list[Trajectory]]:
+    """``rollout`` over several tasks at once (e.g. eval sets on different mazes): each round, the
+    unfinished episodes of *all* tasks share one ``generate`` call, then every task steps its own env on
+    its active slots. Returns one trajectory list per task, in task order."""
     assert on_invalid in ("terminate", "noop")
-    obs = env.reset(start_states)
-    trajs = []
-    for k, s in enumerate(start_states):
-        msgs = [{"role": "system", "content": [{"type": "text", "text": interface.system_prompt(s)}]},
-                {"role": "user", "content": interface.observation_message(obs[k], 0, None, False)}]
-        trajs.append(Trajectory(group_id=group_ids[k], start_state=s, messages=msgs))
-    active = list(range(len(trajs)))
-    for t in range(max_turns):
+    obs, trajs = [], []
+    for task in tasks:
+        o = task.env.reset(task.start_states)
+        obs.append(o)
+        trajs.append([Trajectory(group_id=task.group_ids[k], start_state=s, messages=[
+            {"role": "system", "content": [{"type": "text", "text": task.interface.system_prompt(s)}]},
+            {"role": "user", "content": task.interface.observation_message(o[k], 0, None, False)}])
+            for k, s in enumerate(task.start_states)])
+    active = [(i, k) for i, tr in enumerate(trajs) for k in range(len(tr))]  # (task, slot)
+    for t in range(max((task.max_turns for task in tasks), default=0)):
         if not active:
             break
-        texts = generate([context_view(trajs[k].messages, max_images, max_frames) for k in active])
+        texts = generate([context_view(trajs[i][k].messages, max_images, max_frames) for i, k in active])
         ntok = last_tokens() if (max_context_tokens and last_tokens) else [0] * len(active)
-        parsed = [interface.parse_action(x) for x in texts]
-        stepping = [j for j, a in enumerate(parsed) if a is not None or on_invalid == "noop"]
-        results = env.step([active[j] for j in stepping],
-                           [parsed[j] if parsed[j] is not None else interface.noop_action() for j in stepping]
-                           ) if stepping else []
-        res_of = dict(zip(stepping, results))
+        parsed = [tasks[i].interface.parse_action(x) for (i, _), x in zip(active, texts)]
+        res_of = {}
+        for i, task in enumerate(tasks):
+            stepping = [j for j, (ti, _) in enumerate(active) if ti == i and (parsed[j] is not None or on_invalid == "noop")]
+            if stepping:
+                results = task.env.step([active[j][1] for j in stepping],
+                                        [parsed[j] if parsed[j] is not None else task.interface.noop_action()
+                                         for j in stepping])
+                res_of.update(zip(stepping, results))
         still = []
-        for j, (k, text, a) in enumerate(zip(active, texts, parsed)):
-            tr = trajs[k]
+        for j, ((i, k), text, a) in enumerate(zip(active, texts, parsed)):
+            tr = trajs[i][k]
             tr.messages.append({"role": "assistant", "content": [{"type": "text", "text": text}]})
             if j not in res_of:                      # invalid action -> episode over (PEAR)
                 # state is unchanged: carry the latest step info + scalar obs extras (e.g. "dist")
                 info = dict(tr.turns[-1].result.info) if tr.turns else {}
-                info.update({key: v for key, v in obs[k].extras.items() if np.isscalar(v)})
+                info.update({key: v for key, v in obs[i][k].extras.items() if np.isscalar(v)})
                 info.update(success=False, invalid=True)
-                tr.turns.append(Turn(obs=obs[k], response=text, action=None,
-                                     result=StepResult(obs=obs[k], terminated=True, info=info)))
+                tr.turns.append(Turn(obs=obs[i][k], response=text, action=None,
+                                     result=StepResult(obs=obs[i][k], terminated=True, info=info)))
                 tr.done, tr.end_reason = True, "invalid"
                 continue
             res = res_of[j]
-            tr.turns.append(Turn(obs=obs[k], response=text, action=a, result=res))
-            obs[k] = res.obs
+            tr.turns.append(Turn(obs=obs[i][k], response=text, action=a, result=res))
+            obs[i][k] = res.obs
             if res.terminated or res.truncated:
                 tr.done = True
                 tr.end_reason = "success" if res.info.get("success") else ("terminated" if res.terminated else "truncated")
-            elif t == max_turns - 1:
+            elif t == tasks[i].max_turns - 1:
                 tr.done, tr.end_reason = True, "max_turns"
             elif max_context_tokens and ntok[j] >= max_context_tokens:
                 tr.done, tr.end_reason = True, "context"
             else:
-                tr.messages.append({"role": "user", "content": interface.observation_message(
+                tr.messages.append({"role": "user", "content": tasks[i].interface.observation_message(
                     res.obs, t + 1, res, parse_error=a is None)})
-                still.append(k)
+                still.append((i, k))
         active = still
     return trajs
 

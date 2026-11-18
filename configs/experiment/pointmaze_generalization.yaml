@@ -1,0 +1,14 @@
+# @package _global_
+# Generalization eval on top of the verified vLLM setup: train on UMaze with 25% of the goal cells held out,
+# then evaluate in distribution (new episodes, goal cells seen in training) and out of distribution (held-out
+# goal cells; the unseen medium layout). All three sets run pooled in one batched rollout; each logs
+# eval/<name>/{success,turns,invalid_frac,end_*} + videos, and eval/success is the mean over the sets.
+defaults:
+  - pointmaze_q3vl4b_vllm
+env_kwargs:
+  split: goal
+eval_sets:
+  id: {eval_split: train}
+  ood_goals: {eval_split: heldout}
+  ood_medium: {maze: medium, eval_split: all, max_turns: 20}
+out_dir: runs/pointmaze_generalization

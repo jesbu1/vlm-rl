@@ -11,4 +11,8 @@ env_kwargs:
   start_states: random     # random | Minari id (e.g. D4RL/pointmaze/umaze-v2) | path.npz
   eval_start_states: random
   min_goal_dist: 1.5
+  split: none              # train/eval split of random starts: none | pair (hold out start-goal cell pairs) | goal (hold out goal cells)
+  holdout_frac: 0.25       # fraction of pairs (split=pair) or goal cells (split=goal) held out of training
+  split_seed: 0
+  eval_split: heldout      # part the eval sampler draws from when split != none: heldout | train | all
 reward: success

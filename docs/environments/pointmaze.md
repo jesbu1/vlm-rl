@@ -57,6 +57,10 @@ order to train a WAM on Minari data. `Obs.extras` carries `goal` and `dist`.
 | `start_states` | `random` | `random`, a Minari id, or a `.npz` path |
 | `eval_start_states` | `random` | same, for the fixed eval set |
 | `min_goal_dist` | 1.5 | minimum start–goal distance |
+| `split` | `none` | train / held-out split of random starts: `none`, `pair`, `goal` (below) |
+| `holdout_frac` | 0.25 | fraction of start–goal cell pairs (`pair`) or goal cells (`goal`) held out of training |
+| `split_seed` | 0 | which pairs / goal cells are held out |
+| `eval_split` | `heldout` | part the eval sampler draws from when `split` ≠ `none`: `heldout`, `train`, `all` |
 
 ## Start states
 
@@ -65,6 +69,50 @@ order to train a WAM on Minari data. `Obs.extras` carries `goal` and `dist`.
   real velocities and the dataset's goal. `episode` and `t` are kept in the state dict so a WAM can
   look up the matching reference frames. Verified against the real UMaze dataset (13,210 episodes, 1M steps).
 - **`path/to/file.npz`** with arrays `qpos [N,2]`, `qvel [N,2]`, `goal [N,2]`. Extra arrays pass through.
+
+## Train / held-out split
+
+By default, training and eval draw random starts from the same distribution: eval episodes are new
+samples, but any start–goal combination can also show up in training. `split` partitions the
+(start cell, goal cell) pairs (`vlmrl/envs/pointmaze.py::split_pairs`, deterministic given `split_seed`):
+
+- **`pair`** holds out `holdout_frac` of the pairs. Every cell appears in training, but some
+  start–goal combinations never do.
+- **`goal`** holds out `holdout_frac` of the goal cells. Training never asks the ball to reach them.
+
+The train sampler draws only from the train part. The eval sampler draws from `eval_split`. Position
+noise stays inside the cell, so a held-out pair is never produced by the train part. Sizes at
+`min_goal_dist=1.5`, `holdout_frac=0.25`:
+
+| maze | `pair`: train / held-out pairs | `goal`: train / held-out pairs |
+|---|---|---|
+| umaze | 20 / 6 | 17 / 9 (2 of 7 goal cells) |
+| medium | 411 / 137 | 424 / 124 |
+| large | 1442 / 480 | 1420 / 502 |
+
+## Eval sets (in and out of distribution)
+
+`eval_sets` names several eval environments. Each one is a set of `env_kwargs` overrides plus an optional
+`episodes` count (default `eval_episodes`), for example `experiment=pointmaze_generalization`:
+
+```yaml
+env_kwargs: {maze: umaze, split: goal}           # training: UMaze, 2 of 7 goal cells held out
+eval_sets:
+  id:         {eval_split: train}                # in distribution: new episodes, goal cells seen in training
+  ood_goals:  {eval_split: heldout}              # held-out goal cells
+  ood_medium: {maze: medium, eval_split: all, max_turns: 20}   # unseen layout
+```
+
+From the command line: `+eval_sets.ood_medium.maze=medium +eval_sets.ood_medium.eval_split=all`.
+
+- Each set gets its own env, prompt and fixed start states, drawn once from its eval sampler.
+- **Pooled:** all sets run in one rollout loop (`vlmrl/rollout.py::rollout_pooled`). Each round, the
+  unfinished episodes of every set go into a single generation call, so vLLM batches across sets. Each set
+  then steps its own env, which is batched over that set's active episodes.
+- **Logging:** `eval/<name>/{success,turns,invalid_frac,end_*}` per set, and `eval/success` etc. as the
+  unweighted mean over sets (overall success = mean of the per-set success rates). Media per set:
+  `eval/<name>/episode` (video), `eval/<name>/transcript`, `eval/<name>/samples`.
+- Without `eval_sets`, there is one eval set built from `env_kwargs`, logged as `eval/*` as before.
 
 ## Oracle and difficulty
 

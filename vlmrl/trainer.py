@@ -24,7 +24,7 @@ from vlmrl import algo
 from vlmrl.envs.base import EnvBundle
 from vlmrl.policy import HFPolicy
 from vlmrl.rewards import build_reward
-from vlmrl.rollout import rollout, to_samples
+from vlmrl.rollout import RolloutTask, rollout, rollout_pooled, to_samples
 
 
 @dataclass
@@ -77,6 +77,10 @@ class TrainConfig:
     eval_every: int = 10
     eval_episodes: int = 32
     eval_temperature: float = 0.0
+    # named eval environments: {name: {env_kwargs overrides..., "episodes": n}}, e.g.
+    # {"id": {"eval_split": "train"}, "ood_goals": {"eval_split": "heldout"}, "ood_medium": {"maze": "medium"}}.
+    # Empty = one eval set from env_kwargs (logged as eval/*). All sets run pooled in one rollout.
+    eval_sets: dict = field(default_factory=dict)
     save_every: int = 50
     resume: bool = True                                 # continue from out_dir/resume/state.pt if it exists
     resume_every: int = 1                               # steps between resume checkpoints (0 = off)
@@ -162,6 +166,7 @@ class Trainer:
         self.opt = torch.optim.AdamW(params, lr=cfg.lr, weight_decay=cfg.weight_decay, betas=(0.9, 0.999))
         self.params = params
         self.eval_starts = self.bundle.eval_sampler.sample(cfg.eval_episodes, np.random.default_rng(10_000 + cfg.seed))
+        self.eval_sets = self.build_eval_sets()
         self.start_step, pending = self.load_resume() if cfg.resume else (0, None)
         if cfg.rollout_backend == "vllm":
             from vlmrl.vllm_client import VLLMServerGenerator
@@ -188,6 +193,22 @@ class Trainer:
     def _gen(self, temperature):
         c = self.cfg
         return lambda convs: self.generator.generate(convs, c.max_new_tokens, temperature, c.top_p, c.gen_batch_size)
+
+    def build_eval_sets(self):
+        """-> [{"name": log prefix, "bundle", "env", "starts"}]. Without ``eval_sets`` the single set reuses
+        the training bundle (prefix "eval"); named sets get their own bundle / env (prefix "eval/<name>")
+        and a fixed set of start states drawn once from their eval sampler."""
+        c = self.cfg
+        if not c.eval_sets:
+            return [{"name": "eval", "bundle": self.bundle, "env": self.env, "starts": self.eval_starts}]
+        sets = []
+        for name, spec in c.eval_sets.items():
+            spec = dict(spec or {})
+            n = int(spec.pop("episodes", c.eval_episodes))
+            b = make_env_bundle(c.env, {**c.env_kwargs, **spec})
+            sets.append({"name": f"eval/{name}", "bundle": b, "env": b.make_vec_env(),
+                         "starts": b.eval_sampler.sample(n, np.random.default_rng(10_000 + c.seed))})
+        return sets
 
     def collect(self):
         c, kept, all_trajs, rounds = self.cfg, [], [], 0
@@ -266,13 +287,33 @@ class Trainer:
                    if c.policy_loss == "ppo_clip" else {})}
 
     # ------------------------------------------------------------------ eval / logging
+    @staticmethod
+    def eval_metrics(trajs, prefix):
+        return {f"{prefix}/success": float(np.mean([t.success for t in trajs])),
+                f"{prefix}/turns": float(np.mean([len(t.turns) for t in trajs])),
+                f"{prefix}/invalid_frac": float(np.mean([t.num_invalid / max(1, len(t.turns)) for t in trajs])),
+                **end_reason_fracs(trajs, prefix)}
+
     @torch.no_grad()
     def evaluate(self):
-        trajs = self._rollout(self.cfg.eval_temperature, self.eval_starts, list(range(len(self.eval_starts))))
-        return {"eval/success": float(np.mean([t.success for t in trajs])),
-                "eval/turns": float(np.mean([len(t.turns) for t in trajs])),
-                "eval/invalid_frac": float(np.mean([t.num_invalid / max(1, len(t.turns)) for t in trajs])),
-                **end_reason_fracs(trajs, "eval")}, trajs
+        """Greedy episodes on every eval set, pooled: all sets share each round's generation batch.
+        Returns (metrics, {log prefix: trajectories}). With named sets, each gets ``eval/<name>/*`` and
+        ``eval/*`` is the unweighted mean over sets (overall success = mean of the per-set rates)."""
+        c = self.cfg
+        tasks = [RolloutTask(s["env"], s["bundle"].interface, s["starts"], list(range(len(s["starts"]))),
+                             s["bundle"].max_turns) for s in self.eval_sets]
+        out = rollout_pooled(self._gen(c.eval_temperature), tasks, c.max_images, on_invalid=c.on_invalid,
+                             max_context_tokens=c.max_context_tokens,
+                             last_tokens=lambda: getattr(self.generator, "last_num_tokens", []),
+                             max_frames=c.max_frames)
+        by_set = {s["name"]: trajs for s, trajs in zip(self.eval_sets, out)}
+        m = {}
+        for name, trajs in by_set.items():
+            m.update(self.eval_metrics(trajs, name))
+        if self.cfg.eval_sets:
+            per = [self.eval_metrics(trajs, "eval") for trajs in by_set.values()]
+            m.update({k: float(np.mean([p[k] for p in per])) for k in per[0]})
+        return m, by_set
 
     def _rollout(self, temperature, starts, gids):
         c = self.cfg
@@ -298,7 +339,8 @@ class Trainer:
     def log_episodes(self, split, step, trajs):
         """Dump up to `samples_per_log` episodes (full reasoning chains + videos) to out_dir/episodes and
         wandb: `{split}/transcript` + `{split}/episode` for the first, and one row per episode in the
-        incremental `{split}/samples` table (filterable across steps). Train picks a success/failure mix;
+        incremental `{split}/samples` table (filterable across steps); `split` is "train", "eval" or
+        "eval/<set name>". Train picks a success/failure mix;
         eval uses the first fixed eval start states, so the same mazes can be compared across steps."""
         n = self.cfg.samples_per_log
         if split == "train":
@@ -307,7 +349,7 @@ class Trainer:
             picked += losses[:n - len(picked)]
             trajs = picked + wins[n // 2:][:n - len(picked)]  # top up with more wins if few failures
         trajs = trajs[:n]
-        dumped = [self.dump_episode(tr, f"{split}_step{step}" + (f"_{i}" if i else ""), step)
+        dumped = [self.dump_episode(tr, f"{split.replace('/', '_')}_step{step}" + (f"_{i}" if i else ""), step)
                   for i, tr in enumerate(trajs)]
         if not self.wandb or not trajs:
             return
@@ -396,9 +438,10 @@ class Trainer:
     def train(self):
         c = self.cfg
         if c.eval_every and self.start_step == 0:
-            m, trajs = self.evaluate()
+            m, by_set = self.evaluate()
             self.log(0, m)
-            self.log_episodes("eval", 0, trajs)
+            for name, trajs in by_set.items():
+                self.log_episodes(name, 0, trajs)
         for step in range(self.start_step + 1, c.steps + 1):
             t0 = time.time()
             groups, all_trajs, rounds = self.collect()
@@ -422,14 +465,18 @@ class Trainer:
             if c.log_samples_every and step % c.log_samples_every == 0:
                 self.log_episodes("train", step, all_trajs)
             if c.eval_every and step % c.eval_every == 0:
-                em, trajs = self.evaluate()
+                em, by_set = self.evaluate()
                 m.update(em)
-                self.log_episodes("eval", step, trajs)
+                for name, trajs in by_set.items():
+                    self.log_episodes(name, step, trajs)
             if c.resume_every and (step % c.resume_every == 0 or step == c.steps):
                 self.save_resume(step, m)
             self.log(step, m)
             if c.save_every and step % c.save_every == 0:
                 self.policy.save(f"{c.out_dir}/ckpt_step{step}")
         self.env.close()
+        for s in self.eval_sets:
+            if s["env"] is not self.env:
+                s["env"].close()
         if self.wandb:
             self.wandb.finish()

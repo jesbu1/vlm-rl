@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 
 import numpy as np
 import wandb
@@ -19,6 +20,11 @@ import wandb
 SUCCESS = ["eval/success", "rollout/success"]
 DYNAMICS = ["rollout/turns", "eval/turns", "rollout/invalid_frac", "rollout/groups_kept"]
 TIMING = ["time/rollout", "time/train"]
+
+
+def eval_set_names(run) -> list[str]:
+    """Named eval sets (TrainConfig.eval_sets) a run logged, from its `eval/<name>/success` keys."""
+    return sorted({m.group(1) for k in run.summary.keys() if (m := re.fullmatch(r"eval/([^/]+)/success", k))})
 
 
 def short(model: str) -> str:
@@ -31,10 +37,18 @@ def run_rows(api, entity, project, group):
     for r in api.runs(f"{entity}/{project}", filters={"group": group}):
         h = list(r.scan_history(keys=["_step", "eval/success"]))
         ev = sorted((x["_step"], x["eval/success"]) for x in h if x.get("eval/success") is not None)
-        tr = sorted(r.scan_history(keys=["_step", "rollout/success", "time/rollout", "time/train"]),
-                    key=lambda x: x["_step"])
+        tr = sorted((x for x in r.scan_history(keys=["_step", "rollout/success", "time/rollout", "time/train"])
+                     if None not in (x.get("rollout/success"), x.get("time/rollout"), x.get("time/train"))),
+                    key=lambda x: x["_step"])  # eval-only rows (e.g. step 0) have no rollout/timing values
         tail = [x["rollout/success"] for x in tr[-5:]]
+        sets = eval_set_names(r)
+        per_set = {}
+        for s in sets:
+            hs = sorted((x["_step"], x[f"eval/{s}/success"]) for x in r.scan_history(keys=["_step", f"eval/{s}/success"])
+                        if x.get(f"eval/{s}/success") is not None)
+            per_set[s] = hs[-1][1] if hs else None
         rows.append({
+            "eval_sets": per_set,
             "name": r.name, "url": r.url, "state": r.state, "model": short(r.config.get("model", "?")),
             "reward": r.config.get("reward", "?"), "steps": max([x["_step"] for x in tr], default=0),
             "planned": r.config.get("steps"),
@@ -53,13 +67,16 @@ def fmt(v, p=3):
 
 
 def summary_markdown(rows) -> str:
+    sets = sorted({s for x in rows for s in x.get("eval_sets", {})})
     lines = ["| model | reward | state | steps | eval success @0 | final eval success (step) | best eval | "
-             "rollout success (last 5 steps) | min/step |", "|" + "---|" * 9]
+             + "".join(f"final `{s}` | " for s in sets) + "rollout success (last 5 steps) | min/step |",
+             "|" + "---|" * (9 + len(sets))]
     for x in rows:
         delta = "" if x["eval0"] is None or x["eval_last"] is None else f" ({x['eval_last'] - x['eval0']:+.3f})"
         lines.append(f"| {x['model']} | `{x['reward']}` | [{x['state']}]({x['url']}) | {x['steps']}/{x['planned']} | "
                      f"{fmt(x['eval0'])} | {fmt(x['eval_last'])}{delta} @{x['eval_last_step']} | "
-                     f"{fmt(x['eval_best'])} | {fmt(x['rollout_tail'])} | {fmt(x['min_per_step'], 1)} |")
+                     f"{fmt(x['eval_best'])} | " + "".join(f"{fmt(x.get('eval_sets', {}).get(s))} | " for s in sets)
+                     + f"{fmt(x['rollout_tail'])} | {fmt(x['min_per_step'], 1)} |")
     return "\n".join(lines)
 
 
@@ -83,6 +100,12 @@ def build_report(a, rows, cfg):
              f"every {cfg.get('eval_every')} steps. One seed per config, so differences of a few points are "
              f"within noise (a 32-episode eval has SE ≈ 0.08 at p=0.5).")
     takeaways = open(a.takeaways).read() if a.takeaways else "_(to be written)_"
+    sets = sorted({s for x in rows for s in x.get("eval_sets", {})})
+    set_blocks = [
+        wr.H1("Eval sets (in / out of distribution)"),
+        wr.P("Greedy success on each named eval set (TrainConfig.eval_sets); eval/success above is their mean."),
+        wr.PanelGrid(runsets=[runset("all runs")], panels=plots([f"eval/{s}/success" for s in sets], max_runs_to_show=20)),
+    ] if sets else []
     report = wr.Report(
         entity=a.entity, project=a.project, title=a.title or f"PointMaze VLM-RL: rewards × models ({a.group})",
         description=f"wandb group `{a.group}`: grid over config.model × config.reward.",
@@ -94,6 +117,7 @@ def build_report(a, rows, cfg):
             wr.H1("Final eval success, all runs"),
             wr.MarkdownBlock(summary_markdown(rows)),
             wr.PanelGrid(runsets=[runset("all runs")], panels=plots(["eval/success"], max_runs_to_show=20)),
+            *set_blocks,
             wr.H1("Success grouped by reward"),
             wr.P("Mean over models (shaded: min/max) for each reward spec."),
             wr.PanelGrid(runsets=[runset("by reward", ["config.reward"])],

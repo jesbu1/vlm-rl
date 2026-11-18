@@ -14,7 +14,7 @@ can be grouped and filtered by `config.reward`, `config.model`, `config.env_kwar
 |---|---|
 | `rollout/` | `success`, `score`, `turns`, `invalid_frac`, `resp_chars`, `groups_kept`, `rounds`, `end_{success,invalid,max_turns,context,terminated,truncated}` |
 | `train/` | `loss`, `grad_norm`, `tokens`, `sequences`, `mean_logp`, `clipfrac` (ppo_clip only), `skipped` |
-| `eval/` | `success`, `turns`, `invalid_frac`, `end_*` (greedy by default, `eval_temperature`) |
+| `eval/` | `success`, `turns`, `invalid_frac`, `end_*` (greedy by default, `eval_temperature`). With [`eval_sets`](../environments/pointmaze.md#eval-sets-in-and-out-of-distribution): `eval/<name>/…` per set, and `eval/…` is the mean over sets |
 | `time/` | `rollout`, `train` |
 | media | `train/episode`, `eval/episode` (**MP4 video**, H.264, 2 fps = one frame per round, captioned with success / score / rounds / end reason; upscaled with nearest-neighbour to ≥ `video_min_size` (672) px and encoded at `video_crf` (18) so thin lines and small dots stay sharp; `video_format=gif` and `video_fps` to change) and `train/transcript`, `eval/transcript` (HTML) for one episode, plus incremental tables **`train/samples`, `eval/samples`** with `samples_per_log` (4) episodes per dump: step, success, score, advantage, turns, invalid turns, end reason, mean reply chars, **full reasoning transcript**, video. Every `log_samples_every` / `eval_every` steps |
 
@@ -26,7 +26,8 @@ Reading them:
 - **`rollout/end_context` > 0** means episodes are hitting `max_context_tokens`.
 - **Reading reasoning chains**: open the `eval/samples` table and filter by `episode`. Eval rows come from
   the same fixed start states every time, so one maze's reasoning can be followed across training. Train rows
-  mix successes and failures.
+  mix successes and failures. With `eval_sets`, each set has its own `eval/<name>/samples` table and
+  `eval/<name>/episode` video panel.
 
 ## Reports
 

@@ -368,16 +368,59 @@ def oracle_delta(maze_map, pos, goal, max_delta: float = 1.0) -> np.ndarray:
 
 # ----------------------------------------------------------------------------- start states
 
-class RandomStartSampler:
-    """Random start cell + goal cell (uniform over free cells, with position noise), zero velocity."""
+SPLITS = ("none", "pair", "goal")
 
-    def __init__(self, maze_map, min_dist: float = 1.0, noise: float = 0.25):
+
+def split_pairs(maze_map, min_dist: float = 1.0, split: str = "pair", holdout_frac: float = 0.25,
+                seed: int = 0) -> tuple[list, list]:
+    """Deterministic train / held-out partition of (start cell, goal cell) index pairs over free cells.
+
+    ``split="pair"`` holds out a random ``holdout_frac`` of the pairs (every cell is seen in training, some
+    start-goal combinations are not). ``split="goal"`` holds out a random ``holdout_frac`` of the goal
+    cells: training never asks the ball to reach them. Only pairs whose cell centres are >= ``min_dist``
+    apart are used. Indices refer to ``np.argwhere(~walls)`` order (= ``RandomStartSampler.centres``)."""
+    assert split in ("pair", "goal"), split
+    free = np.argwhere(~_walls(maze_map))
+    h, w = len(maze_map), len(maze_map[0])
+    centres = np.stack([free[:, 1] + 0.5 - w / 2, h / 2 - free[:, 0] - 0.5], 1)
+    pairs = [(a, b) for a in range(len(free)) for b in range(len(free))
+             if a != b and np.linalg.norm(centres[a] - centres[b]) >= min_dist]
+    rng = np.random.default_rng(seed)
+    if split == "pair":
+        perm = rng.permutation(len(pairs))
+        hold = set(perm[:max(1, round(holdout_frac * len(pairs)))].tolist())
+        held = [p for i, p in enumerate(pairs) if i in hold]
+    else:
+        goals = sorted({b for _, b in pairs})
+        hold = set(rng.permutation(goals)[:max(1, round(holdout_frac * len(goals)))].tolist())
+        held = [p for p in pairs if p[1] in hold]
+    train = [p for p in pairs if p not in held]
+    assert train and held, f"split={split} holdout_frac={holdout_frac} leaves an empty part"
+    return train, held
+
+
+class RandomStartSampler:
+    """Random start cell + goal cell (uniform over free cells, with position noise), zero velocity.
+
+    With ``split`` != "none", (start cell, goal cell) pairs are drawn uniformly from one ``part`` of
+    :func:`split_pairs` ("train" | "heldout" | "all"). Position noise stays inside the cell, so a held-out
+    pair is never produced by the train part."""
+
+    def __init__(self, maze_map, min_dist: float = 1.0, noise: float = 0.25, split: str = "none",
+                 part: str = "all", holdout_frac: float = 0.25, split_seed: int = 0):
+        assert split in SPLITS and part in ("train", "heldout", "all"), (split, part)
         free = np.argwhere(~_walls(maze_map))
         h, w = len(maze_map), len(maze_map[0])
         self.centres = np.stack([free[:, 1] + 0.5 - w / 2, h / 2 - free[:, 0] - 0.5], 1)
         self.min_dist, self.noise = min_dist, noise
+        self.pairs = None
+        if split != "none":
+            train, held = split_pairs(maze_map, min_dist, split, holdout_frac, split_seed)
+            self.pairs = {"train": train, "heldout": held, "all": train + held}[part]
 
     def sample(self, n, rng):
+        if self.pairs is not None:
+            return [self._sample_pair(rng) for _ in range(n)]
         out = []
         for _ in range(n):
             while True:
@@ -388,6 +431,17 @@ class RandomStartSampler:
                     break
             out.append({"qpos": p, "qvel": np.zeros(2), "goal": g})
         return out
+
+    def _sample_pair(self, rng):
+        a, b = self.pairs[rng.integers(len(self.pairs))]
+        for _ in range(100):  # centres are >= min_dist apart, so this only re-draws the noise
+            p = self.centres[a] + rng.uniform(-self.noise, self.noise, 2)
+            g = self.centres[b] + rng.uniform(-self.noise, self.noise, 2)
+            if np.linalg.norm(p - g) >= self.min_dist:
+                break
+        else:
+            p, g = self.centres[a].copy(), self.centres[b].copy()
+        return {"qpos": p, "qvel": np.zeros(2), "goal": g}
 
 
 class OfflineStartSampler:
@@ -449,15 +503,23 @@ class PointMazeConfig:
     start_states: str = "random"      # "random" | minari dataset id | path.npz
     eval_start_states: str = "random"
     min_goal_dist: float = 1.5
+    # train / eval split of random starts (see split_pairs): "none" | "pair" | "goal"
+    split: str = "none"
+    holdout_frac: float = 0.25
+    split_seed: int = 0
+    eval_split: str = "heldout"       # part the eval sampler draws from when split != "none": heldout | train | all
 
 
 def make_pointmaze(cfg: PointMazeConfig | None = None, **kw) -> EnvBundle:
     cfg = cfg or PointMazeConfig(**kw)
     maze_map = get_maze_map(cfg.maze)
 
-    def sampler(spec):
+    def sampler(spec, part):
         if spec == "random":
-            return RandomStartSampler(maze_map, min_dist=cfg.min_goal_dist)
+            return RandomStartSampler(maze_map, min_dist=cfg.min_goal_dist, split=cfg.split, part=part,
+                                      holdout_frac=cfg.holdout_frac, split_seed=cfg.split_seed)
+        if cfg.split != "none":
+            raise NotImplementedError("split applies to random start states only")
         return OfflineStartSampler(spec, min_goal_dist=cfg.min_goal_dist)
 
     return EnvBundle(
@@ -466,7 +528,7 @@ def make_pointmaze(cfg: PointMazeConfig | None = None, **kw) -> EnvBundle:
                                                 settle=cfg.settle),
         interface=PointMazeTextInterface(maze_map, cfg.action_mode, cfg.include_state, cfg.max_delta,
                                          cfg.image_size, cfg.prompt_style, cfg.think),
-        train_sampler=sampler(cfg.start_states),
-        eval_sampler=sampler(cfg.eval_start_states),
+        train_sampler=sampler(cfg.start_states, "train"),
+        eval_sampler=sampler(cfg.eval_start_states, cfg.eval_split),
         max_turns=cfg.max_turns,
     )

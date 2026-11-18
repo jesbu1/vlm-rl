@@ -158,7 +158,7 @@ def test_hydra_type_checking():
 
 
 @pytest.mark.parametrize("exp", ["pointmaze_q3vl4b_vllm", "pointmaze_q3vl4b_vllm_legacy", "pear_recipe",
-                                 "toy_wam_prefs", "smoke"])
+                                 "toy_wam_prefs", "smoke", "pointmaze_generalization"])
 def test_shipped_experiments_compose(exp):
     from vlmrl.config import compose
     c = compose([f"experiment={exp}"])
@@ -173,6 +173,9 @@ def test_shipped_experiments_compose(exp):
         assert (c.env_kwargs["prompt_style"], c.env_kwargs["settle"], c.on_invalid, c.adv_mode, c.max_frames) == \
             ("simple", False, "noop", "center", None)
         assert c.env_kwargs["maze"] == "umaze" and c.rollout_backend == "vllm" and c.reward == "success"
+    if exp == "pointmaze_generalization":
+        assert c.env_kwargs["split"] == "goal" and set(c.eval_sets) == {"id", "ood_goals", "ood_medium"}
+        assert c.eval_sets["ood_medium"]["maze"] == "medium" and c.max_frames == 1
 
 
 @pytest.mark.parametrize("policy", ["qwen3vl4b_lora", "qwen3vl2b_lora", "qwen25vl3b_lora", "smolvlm256m",
