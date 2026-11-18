@@ -4,6 +4,9 @@ episode videos and cost.
 
     python scripts/make_smolvlm_procgen_report.py --takeaways takeaways.md [--group smolvlm-procgen-v1]
 
+A "related runs" section (other models / fixed mazes, run by another agent) is included by default: its text is
+scripts/report_notes/smolvlm_procgen_related.md and its panels query --related_groups (`--related ''` drops it).
+
 Every panel queries the runs live, so curves keep updating while runs train; only the takeaways and setup text are
 static (rerun the script, or edit the report in the UI, to refresh them).
 """
@@ -43,6 +46,31 @@ about 5 points at 25% success, so differences of a few points are noise.
 """
 
 
+RELATED = "scripts/report_notes/smolvlm_procgen_related.md"
+RELATED_GROUPS = "pointmaze-small-fft-batch-v1,pointmaze-small-fft-batch-v2"
+
+
+def related_blocks(a, wr) -> list:
+    """Companion experiments (other models, fixed mazes) with their own live panels, after the takeaways."""
+    import os
+    if not a.related or not os.path.exists(a.related):
+        return []
+    groups = [g for g in a.related_groups.split(",") if g]
+
+    def rs(g):
+        return wr.Runset(entity=a.entity, project=a.project, name=g, filters=f"Group == '{g}'")
+    keys = [("eval/success", "Eval success (greedy, 32 episodes)"), ("rollout/invalid_frac", "Invalid replies"),
+            ("rollout/success", "Training rollout success (T=1)"), ("train/grad_norm", "Gradient norm")]
+    return [
+        wr.H1("Related runs: other models and fixed mazes (AWS Batch)"),
+        wr.MarkdownBlock(open(a.related).read()),
+        wr.PanelGrid(runsets=[rs(g) for g in groups],
+                     panels=[wr.LinePlot(title=t, x="Step", y=[k], max_runs_to_show=30) for k, t in keys]
+                     + [wr.BarPlot(title="Latest eval success", metrics=["eval/success"], orientation="h",
+                                   max_runs_to_show=30)]),
+    ]
+
+
 def build(a) -> str:
     import wandb_workspaces.reports.v2 as wr
     flt = f"Group == '{a.group}'"
@@ -77,6 +105,7 @@ def build(a) -> str:
         wr.TableOfContents(),
         wr.H1("Takeaways"),
         wr.MarkdownBlock(f"_Written {stamp}; the panels below are live and may have moved on since._\n\n" + takeaways),
+        *related_blocks(a, wr),
         wr.H1("Headline: greedy eval success"),
         wr.P("Mean over the three eval sets. Each line is one run; the run name gives the prompt and learning rate "
              "(the two runs named only lr=... use the compact prompt and were stopped early)."),
@@ -144,6 +173,8 @@ def main():
     ap.add_argument("--takeaways", default=None, help="markdown file for the takeaways section")
     ap.add_argument("--url", default=None, help="update this existing report in place instead of creating one")
     ap.add_argument("--draft", action="store_true", help="save as an unpublished draft")
+    ap.add_argument("--related", default=RELATED, help="markdown for the related-runs section ('' = omit)")
+    ap.add_argument("--related_groups", default=RELATED_GROUPS, help="comma-separated wandb groups for its panels")
     print(build(ap.parse_args()))
 
 
