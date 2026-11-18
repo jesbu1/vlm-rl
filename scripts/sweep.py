@@ -24,6 +24,8 @@ Plain Hydra multirun (`train.py -m ...`) also works when no per-model vLLM serve
 
 Parallel lanes (one big node, e.g. 8 GPUs): `--lanes 4` runs 4 independent copies of the loop above, lane i
 training on GPU 2i with its own vLLM server on GPU 2i+1 (port vllm_port+i); runs are dealt round-robin.
+`--gpus_per_lane 1` puts a lane's trainer and server on the same GPU (server capped at `vllm_gpu_util_shared`,
+default 0.3): for small models on 1-GPU machines.
 `--out_root` moves run dirs (default `runs/`; SageMaker uses its checkpoint dir) and `--sync_root` puts the
 per-step weight files the trainer hands to vLLM somewhere else (they are large for full fine-tuning and
 should not be uploaded with the checkpoints).
@@ -134,9 +136,12 @@ def stop_server(proc, timeout=60):
     proc.wait()
 
 
-def lanes_for(n: int, sweep: dict) -> list[dict]:
-    """GPU/port assignment per lane: lane i trains on GPU 2i, serves on GPU 2i+1 (1 lane = the sweep file's GPUs)."""
+def lanes_for(n: int, sweep: dict, gpus_per_lane: int = 2) -> list[dict]:
+    """GPU/port assignment per lane: lane i trains on GPU 2i, serves on GPU 2i+1 (1 lane = the sweep file's GPUs).
+    ``gpus_per_lane=1``: trainer and vLLM server share GPU i (the server gets ``vllm_gpu_util_shared`` of it)."""
     port = int(sweep.get("vllm_port", 8011))
+    if gpus_per_lane == 1:
+        return [{"train_gpu": i, "vllm_gpu": i, "vllm_port": port + i, "shared": True} for i in range(max(1, n))]
     if n <= 1:
         return [{"train_gpu": sweep.get("train_gpu", 0), "vllm_gpu": sweep.get("vllm_gpu", 1), "vllm_port": port}]
     return [{"train_gpu": 2 * i, "vllm_gpu": 2 * i + 1, "vllm_port": port + i} for i in range(n)]
@@ -173,7 +178,9 @@ def run_lane(runs: list[dict], sweep: dict, lane: dict, idx: int, logdir: str, l
                 log = open(os.path.join(logdir, f"vllm_{slug(cfg.model)}{suffix}_{lane['vllm_port']}.log"), "w")
                 env = {**os.environ, "MAX_LORA_RANK": str(max(16, cfg.lora_rank)),
                        "ENABLE_LORA": "1" if cfg.lora_rank > 0 else "0"}
-                if sweep.get("vllm_gpu_util"):
+                if lane.get("shared"):   # the trainer needs the rest of the GPU (server starts first)
+                    env["GPU_UTIL"] = str(sweep.get("vllm_gpu_util_shared", 0.3))
+                elif sweep.get("vllm_gpu_util"):
                     env["GPU_UTIL"] = str(sweep["vllm_gpu_util"])
                 server = subprocess.Popen([os.path.join(ROOT, "scripts/launch_vllm.sh"), cfg.model,
                                            str(lane["vllm_port"]), str(lane["vllm_gpu"]),
@@ -200,6 +207,8 @@ def main():
     ap.add_argument("sweep")
     ap.add_argument("--dry_run", action="store_true")
     ap.add_argument("--lanes", type=int, default=1, help="parallel lanes (2 GPUs each)")
+    ap.add_argument("--gpus_per_lane", type=int, default=2, choices=(1, 2),
+                    help="1: trainer and vLLM server share one GPU per lane")
     ap.add_argument("--out_root", default="runs", help="run dirs go to <out_root>/<group>/<run>")
     ap.add_argument("--sync_root", default="", help="weights handed to vLLM go to <sync_root>/<group>/<run>")
     ap.add_argument("--set", action="append", default=[], metavar="KEY=VALUE",
@@ -214,7 +223,7 @@ def main():
     if a.group:
         sweep["group"] = a.group
     runs = select(expand(sweep, a.out_root, a.sync_root), a.shard, a.only)
-    lanes = lanes_for(a.lanes, sweep)
+    lanes = lanes_for(a.lanes, sweep, a.gpus_per_lane)
     log_tag = f"_shard{a.shard.split('/')[0]}" if a.shard else ""
     print(f"{len(runs)} runs in group {sweep['group']} on {len(lanes)} lane(s)" + (f", shard {a.shard}" if a.shard else ""))
     for i, r in enumerate(runs):

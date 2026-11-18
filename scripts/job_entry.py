@@ -5,7 +5,8 @@ Job settings come from SageMaker's hyperparameters file (every value a string; J
 that file is absent, from environment variables:
 
     sweep      VLMRL_SWEEP       sweep file in the repo, e.g. configs/sweeps/sagemaker_gemma4_fft.yaml
-    lanes      VLMRL_LANES       parallel lanes (2 GPUs each; default: #GPUs // 2)
+    lanes      VLMRL_LANES       parallel lanes (default: #GPUs // gpus_per_lane)
+    gpus_per_lane  VLMRL_GPUS_PER_LANE  2 (trainer + vLLM GPU) or 1 (shared); default 1 on a 1-GPU machine, else 2
     group      VLMRL_GROUP       optional wandb group / run-dir name override
     overrides  VLMRL_OVERRIDES   optional JSON list of Hydra overrides for every run, e.g. ["steps=2"]
     only       VLMRL_ONLY        optional run-name regex
@@ -32,7 +33,8 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 HP_PATH = "/opt/ml/input/config/hyperparameters.json"
 CKPT_DIR = "/opt/ml/checkpoints"
 ENV_KEYS = {"sweep": "VLMRL_SWEEP", "lanes": "VLMRL_LANES", "group": "VLMRL_GROUP", "overrides": "VLMRL_OVERRIDES",
-            "only": "VLMRL_ONLY", "shards": "VLMRL_SHARDS", "s3_output": "VLMRL_S3_OUTPUT"}
+            "only": "VLMRL_ONLY", "shards": "VLMRL_SHARDS", "s3_output": "VLMRL_S3_OUTPUT",
+            "gpus_per_lane": "VLMRL_GPUS_PER_LANE"}
 
 
 def _decode(v):
@@ -79,9 +81,10 @@ def pick_scratch(candidates=("/opt/ml/scratch", "/tmp")) -> str:
 
 
 def sweep_command(hp: dict, n_gpus: int, out_root: str, sync_root: str) -> list[str]:
-    lanes = int(hp.get("lanes") or max(1, n_gpus // 2))
+    gpl = int(hp.get("gpus_per_lane") or (1 if n_gpus == 1 else 2))
+    lanes = int(hp.get("lanes") or max(1, n_gpus // gpl))
     cmd = [sys.executable, os.path.join(ROOT, "scripts/sweep.py"), hp["sweep"], "--lanes", str(lanes),
-           "--out_root", out_root, "--sync_root", sync_root]
+           "--gpus_per_lane", str(gpl), "--out_root", out_root, "--sync_root", sync_root]
     if hp.get("group"):
         cmd += ["--group", str(hp["group"])]
     for o in hp.get("overrides") or []:

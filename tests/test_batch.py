@@ -44,8 +44,10 @@ def test_job_config_from_env_with_array_shard(tmp_path):
     assert hp == {"sweep": SWEEP, "lanes": 2, "shards": 4, "overrides": ["steps=2"], "group": "smoke",
                   "s3_output": "s3://b/p/job/", "shard": "3/4"}
     cmd = entry.sweep_command(hp, 4, "/scratch/runs", "/scratch/sync")
-    assert cmd[2:] == [SWEEP, "--lanes", "2", "--out_root", "/scratch/runs", "--sync_root", "/scratch/sync",
-                       "--group", "smoke", "--set", "steps=2", "--shard", "3/4"]
+    assert cmd[2:] == [SWEEP, "--lanes", "2", "--gpus_per_lane", "2", "--out_root", "/scratch/runs", "--sync_root",
+                       "/scratch/sync", "--group", "smoke", "--set", "steps=2", "--shard", "3/4"]
+    one = entry.sweep_command({"sweep": SWEEP}, 1, "o", "s")       # 1-GPU machine: one shared lane
+    assert one[3:7] == ["--lanes", "1", "--gpus_per_lane", "1"]
     # the SageMaker hyperparameters file wins over the environment
     p = tmp_path / "hp.json"
     p.write_text(json.dumps({"sweep": "other.yaml"}))
@@ -108,3 +110,34 @@ def test_shipped_small_fft_sweep():
     assert {r["cfg"].model for r in runs} == {"Qwen/Qwen3-VL-2B-Instruct", "HuggingFaceTB/SmolVLM2-2.2B-Instruct",
                                               "openbmb/MiniCPM-V-4.6", "HuggingFaceTB/SmolVLM-256M-Instruct"}
     assert all(r["cfg"].env_kwargs["prompt_style"] == "simple" and r["cfg"].rollout_backend == "vllm" for r in runs)
+
+
+def test_shared_gpu_lanes(monkeypatch, tmp_path):
+    lanes = sweep.lanes_for(2, {"vllm_port": 9000}, gpus_per_lane=1)
+    assert lanes == [{"train_gpu": 0, "vllm_gpu": 0, "vllm_port": 9000, "shared": True},
+                     {"train_gpu": 1, "vllm_gpu": 1, "vllm_port": 9001, "shared": True}]
+    runs = sweep.expand(yaml.safe_load(open(os.path.join(ROOT, SWEEP))), out_root=str(tmp_path))
+    runs = [r for r in runs if "minicpm" in r["name"]][:1]
+    seen = {}
+
+    class P:
+        pid = 0
+
+        def poll(self):
+            return None
+    monkeypatch.setattr(sweep.subprocess, "Popen", lambda cmd, env, **kw: seen.update(server=(cmd, env)) or P())
+    monkeypatch.setattr(sweep.subprocess, "call", lambda cmd, env, **kw: seen.update(train=(cmd, env)) or 0)
+    monkeypatch.setattr(sweep, "wait_ready", lambda url, proc: None)
+    monkeypatch.setattr(sweep, "stop_server", lambda proc: None)
+    sweep.run_lane(runs, {"vllm_port": 9000, "vllm_gpu_util_shared": 0.25}, lanes[1], 1, str(tmp_path), "_shard0")
+    assert seen["server"][0][3] == "1" and seen["server"][1]["GPU_UTIL"] == "0.25"
+    assert seen["train"][1]["CUDA_VISIBLE_DEVICES"] == "1"
+    assert (tmp_path / "vllm_MiniCPM-V-4.6_lane1_shard0.log").exists()
+
+
+def test_one_gpu_submit_request():
+    req = batch.submit_request({**CFG, "gpus": 1}, "a", "j", SWEEP, 8, 1, "", [], "", 1, {}, gpus_per_lane=1)
+    env = {e["name"]: e["value"] for e in req["containerOverrides"]["environment"]}
+    assert env["VLMRL_GPUS_PER_LANE"] == "1" and env["VLMRL_LANES"] == "1" and req["arrayProperties"] == {"size": 8}
+    jd = batch.job_definition({**CFG, "gpus": 1, "vcpus": 16, "memory_mib": 120000}, "img")
+    assert jd["jobDefinitionName"] == "me-vlm-rl-gpu1"

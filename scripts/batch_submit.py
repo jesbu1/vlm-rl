@@ -59,10 +59,10 @@ def job_definition(cfg: dict, image: str) -> dict:
 
 
 def submit_request(cfg: dict, job_def_arn: str, name: str, sweep: str, shards: int, lanes: int, group: str,
-                   overrides: list[str], only: str, max_hours: float, env: dict) -> dict:
+                   overrides: list[str], only: str, max_hours: float, env: dict, gpus_per_lane: int = 2) -> dict:
     """submit-job request. Settings reach scripts/job_entry.py as VLMRL_* environment variables."""
     vlmrl = {"VLMRL_SWEEP": sweep, "VLMRL_LANES": str(lanes), "VLMRL_SHARDS": str(shards),
-             "VLMRL_S3_OUTPUT": f"{cfg['s3_output'].rstrip('/')}/{name}/"}
+             "VLMRL_GPUS_PER_LANE": str(gpus_per_lane), "VLMRL_S3_OUTPUT": f"{cfg['s3_output'].rstrip('/')}/{name}/"}
     if group:
         vlmrl["VLMRL_GROUP"] = group
     if overrides:
@@ -111,7 +111,12 @@ def main(argv=None):
     ap.add_argument("sweep", nargs="?", help="sweep file, relative to the repo root")
     ap.add_argument("--config", default=DEFAULT_CONFIG, help="local (git-ignored) account settings")
     ap.add_argument("--tag", default="", help="image tag (default: the current git commit)")
-    ap.add_argument("--lanes", type=int, default=None, help="lanes per machine (default: gpus // 2)")
+    ap.add_argument("--lanes", type=int, default=None, help="lanes per machine (default: gpus // gpus_per_lane)")
+    ap.add_argument("--gpus", type=int, default=None, help="GPUs per machine (overrides the config)")
+    ap.add_argument("--vcpus", type=int, default=None, help="vCPUs per machine (overrides the config)")
+    ap.add_argument("--memory_mib", type=int, default=None, help="memory per machine (overrides the config)")
+    ap.add_argument("--gpus_per_lane", type=int, default=None, choices=(1, 2),
+                    help="2: trainer + vLLM GPU per lane; 1: shared GPU (default: 1 if gpus == 1 else 2)")
     ap.add_argument("--shards", type=int, default=None, help="machines (default: ceil(#runs / lanes))")
     ap.add_argument("--group", default="", help="override the sweep's group (wandb group + run dirs)")
     ap.add_argument("--set", action="append", default=[], metavar="KEY=VALUE", help="Hydra override for every run")
@@ -123,6 +128,9 @@ def main(argv=None):
     ap.add_argument("--image", action="store_true", help="print the image URI for this commit and exit")
     a = ap.parse_args(argv)
     cfg = sm.load_config(a.config, REQUIRED, "example_batch.yaml")
+    for k in ("gpus", "vcpus", "memory_mib"):
+        if getattr(a, k):
+            cfg[k] = getattr(a, k)
     account = sm.aws(cfg, "sts", "get-caller-identity")["Account"]
     image = sm.image_uri(cfg, account, a.tag or sm.git_commit())
     if a.image:
@@ -135,17 +143,18 @@ def main(argv=None):
     import yaml
     with open(os.path.join(ROOT, a.sweep)) as f:
         group = a.group or yaml.safe_load(f)["group"]
-    lanes = a.lanes or max(1, int(cfg["gpus"]) // 2)
+    gpl = a.gpus_per_lane or (1 if int(cfg["gpus"]) == 1 else 2)
+    lanes = a.lanes or max(1, int(cfg["gpus"]) // gpl)
     n_runs = count_runs(os.path.join(ROOT, a.sweep), a.set, a.only, a.group)
     shards = a.shards or max(1, math.ceil(n_runs / lanes))
     names = list(cfg.get("secret_env") or [])
     env = sm.secret_env(names, allow_missing=a.allow_missing_secrets or a.dry_run)
     name = a.name or sm.job_name(group)
     jd = job_definition(cfg, image)
-    print(f"{n_runs} runs -> {shards} machine(s) x {lanes} lane(s)")
+    print(f"{n_runs} runs -> {shards} machine(s) x {lanes} lane(s), {gpl} GPU(s) per lane")
     print(json.dumps(jd, indent=2))
     preview = submit_request(cfg, "<job definition arn>", name, a.sweep, shards, lanes, a.group, a.set, a.only,
-                             a.max_hours or float(cfg.get("max_hours", 24)), env)
+                             a.max_hours or float(cfg.get("max_hours", 24)), env, gpl)
     print(json.dumps(redacted(preview, names), indent=2))
     if a.dry_run:
         return 0
@@ -156,7 +165,7 @@ def main(argv=None):
         sys.exit(f"image {image} not found in ECR (build and push it first: docker/build.sh)\n{e}")
     arn = sm.aws(cfg, "batch", "register-job-definition", input_json=jd)["jobDefinitionArn"]
     req = submit_request(cfg, arn, name, a.sweep, shards, lanes, a.group, a.set, a.only,
-                         a.max_hours or float(cfg.get("max_hours", 24)), env)
+                         a.max_hours or float(cfg.get("max_hours", 24)), env, gpl)
     r = sm.aws(cfg, "batch", "submit-job", input_json=req)
     prof = f" --profile {cfg['profile']}" if cfg.get("profile") else ""
     print(f"\nsubmitted {name}: jobId {r['jobId']} ({shards} machine(s), job definition {arn.rsplit('/', 1)[1]})\n"

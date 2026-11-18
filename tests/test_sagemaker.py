@@ -65,8 +65,9 @@ def test_entry_roundtrips_submitted_hyperparameters(tmp_path):
     assert hp == {"sweep": "configs/sweeps/sagemaker_gemma4_fft.yaml", "lanes": 2, "group": "g",
                   "overrides": ["steps=2", "eval_every=1"]}
     cmd = entry.sweep_command(hp, 8, "/opt/ml/checkpoints", "/scratch/sync")
-    assert cmd[2:] == ["configs/sweeps/sagemaker_gemma4_fft.yaml", "--lanes", "2", "--out_root", "/opt/ml/checkpoints",
-                       "--sync_root", "/scratch/sync", "--group", "g", "--set", "steps=2", "--set", "eval_every=1"]
+    assert cmd[2:] == ["configs/sweeps/sagemaker_gemma4_fft.yaml", "--lanes", "2", "--gpus_per_lane", "2", "--out_root",
+                       "/opt/ml/checkpoints", "--sync_root", "/scratch/sync", "--group", "g", "--set", "steps=2",
+                       "--set", "eval_every=1"]
     assert entry.sweep_command({"sweep": "s.yaml"}, 8, "o", "s")[4] == "4"   # default: #GPUs // 2
     assert entry.read_hyperparameters(str(tmp_path / "missing.json")) == {}
 
