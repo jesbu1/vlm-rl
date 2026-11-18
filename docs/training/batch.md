@@ -115,6 +115,12 @@ same VPC and with the same instance role, scales to zero when idle:
    `host_scratch: /scratch`). `host_scratch` makes the job definition bind-mount the host disk at
    `/opt/ml/scratch`, which `scripts/job_entry.py::pick_scratch` then picks for the HF cache and the per-step weights.
 
+**Several jobs on one machine.** With 4-GPU jobs and an 8-GPU instance type (g6e.48xlarge), Batch packs two jobs
+onto one host. They share the host's network and the bind-mounted scratch disk, so `scripts/job_entry.py` picks a
+random free port range for its vLLM servers (`free_port_base`, passed as `sweep.py --vllm_port`) and keeps its files in
+`<scratch>/jobs/<AWS_BATCH_JOB_ID>/`; `sweep.py::wait_ready` also checks that the server on a port serves the
+expected model. (With fixed ports, a lane of one job once sent requests and a weight reload to the other job's server.)
+
 **Full fine-tuning with a dedicated vLLM GPU.** Sweeps start servers for `lora_rank=0` runs at
 `vllm_gpu_util_full` (default 0.7) instead of 0.85. Each in-place weight reload briefly needs a second copy of the
 largest tensor (4.4 GB for Gemma 4 E2B's per-layer embeddings), which ran an 85% server out of memory.

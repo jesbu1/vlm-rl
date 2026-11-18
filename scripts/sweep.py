@@ -112,16 +112,22 @@ def finished(run) -> bool:
     return bool(steps) and max(steps) >= run["cfg"].steps
 
 
-def wait_ready(url, proc, timeout=1200):
+def wait_ready(url, proc, timeout=1200, model: str | None = None):
+    """Wait until *our* server answers. With ``model``, it must also serve that model: on a shared host another
+    job's server may already listen on the port (ours then fails to bind and exits)."""
     t0 = time.time()
     while time.time() - t0 < timeout:
         if proc.poll() is not None:
-            raise RuntimeError("vLLM server exited during startup; see its log")
+            raise RuntimeError("vLLM server exited during startup (port taken by another server?); see its log")
         try:
-            urllib.request.urlopen(f"{url}/v1/models", timeout=5)
-            return
+            with urllib.request.urlopen(f"{url}/v1/models", timeout=5) as r:
+                served = [m.get("id") for m in json.loads(r.read().decode()).get("data", [])]
+            if model is None or model in served:
+                return
+            print(f"[sweep] {url} serves {served}, not {model}: another job's server? waiting for ours", flush=True)
         except Exception:
-            time.sleep(10)
+            pass
+        time.sleep(10)
     raise TimeoutError("vLLM server not ready")
 
 
@@ -196,7 +202,7 @@ def run_lane(runs: list[dict], sweep: dict, lane: dict, idx: int, logdir: str, l
                                           stdout=log, stderr=subprocess.STDOUT, env=env, cwd=ROOT,
                                           start_new_session=True)
                 server_model = cfg.model
-                wait_ready(url, server)
+                wait_ready(url, server, model=cfg.model)
             os.makedirs(os.path.join(ROOT, cfg.out_dir), exist_ok=True)
             print(f"{tag}==> {r['name']}", flush=True)
             env = {**os.environ, "CUDA_VISIBLE_DEVICES": str(lane["train_gpu"]), "PYTHONWARNINGS": "ignore"}
@@ -224,10 +230,13 @@ def main():
     ap.add_argument("--group", default="", help="override the sweep file's group (wandb group + run dirs)")
     ap.add_argument("--shard", default="", metavar="I/N", help="keep runs I, I+N, ... (split a sweep over N machines)")
     ap.add_argument("--only", default="", metavar="REGEX", help="keep runs whose name matches")
+    ap.add_argument("--vllm_port", type=int, default=None, help="first server port (overrides the sweep file)")
     a = ap.parse_args()
     with open(a.sweep) as f:
         sweep = yaml.safe_load(f)
     sweep["overrides"] = merge_overrides(sweep.get("overrides", []), a.set)
+    if a.vllm_port:
+        sweep["vllm_port"] = a.vllm_port
     if a.group:
         sweep["group"] = a.group
     runs = select(expand(sweep, a.out_root, a.sync_root), a.shard, a.only)

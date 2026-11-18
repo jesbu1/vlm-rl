@@ -81,11 +81,36 @@ def pick_scratch(candidates=("/opt/ml/scratch", "/tmp", "/dev/shm")) -> str:
     return best
 
 
-def sweep_command(hp: dict, n_gpus: int, out_root: str, sync_root: str) -> list[str]:
+def free_port_base(n: int, lo: int = 20000, hi: int = 60000, rng=None) -> int:
+    """A random base port with ``n`` consecutive free ports. Batch can place several jobs on one host with host
+    networking, so fixed ports (8011, 8012, ...) collide and a lane ends up talking to another job's server."""
+    import random
+    import socket
+    rng = rng or random.Random()
+    for _ in range(200):
+        base = rng.randrange(lo, hi - n)
+        try:
+            socks = []
+            for p in range(base, base + n):
+                s = socket.socket()
+                s.bind(("127.0.0.1", p))
+                socks.append(s)
+            return base
+        except OSError:
+            continue
+        finally:
+            for s in socks:
+                s.close()
+    raise RuntimeError("no free port range found")
+
+
+def sweep_command(hp: dict, n_gpus: int, out_root: str, sync_root: str, vllm_port: int | None = None) -> list[str]:
     gpl = int(hp.get("gpus_per_lane") or (1 if n_gpus == 1 else 2))
     lanes = int(hp.get("lanes") or max(1, n_gpus // gpl))
     cmd = [sys.executable, os.path.join(ROOT, "scripts/sweep.py"), hp["sweep"], "--lanes", str(lanes),
            "--gpus_per_lane", str(gpl), "--out_root", out_root, "--sync_root", sync_root]
+    if vllm_port:
+        cmd += ["--vllm_port", str(vllm_port)]
     if hp.get("group"):
         cmd += ["--group", str(hp["group"])]
     for o in hp.get("overrides") or []:
@@ -201,7 +226,9 @@ def main() -> int:
         print("[entry] WANDB_API_KEY not set: wandb runs offline (files are still saved with the run dirs)", flush=True)
         os.environ["WANDB_MODE"] = "offline"
     sagemaker = os.path.isdir(CKPT_DIR)
-    out_root = CKPT_DIR if sagemaker else os.path.join(scratch, "runs")
+    # several Batch jobs can share a host (and its bind-mounted scratch disk): keep each job's files apart
+    job_dir = os.path.join(scratch, "jobs", os.environ.get("AWS_BATCH_JOB_ID", "local").replace(":", "_"))
+    out_root = CKPT_DIR if sagemaker else os.path.join(job_dir, "runs")
     syncer = None
     if not sagemaker and hp.get("s3_output"):
         syncer = S3Syncer(out_root, str(hp["s3_output"]), float(os.environ.get("VLMRL_SYNC_EVERY", 300)),
@@ -216,7 +243,9 @@ def main() -> int:
         for m in models_in(os.path.join(ROOT, hp["sweep"]), hp):
             print(f"[entry] downloading {m}", flush=True)
             snapshot_download(m)
-        cmd = sweep_command(hp, n_gpus, out_root, os.path.join(scratch, "sync"))
+        lanes = int(hp.get("lanes") or max(1, n_gpus // int(hp.get("gpus_per_lane") or (1 if n_gpus == 1 else 2))))
+        cmd = sweep_command(hp, n_gpus, out_root, os.path.join(job_dir, "sync"),
+                            vllm_port=None if sagemaker else free_port_base(lanes))
         print("[entry] " + " ".join(cmd), flush=True)
         rc = subprocess.call(cmd, cwd=ROOT)
     finally:

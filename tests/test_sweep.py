@@ -150,7 +150,7 @@ def test_run_lane_starts_full_ft_server_without_lora(monkeypatch, tmp_path):
         return 0
     monkeypatch.setattr(sweep.subprocess, "Popen", popen)
     monkeypatch.setattr(sweep.subprocess, "call", call)
-    monkeypatch.setattr(sweep, "wait_ready", lambda url, proc: calls.setdefault("url", url))
+    monkeypatch.setattr(sweep, "wait_ready", lambda url, proc, **kw: calls.setdefault("url", url))
     monkeypatch.setattr(sweep, "stop_server", lambda proc: None)
     lane = sweep.lanes_for(4, shipped)[3]
     sweep.run_lane(runs, shipped, lane, 3, str(tmp_path))

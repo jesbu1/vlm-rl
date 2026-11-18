@@ -127,7 +127,7 @@ def test_shared_gpu_lanes(monkeypatch, tmp_path):
             return None
     monkeypatch.setattr(sweep.subprocess, "Popen", lambda cmd, env, **kw: seen.update(server=(cmd, env)) or P())
     monkeypatch.setattr(sweep.subprocess, "call", lambda cmd, env, **kw: seen.update(train=(cmd, env)) or 0)
-    monkeypatch.setattr(sweep, "wait_ready", lambda url, proc: None)
+    monkeypatch.setattr(sweep, "wait_ready", lambda url, proc, **kw: None)
     monkeypatch.setattr(sweep, "stop_server", lambda proc: None)
     sweep.run_lane(runs, {"vllm_port": 9000, "vllm_gpu_util_shared": 0.25}, lanes[1], 1, str(tmp_path), "_shard0")
     assert seen["server"][0][3] == "1" and seen["server"][1]["GPU_UTIL"] == "0.25"
@@ -170,3 +170,45 @@ def test_host_scratch_is_mounted_at_the_entry_scratch_path():
     assert cp["mountPoints"] == [{"sourceVolume": "scratch", "containerPath": "/opt/ml/scratch"}]
     assert "/opt/ml/scratch" in entry.pick_scratch.__defaults__[0]
     assert "volumes" not in batch.job_definition(CFG, "img")["containerProperties"]
+
+
+def test_free_port_base_returns_consecutive_free_ports():
+    import random
+    import socket
+    base = entry.free_port_base(3, rng=random.Random(0))
+    for p in range(base, base + 3):
+        s = socket.socket()
+        s.bind(("127.0.0.1", p))
+        s.close()
+    cmd = entry.sweep_command({"sweep": SWEEP}, 4, "o", "s", vllm_port=base)
+    assert cmd[-2:] == ["--vllm_port", str(base)]
+
+
+def test_wait_ready_rejects_another_jobs_server(monkeypatch):
+    """On a shared host the port may already serve another model; ours then exits -> clear error, not silence."""
+    import io
+
+    class Resp(io.BytesIO):
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+    monkeypatch.setattr(sweep.urllib.request, "urlopen",
+                        lambda url, timeout=5: Resp(json.dumps({"data": [{"id": "other/model"}]}).encode()))
+    monkeypatch.setattr(sweep.time, "sleep", lambda s: None)
+
+    class Exits:
+        def __init__(self):
+            self.n = 0
+
+        def poll(self):
+            self.n += 1
+            return None if self.n < 3 else 1
+    with pytest.raises(RuntimeError, match="port taken"):
+        sweep.wait_ready("http://localhost:1", Exits(), model="google/gemma-4-E2B-it")
+
+    class Alive:
+        def poll(self):
+            return None
+    sweep.wait_ready("http://localhost:1", Alive(), model="other/model")   # the right model: returns
