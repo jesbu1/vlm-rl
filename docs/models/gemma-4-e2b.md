@@ -1,6 +1,6 @@
 # Gemma 4 E2B-it
 
-**Preset:** `policy=gemma4_e2b_lora` · **HF:** [`google/gemma-4-E2B-it`](https://huggingface.co/google/gemma-4-E2B-it)
+**Presets:** `policy=gemma4_e2b_lora`, `policy=gemma4_e2b_full` (full fine-tuning) · **HF:** [`google/gemma-4-E2B-it`](https://huggingface.co/google/gemma-4-E2B-it)
 
 ```yaml
 model: google/gemma-4-E2B-it
@@ -28,3 +28,36 @@ update, adapter hot-swap) under the PEAR prompt, 0% invalid actions and short re
 ## Status
 
 In the `pointmaze-small-v4` sweep (see [Experiment log](../training/experiments.md)).
+
+## Full fine-tuning
+
+`policy=gemma4_e2b_full` (`configs/policy/gemma4_e2b_full.yaml`):
+
+```yaml
+model: google/gemma-4-E2B-it
+lora_rank: 0
+freeze: 'model\.(language_model\.embed_tokens(_per_layer)?|audio_tower|embed_audio)\..*'
+fp32_master: true
+lr: 1.0e-6
+```
+
+| parameters | count | trained? |
+|---|---|---|
+| per-layer embeddings `embed_tokens_per_layer` | 2.35B | frozen (bf16) |
+| token embeddings `embed_tokens` (tied with the LM head) | 0.40B | frozen (bf16) |
+| audio tower + `embed_audio` | ~0.35B | frozen (unused by PointMaze) |
+| language-model transformer layers + per-layer projections | ~1.9B | **trained** (fp32 masters) |
+| vision tower + `embed_vision` | ~0.17B | **trained** (fp32 masters) |
+
+fp32 master weights cost ~16 bytes per trainable parameter with AdamW (weight + grad + 2 moments), so the
+~2.1B trainable parameters plus the frozen bf16 tables take ≈ 40 GB before activations: one 80 GB GPU. Training
+all 5.1B in fp32 would not fit. Freezing the embedding tables is also the usual choice for RL fine-tuning.
+
+vLLM rollouts use the [full-weight sync](../training/backends.md#how-weight-sync-works). The saved checkpoint
+has the original tensor names, except `k_proj`/`v_proj`/`k_norm` of the KV-shared layers (15 and up). Hugging Face
+never builds those, and vLLM's Gemma 4 loader drops them too. Checked on CPU: a forward/backward pass on a
+PointMaze turn under bf16 autocast, and the checkpoint's names.
+
+Shipped sweep: `configs/sweeps/sagemaker_gemma4_fft.yaml` (maze × lr, 4 lanes on one 8-GPU node, see
+[SageMaker](../training/sagemaker.md)).
+

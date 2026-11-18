@@ -91,6 +91,7 @@ nav:
       - Rollout backends: training/backends.md
       - Sweeps: training/sweeps.md
       - Weights & Biases: training/wandb.md
+      - SageMaker: training/sagemaker.md
       - Experiment log: training/experiments.md
   - Development:
       - development/index.md

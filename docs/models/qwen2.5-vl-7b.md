@@ -17,7 +17,7 @@ near-greedy shipped config that vlmrl overrides.
 | | |
 |---|---|
 | memory | bf16 weights (~15 GB) + gradients (~15 GB) + AdamW states (~30 GB) ≈ **60 GB before activations**, so an 80 GB GPU |
-| rollout backend | `rollout=hf` only. The vLLM backend syncs weights via LoRA adapters, and full-FT sync would need NCCL ([Roadmap](../development/roadmap.md)) |
+| rollout backend | `rollout=hf`, or `rollout=vllm` with [full-weight sync](../training/backends.md#how-weight-sync-works) (server with `ENABLE_LORA=0`) |
 | trainer | single process, no FSDP |
 
 ## Status

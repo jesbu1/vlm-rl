@@ -32,10 +32,16 @@ vllm_args:                          # extra `vllm serve` flags per model
   HuggingFaceTB/SmolVLM-256M-Instruct: [--max-model-len, "8192", --mm-processor-kwargs, '{"do_image_splitting": false}']
 ```
 
-**Full fine-tuning in a sweep.** vLLM weight sync is LoRA-only, so a full-FT sweep sets `rollout=hf`
-in its overrides. No server is started, and generation runs in-process on the training GPU.
-`configs/sweeps/pointmaze_small_fft.yaml` does this for `policy=smolvlm256m`, using the same wandb group as
-the LoRA sweep so one report covers both.
+**Full fine-tuning in a sweep.** Works with either backend. With `rollout=vllm`, servers for `lora_rank=0`
+runs are started with `ENABLE_LORA=0` and weights are synced by an in-place reload
+([how](backends.md#how-weight-sync-works)). `configs/sweeps/pointmaze_small_fft.yaml` uses `rollout=hf` for
+`policy=smolvlm256m` (generation in-process on the training GPU), with the same wandb group as the LoRA sweep
+so one report covers both.
+
+**Parallel lanes.** On a node with many GPUs, `--lanes N` runs N copies of the loop side by side. Lane *i*
+trains on GPU 2*i* with its own vLLM server on GPU 2*i*+1 (port `vllm_port`+*i*); runs are dealt round-robin.
+`--out_root DIR` moves the run dirs, `--sync_root DIR` puts the weights handed to vLLM elsewhere, `--set KEY=VALUE`
+overrides a value for every run, and `--group NAME` renames the group. [SageMaker](sagemaker.md) jobs use all of these.
 
 ## What it does
 

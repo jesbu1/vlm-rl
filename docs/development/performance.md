@@ -13,6 +13,7 @@ The trainer is kept deliberately small. These are the optimizations it does have
 | LoRA (PEFT) + gradient checkpointing | `HFPolicy` | 2–8B models on one 48 GB GPU |
 | vLLM server with automatic prefix caching | `vllm_client.py` | multi-round contexts share long prefixes (PEAR uses LMCache for the same reason, with 95%+ hits) |
 | LoRA hot-swap weight sync | `VLLMServerGenerator.sync` | robust sync without NCCL |
+| full-weight sync by in-place reload | `VLLMServerGenerator._sync_full` | full fine-tuning with vLLM rollouts, no NCCL |
 | NaN/inf guards on loss and grad norm | `Trainer.update` | skip a bad micro-batch or step instead of corrupting weights |
 | `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True` | `scripts/train.py` | fragmentation between generate and train phases |
 

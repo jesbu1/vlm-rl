@@ -32,9 +32,10 @@ Both presets run on PointMaze medium to test whether a very small model can lear
 
 - **LoRA** (`smolvlm256m_lora`) with vLLM rollouts, in `configs/sweeps/pointmaze_small.yaml`. Serve with
   `--max-model-len 8192 --mm-processor-kwargs '{"do_image_splitting": false}'` (set in `vllm_args`).
-- **Full fine-tuning** (`smolvlm256m`) in `configs/sweeps/pointmaze_small_fft.yaml`. vLLM weight sync is
-  LoRA-only, so these runs use `rollout=hf` (in-process generation on the training GPU). A 256M model
-  with AdamW fits easily on one 48 GB GPU.
+- **Full fine-tuning** (`smolvlm256m`) in `configs/sweeps/pointmaze_small_fft.yaml`, with `rollout=hf`
+  (in-process generation on the training GPU). A 256M model with AdamW fits easily on one 48 GB GPU.
+  `rollout=vllm` also works for full fine-tuning now ([full-weight sync](../training/backends.md#how-weight-sync-works));
+  it is the model used to verify that sync on puget.
 
 Under the PEAR prompt, the one-step smoke run (2026-11-16) was 100% invalid: it echoes the state JSON
 without a fenced block (`{"ball": {...}, "end": {...}}`). With `on_invalid=terminate` that ends every

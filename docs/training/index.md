@@ -3,9 +3,10 @@
 | page | |
 |---|---|
 | [Configuration (Hydra)](configuration.md) | config groups, overrides, presets, multirun; the full field list is in the [reference](../reference/config.md) |
-| [Rollout backends](backends.md) | in-process HF `generate` vs a vLLM server with prefix caching and LoRA hot-swap |
-| [Sweeps](sweeps.md) | reward × model grids with one vLLM server per model, resumable |
+| [Rollout backends](backends.md) | in-process HF `generate` vs a vLLM server with prefix caching and LoRA / full-weight sync |
+| [Sweeps](sweeps.md) | reward × model grids with one vLLM server per model, parallel lanes, resumable |
 | [Weights & Biases](wandb.md) | what is logged, grouping, building comparison reports |
+| [SageMaker](sagemaker.md) | a sweep as one SageMaker job (AWS Batch queue): Docker image, submit, monitor, resume |
 | [Experiment log](experiments.md) | every run so far and what it showed |
 
 ```bash
