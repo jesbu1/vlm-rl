@@ -114,6 +114,12 @@ def test_pref_mw_ranks_by_success_then_final_metaworld_reward():
 
 
 def test_pref_mw_ties_have_no_spread():
-    """Practically equal outcomes (difference < 0.1 of 10) are ties: the group has no signal and DAPO drops it."""
-    s = build_reward("pref_mw")([[_mw(0.053), _mw(0.0531), _mw(0.06)]])[0]
+    """Practically equal outcomes (within 2%) are ties: the group has no signal and DAPO drops it."""
+    s = build_reward("pref_mw")([[_mw(0.053), _mw(0.0531), _mw(0.0535)]])[0]
     assert np.std(s) == 0
+
+
+def test_pref_mw_orders_small_rewards_far_from_the_object():
+    """Push far from the puck: 0.026 (26 cm), 0.033 (24 cm), 0.072 (13 cm) must still be ranked, not tied."""
+    s = build_reward("pref_mw")([[_mw(0.033), _mw(0.072), _mw(0.026)]])[0]
+    assert list(np.argsort(s)) == [2, 0, 1] and np.std(s) > 0.1

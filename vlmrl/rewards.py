@@ -151,8 +151,13 @@ def _final_extra(t: Trajectory, key: str, default: float = 0.0) -> float:
 
 
 def mw_final_score(t: Trajectory) -> float:
-    """Metaworld ground truth: success first (+10), then the dense reward at the final state (0-10)."""
-    return 10.0 * t.success + _final_extra(t, "mw_progress")
+    """Metaworld ground truth: success first, then the dense reward at the final state (0-10), on a log scale.
+
+    Far from the object Metaworld's reward is small but still ordered (push: 0.026 at 26 cm from the puck, 0.072 at
+    13 cm, 2.0 at 6 cm). The log makes differences relative, so a tie margin means "within x%" at every distance; an
+    absolute margin turned every early push comparison into a tie. log(1e-3 + r) spans < 10, so +10 for success
+    always wins."""
+    return 10.0 * t.success + float(np.log(1e-3 + _final_extra(t, "mw_progress")))
 
 
 # ----------------------------------------------------------------------------- registry
@@ -177,9 +182,9 @@ def build_reward(spec: str, max_turns: int = 1) -> RewardFn:
         "pref_oracle_dist": lambda: preference_reward(ScoreFnPreference(
             lambda t: (2.0 * t.success - (t.turns[-1].result.info["dist"] if t.turns else 0.0)), tau=0.2)),
         # Metaworld: preferences from the ground-truth dense reward. Within a group, a success beats a failure, then
-        # the higher Metaworld reward (0-10) at the final state wins; win rates become the scores, so every group with
-        # any progress difference has a signal (sparse success alone gives none on push / pick-place early on)
-        "pref_mw": lambda: preference_reward(ScoreFnPreference(mw_final_score, tau=0.5, margin=0.1)),
+        # the higher Metaworld reward (0-10) at the final state wins (ties: within 2%); win rates become the scores, so
+        # every group with any progress difference has a signal (sparse success alone gives none on push early on)
+        "pref_mw": lambda: preference_reward(ScoreFnPreference(mw_final_score, tau=0.1, margin=0.02)),
         "mw_progress": lambda: per_traj(lambda t: _final_extra(t, "mw_progress")),
     }
     terms = []
