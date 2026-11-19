@@ -1,7 +1,21 @@
 _Companion runs by the AWS Batch agent: same trainer (full fine-tuning, fp32 master weights, GRPO + DAPO), other
 models. Fixed D4RL mazes: wandb groups `pointmaze-small-fft-batch-v1` (simple prompt), `pointmaze-small-fft-batch-v2`
 (follow-ups), `pointmaze-gemma4-fft-batch-v1` (Gemma 4 E2B). Procedural mazes, same setup as this report:
-`procgen-fft-larger-v1` and `procgen-fft-larger-v1-lr1e-6`. Numbers as of 2026-11-18 14:40; running runs are marked._
+`procgen-fft-larger-v1` and `procgen-fft-larger-v1-lr1e-6` (before the mask fix), `procgen-fft-v2` and
+`procgen-fft-larger-v2-maskfix` (after it). Sections B-F are from before the fix (numbers as of 2026-11-18 14:40)._
+
+**A0. After the loss-mask fix: one run per model, SmolVLM2-500M to Gemma 4 E2B** (`compact_rel`, sparse success,
+`on_invalid=noop`, 32 groups x 16, 40 steps, no KL; launched 2026-11-18 ~22:30, running; see the "after the mask fix"
+panels)
+
+| model | lr | why this lr |
+|---|---|---|
+| SmolVLM2-500M | 5e-6 | same as the other <=2.2B models |
+| MiniCPM-V 4.6 | 1e-6 | at 5e-6, even with the fix, 2 updates sharpen it into a near-deterministic policy (`mean_logp` -0.24 -> -0.04, success 6% -> 1%); then no group has signal and training stops. Invalid replies stayed at 0-2% (before the fix: 99% by step 4) |
+| SmolVLM2-2.2B | 5e-6 | the validation run of the fix (`procgen-fft-larger-v2-maskfix`); before the fix this lr collapsed to 97% invalid by step 6 |
+| Qwen3-VL-2B | 5e-6 | stable before the fix as well |
+| Gemma 4 E2B | 1e-6 | as before (vision tower frozen to fit 48 GB) |
+
 
 **How the fixed-maze runs differ from the procedural runs**
 * **Dense** reward (`success+0.5*neg_dist`; Gemma: sparse success) instead of sparse success.
@@ -9,7 +23,7 @@ models. Fixed D4RL mazes: wandb groups `pointmaze-small-fft-batch-v1` (simple pr
   generalization tests.
 * 16 groups x 16 per step, 40 steps; eval on 32 greedy episodes (SE ~8 points at 50%); L40S 48 GB GPUs.
 
-**A. Larger models on the procedural generalization setup** (running; settings as above but 32 groups x 16 per step,
+**A. Larger models on the procedural generalization setup, before the fix** ( settings as above but 32 groups x 16 per step,
 fp32-master full fine-tuning, 64 eval episodes per set)
 
 | model, prompt, lr | step | eval success (mean of 3 sets) | latest train / held-out / larger | notes |
@@ -23,12 +37,13 @@ fp32-master full fine-tuning, 64 eval episodes per set)
 * Held-out 11x11 layouts score close to the training layouts for every model that learns, as for SmolVLM-256M above.
 * Gemma 4 E2B (vision tower frozen to fit 48 GB) learns slower per step than Qwen3-VL-2B at a 5x lower lr.
 
-**B. lr 5e-6 collapses the 1-2B models on procedural mazes, like SmolVLM-256M at lr 3e-5 above**
+**B. lr 5e-6 collapsed the 1-2B models on procedural mazes, like SmolVLM-256M at lr 3e-5 above: the mask bug**
 * MiniCPM-V 4.6: invalid replies 0% -> 99% between steps 1 and 4 (grad norm 33 at step 1), replies shrink to ~9
   characters, no group has signal afterwards, so it never recovers.
 * SmolVLM2-2.2B: invalid 31% -> 96% -> 97% at steps 4-6.
 * Qwen3-VL-2B is stable at the same lr. Reruns at lr 1e-6 (MiniCPM-V so far) are stable.
 * On fixed mazes the same lr did not collapse anything (dense reward, smaller task), but see D for the drift.
+* Cause: the loss-mask bug (top of the report). The collapsing runs show the signature: grad norms of 20-185 and `train/mean_logp` far below vLLM's sampled log-probs. Dense rewards keep advantages closer to balanced, which is why the fixed mazes mostly escaped.
 
 **C. The prompt finding holds on fixed mazes, and for MiniCPM-V 4.6** (final, step 40)
 

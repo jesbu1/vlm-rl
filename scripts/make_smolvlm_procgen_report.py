@@ -49,7 +49,13 @@ TAKEAWAYS = "scripts/report_notes/smolvlm_procgen_takeaways.md"
 RELATED = "scripts/report_notes/smolvlm_procgen_related.md"
 PROMPT_RESULTS = "scripts/report_notes/prompts_results.md"
 RELATED_GROUPS = "pointmaze-small-fft-batch-v1,pointmaze-small-fft-batch-v2,pointmaze-gemma4-fft-batch-v1"
-RELATED_PROCGEN_GROUPS = "procgen-fft-larger-v1,procgen-fft-larger-v1-lr1e-6"
+RELATED_PROCGEN_GROUPS = "procgen-fft-larger-v1,procgen-fft-larger-v1-lr1e-6"   # before the loss-mask fix
+FIXED_PROCGEN_GROUPS = "procgen-fft-v2,procgen-fft-larger-v2-maskfix"           # after it (commit 2e2b7d2)
+MASK_NOTE = "scripts/report_notes/mask_bug.md"
+# Restarts that crashed or failed within a few steps and were rerun under the same name (infrastructure: vLLM reload
+# errors, port collisions); hidden so every panel shows one line per configuration.
+HIDDEN_RUNS = ["0dcb561c", "101b2806", "f4c4f00a", "07e34721", "3539515a", "9a558a4c", "f7aa5df3", "da16b80f",
+               "67ca3bc6", "b4811125"]
 REPORT_URL = ("https://forge.coreweave.com/wandb/tri/vlm-rl-pointmaze/reports/"
               "SmolVLM-256M-learns-procedural-mazes-from-sparse-reward--VmlldzoxODMzMjEwNA==")
 
@@ -122,6 +128,22 @@ def prompt_md() -> str:
     return "\n".join(out)
 
 
+def tile(panels, per_row=4, h=8):
+    """Lay panels out left to right, `per_row` per row, filling the 24-column grid (W&B's default is 3 narrow panels
+    per row, which leaves most of a wide screen empty). Panels with an explicit layout keep it."""
+    import wandb_workspaces.reports.v2 as wr
+    per_row = max(1, min(per_row, len(panels)))
+    w = 24 // per_row
+    for i, p in enumerate(panels):
+        if getattr(p, "layout", None) is None or (p.layout.x, p.layout.y, p.layout.w, p.layout.h) == (0, 0, 8, 6):
+            p.layout = wr.Layout(x=(i % per_row) * w, y=(i // per_row) * h, w=w, h=h)
+    return panels
+
+
+def hide(flt: str) -> str:
+    return flt + " and ID not in [" + ", ".join(f"'{r}'" for r in HIDDEN_RUNS) + "]"
+
+
 def prompt_blocks(a, wr) -> list:
     if not a.prompts:
         return []
@@ -137,28 +159,35 @@ def related_blocks(a, wr) -> list:
         return []
     groups = [g for g in a.related_groups.split(",") if g]
 
-    def rs(g):
-        return wr.Runset(entity=a.entity, project=a.project, name=g, filters=f"Group == '{g}'")
+    def rs(g, label=""):
+        return wr.Runset(entity=a.entity, project=a.project, name=g + label, filters=hide(f"Group == '{g}'"))
     keys = [("eval/success", "Eval success (greedy, 32 episodes)"), ("rollout/invalid_frac", "Invalid replies"),
             ("rollout/success", "Training rollout success (T=1)"), ("train/grad_norm", "Gradient norm")]
     procgen = [g for g in a.related_procgen_groups.split(",") if g]
+    fixed = [g for g in a.fixed_procgen_groups.split(",") if g]
     set_keys = [("eval/success", "Eval success (mean of 3 sets)"), ("eval/id_layouts/success", "id_layouts"),
                 ("eval/ood_layouts/success", "ood_layouts (held-out 11x11)"),
                 ("eval/ood_larger/success", "ood_larger (held-out 15x15)"),
                 ("rollout/invalid_frac", "Invalid replies"), ("rollout/groups_kept", "Groups with signal")]
+    def procgen_panels():
+        return tile([wr.LinePlot(title=t, x="Step", y=[k], max_runs_to_show=30) for k, t in set_keys]
+                    + [wr.LinePlot(title="Mean log-prob of trained tokens", x="Step", y=["train/mean_logp"],
+                                   max_runs_to_show=30),
+                       wr.BarPlot(title="Latest eval success per set", metrics=[k for k, _ in set_keys[1:4]],
+                                  orientation="h", max_runs_to_show=30)])
+
     return [
         wr.H1("Related runs: other models and fixed mazes (AWS Batch)"),
         wr.MarkdownBlock(open(a.related).read()),
-        *([wr.H2("Larger models on the procedural setup (live)"),
-           wr.PanelGrid(runsets=[rs(g) for g in procgen],
-                        panels=[wr.LinePlot(title=t, x="Step", y=[k], max_runs_to_show=30) for k, t in set_keys]
-                        + [wr.BarPlot(title="Latest eval success per set", metrics=[k for k, _ in set_keys[1:4]],
-                                      orientation="h", max_runs_to_show=30)])] if procgen else []),
-        wr.H2("Fixed mazes (live)"),
-        wr.PanelGrid(runsets=[rs(g) for g in groups],
-                     panels=[wr.LinePlot(title=t, x="Step", y=[k], max_runs_to_show=30) for k, t in keys]
-                     + [wr.BarPlot(title="Latest eval success", metrics=["eval/success"], orientation="h",
-                                   max_runs_to_show=30)]),
+        *([wr.H2("Larger models on the procedural setup, after the mask fix (live)"),
+           wr.PanelGrid(runsets=[rs(g) for g in fixed], panels=procgen_panels())] if fixed else []),
+        *([wr.H2("Larger models on the procedural setup, before the mask fix (live; full-FT runs carry the bug)"),
+           wr.PanelGrid(runsets=[rs(g, " (mask bug)") for g in procgen], panels=procgen_panels())] if procgen else []),
+        wr.H2("Fixed mazes (live; full-FT runs before the mask fix)"),
+        wr.PanelGrid(runsets=[rs(g, " (mask bug)") for g in groups],
+                     panels=tile([wr.LinePlot(title=t, x="Step", y=[k], max_runs_to_show=30) for k, t in keys]
+                                 + [wr.BarPlot(title="Latest eval success", metrics=["eval/success"], orientation="h",
+                                               max_runs_to_show=30)], per_row=5)),
     ]
 
 
@@ -179,7 +208,7 @@ def build(a) -> str:
         return [wr.LinePlot(title=t, x="Step", y=[k], max_runs_to_show=20, **kw) for k, t in zip(keys, titles)]
 
     def grid(panels, runset=None):
-        return wr.PanelGrid(runsets=[runset or runs()], panels=panels)
+        return wr.PanelGrid(runsets=[runset or runs()], panels=tile(panels))
 
     def episode_blocks(split, title):
         tag = split.replace("/", " ")
@@ -199,6 +228,7 @@ def build(a) -> str:
 
     blocks = [
         wr.TableOfContents(),
+        *([wr.MarkdownBlock(open(MASK_NOTE).read())] if os.path.exists(MASK_NOTE) else []),
         wr.H1("Takeaways"),
         wr.MarkdownBlock(f"_Text written {stamp}; the panels below are live and may have moved on since._\n\n"
                          + takeaways),
@@ -255,11 +285,12 @@ def build(a) -> str:
         wr.H1("Runs"),
         grid([wr.RunComparer(diff_only=True)]),
     ]
-    report = wr.Report(entity=a.entity, project=a.project, title=a.title, blocks=blocks,
+    report = wr.Report(entity=a.entity, project=a.project, title=a.title, blocks=blocks, width="fluid",
                        description=f"SmolVLM-256M full-FT GRPO on procedural mazes, sparse reward (group {a.group}).")
     if a.url:
         old = wr.Report.from_url(a.url.replace("/wandb/", "/", 1))  # from_url wants entity/project/reports/name
         old.blocks, old.title, old.description = report.blocks, report.title, report.description
+        old.width = "fluid"
         report = old
     report.save(draft=a.draft)
     # Report.url drops the app URL's path prefix (e.g. https://forge.coreweave.com/wandb/), so rebuild it
@@ -283,6 +314,8 @@ def main():
     ap.add_argument("--related_groups", default=RELATED_GROUPS, help="comma-separated wandb groups for its panels")
     ap.add_argument("--related_procgen_groups", default=RELATED_PROCGEN_GROUPS,
                     help="related wandb groups on the procedural setup (per-eval-set panels)")
+    ap.add_argument("--fixed_procgen_groups", default=FIXED_PROCGEN_GROUPS,
+                    help="procedural-setup groups trained after the loss-mask fix")
     a = ap.parse_args()
     if a.url is None:   # a draft is a separate report; only an explicit --url targets an existing one
         a.url = "" if a.draft else REPORT_URL
