@@ -7,13 +7,15 @@
   * GPU1: SmolVLM2-500M, `compact_rel`, lr=1e-5, `max_new_tokens=192` + `parse_last` (final move of a reasoning reply).
   * Step-0 evals match v1 (256M 1.6%, 500M 11.5%). **The panels below now show `smolvlm-procgen-v2`**; v1 numbers
     are in the table further down.
-  * **First signs the fix was the problem** (256M, lr=3e-5, no KL): step-5 eval **27.6%** (v1 same setting: 22.9%;
-    best v1 run ever: 25.0%), 0% invalid eval replies, rollout invalid 80% -> 3% in 5 steps, and mean log-prob
-    **rising** -2.0 -> -0.9 (v1: falling to -8.3). 60 of 64 groups with signal.
+  * **256M at lr=3e-5 collapsed again with the fix**, just later and from higher: step-5 eval 27.6% (0% invalid),
+    mean log-prob rising to -0.46 at step 3 (over-confident), then steps 7-10 rollout invalid 2% -> 90%, grad norm
+    1 -> 5.8, groups with signal 60 -> 21, gibberish replies (`2.80, 6.90-off way to right! Ya rezured ...`), eval
+    **1.0% at step 10**. Stopped at step 10. So the mask bug was not the whole story: lr=3e-5 is too high for 256M
+    full fine-tuning. Replaced by **lr=1e-5, no KL** (GPU0, from 00:15).
   * 500M (192 tokens + `parse_last`): step-5 eval **28.6%** (training 31.2, held-out 11x11 21.9, held-out 15x15
     **32.8**), 0% invalid eval replies; v1 500M with 64 tokens was 22.9% at step 5 and then lost it to truncated
     reasoning. Rollout success 30%, invalid 71% -> 33%, log-prob -1.8 -> -1.0.
-  * Queued on GPU0: once the 256M run passes step 20 (v1 collapsed by then) with eval >= 10% and mean log-prob
+  * Queued on GPU0: once the 256M **lr=1e-5** run passes step 20 (v1 collapsed by then) with eval >= 10% and mean log-prob
     >= -4, it is replaced by the same run with **`max_frames=2`** (sees the previous round too; default 1 = only
     the current image and text, so it cannot tell a move into a wall left it stuck).
 * Stopped v1 runs at the fix: SmolVLM2-500M 64 tokens (eval 3.6 / 22.9 / 5.7 / 20.8% at steps 0-15) and 192 tokens +
@@ -23,7 +25,7 @@
     * GPU1, SmolVLM2-500M back to the richer prompts: `simple` (think, then `<action>`; 256 tokens), then `pear`
       (full PEAR protocol, fenced json; 384 tokens).
     * GPU0, SmolVLM-256M after `max_frames=2`: `compact` (absolute goal; does `compact_rel`'s edge survive the fix?),
-      then `simple` (128 tokens).
+      then `simple` (128 tokens); both at lr=1e-5.
 
 **Bottom line**
 * SmolVLM-256M (full fine-tuning, GRPO, **sparse success reward only**) learns the procedural mazes once the prompt
