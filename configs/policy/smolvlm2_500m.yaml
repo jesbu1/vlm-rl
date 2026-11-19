@@ -1,0 +1,8 @@
+# @package _global_
+# SmolVLM2-500M (video-instruct checkpoint; same SmolVLMForConditionalGeneration architecture as SmolVLM-256M, 960-wide
+# 32-layer text model). Full fine-tuning with fp32 master weights (~8 GB of weights + AdamW state). No image tiling
+# (else ~1.1k tokens per frame).
+model: HuggingFaceTB/SmolVLM2-500M-Video-Instruct
+processor_kwargs: {do_image_splitting: false}
+lora_rank: 0
+lr: 1.0e-5

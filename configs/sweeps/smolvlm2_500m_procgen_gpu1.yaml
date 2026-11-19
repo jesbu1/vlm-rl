@@ -1,0 +1,34 @@
+# SmolVLM2-500M on the SmolVLM-256M procedural-maze setup (same prompt, batch, eval, KL), GPU 1.
+# Replaced the SmolVLM-256M lr=1e-5 + kl_coef=0.05 run (smolvlm_procgen_rel_gpu1.yaml) at step ~20 (22.9% eval at
+# step 15, stable): SmolVLM-256M + KL is stable but flat at ~25% eval since step 10 (straight-line moves only), so this
+# tests whether a 2x larger model learns to route around walls.
+#   - lr=1e-5 + kl_coef=0.05: the setting stable for 256M; the AWS Batch runs saw SmolVLM2-2.2B collapse at lr=5e-6
+#     without KL on procedural mazes, so the KL is kept.
+#   - micro_batch_size=32 (256M used 64): ~2x the activations per sample; trainer and vLLM share one 48 GB A6000.
+group: smolvlm-procgen-v1
+project: vlm-rl-pointmaze
+train_gpu: 1
+vllm_gpu: 1
+vllm_port: 8012
+vllm_gpu_util: 0.35
+overrides:
+  - experiment=pointmaze_procgen
+  - on_invalid=noop
+  - reward=success
+  - steps=60
+  - groups_per_step=64
+  - group_size=16
+  - max_resample_rounds=3
+  - micro_batch_size=32
+  - max_new_tokens=64
+  - eval_every=5
+  - eval_episodes=64
+  - wandb_entity=tri
+  - "wandb_tags='pointmaze,procgen,smolvlm2-500m,fft,sweep'"
+grid:
+  policy: [smolvlm2_500m]   # in the grid so the run name (and out_dir) differ from the 256M runs in this group
+  env_kwargs.prompt_style: [compact_rel]
+  lr: [1.0e-5]
+  kl_coef: [0.05]
+vllm_args:
+  HuggingFaceTB/SmolVLM2-500M-Video-Instruct: [--max-model-len, "8192", --mm-processor-kwargs, '{"do_image_splitting": false}', --api-server-count, "4", --max-num-seqs, "1024", --mm-processor-cache-gb, "0"]
