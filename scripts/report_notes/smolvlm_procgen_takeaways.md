@@ -73,6 +73,8 @@
     38%, invalid 2%, all 53-64 groups with signal, grad norm 0.2-0.3 (noop twin at step 10: 21.3%).
     Step 15: eval **28.6%** (training 34.4, held-out 11x11 20.3, 15x15 31.2), 0% invalid; rollouts 36%, invalid 0.6%,
     grad norm 0.12 (noop twin at step 15: 6.8%, the parse_last misread; terminate's greedy reply stays clean).
+    Step 20: eval **26.0%** (training 31.2, held-out 11x11 20.3, 15x15 26.6), 0% invalid; rollouts 35%, invalid 0.3%,
+    grad norm 0.2, log-prob steady at -0.55 to -0.6 (noop twin at step 20: 22.4%, rollout invalid already rising soon after).
   * 256M terminate (lr=5e-6), steps 1-5: survived the step-3 signal check: groups with signal 10 -> 34 of 64, rollout
     invalid ~85% -> 60%, turns/episode 1.4 -> 2.6. Step-5 eval **13.0%** (training 15.6, held-out 11x11 12.5, 15x15
     10.9), eval invalid 14% (noop twin at step 5: 16.2%). Pre-clip grad norm is high (2-4; clipped to 1.0).
