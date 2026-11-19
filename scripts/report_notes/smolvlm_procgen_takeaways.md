@@ -35,6 +35,7 @@
     * Steps 16-19: now collapsing too, later than lr=1e-5: rollout invalid 9% -> 77%, grad norm 0.9 -> 2.2, success
       30% -> 9%. So under `on_invalid=noop` every lr tried collapses (3e-5: ~step 8, 1e-5: ~20, 5e-6: ~18). Stopped
       after its step-20 eval to start the 256M terminate run.
+      Step-20 eval: **9.4%** (training 6.2, held-out 11x11 6.2, 15x15 15.6), eval invalid 47%; rollout invalid 61%.
   * 500M (192 tokens + `parse_last`): step-5 eval **28.6%** (training 31.2, held-out 11x11 21.9, held-out 15x15
     **32.8**), 0% invalid eval replies; v1 500M with 64 tokens was 22.9% at step 5 and then lost it to truncated
     reasoning. Rollout success 30%, invalid 71% -> 33%, log-prob -1.8 -> -1.0.
