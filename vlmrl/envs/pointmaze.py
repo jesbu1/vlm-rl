@@ -295,7 +295,8 @@ class PointMazeTextInterface:
     ``prompt_style="simple"`` is a shorter custom prompt with ``<action>{"dx":..,"dy":..}</action>``.
     ``prompt_style="compact"`` is a few-sentence prompt for small models (<1B): each turn is the image +
     "Ball: x=.., y=... Goal: x=.., y=... Move:", and the reply is ``{"x": dx, "y": dy}``, parsed leniently
-    (the first x and y values anywhere in the reply).
+    (the first x and y values anywhere in the reply; ``parse_last=True``: the last x and the y after it, so a
+    model that reasons before answering is read by its final move).
     ``prompt_style="compact_rel"`` is ``compact`` with the goal given relative to the ball
     ("Goal: x=+2.53, y=-1.90 from the ball."), so the straight-line move is in the prompt.
     ``think`` adds / drops the "Think briefly, then ..." cue (default: on for simple, off for pear / compact).
@@ -305,7 +306,7 @@ class PointMazeTextInterface:
 
     def __init__(self, maze_map, action_mode: str = "delta", include_state: bool = True,
                  max_delta: float = 1.0, image_size: int = 336, prompt_style: str = "pear",
-                 think: bool | None = None):
+                 think: bool | None = None, parse_last: bool = False):
         assert prompt_style in ("pear", "simple", "compact", "compact_rel")
         if prompt_style in ("pear", "compact", "compact_rel"):
             assert action_mode == "delta", f"{prompt_style} actions are changes of position (delta mode)"
@@ -314,6 +315,7 @@ class PointMazeTextInterface:
         self.keys = ("dx", "dy") if action_mode == "delta" else ("fx", "fy")
         self.image_size, self.prompt_style = image_size, prompt_style
         self.think = prompt_style == "simple" if think is None else think
+        self.parse_last = parse_last
 
     @property
     def _compact(self) -> bool:
@@ -429,7 +431,12 @@ class PointMazeTextInterface:
             from vlmrl.envs import protocol
             return protocol.parse_action(text, self.SCHEMA)
         if self._compact:
-            mx, my = _COMPACT_X.search(text), _COMPACT_Y.search(text)
+            if self.parse_last:   # the last x, then the first y after it (falls back to the last y)
+                xs = list(_COMPACT_X.finditer(text))
+                mx = xs[-1] if xs else None
+                my = (_COMPACT_Y.search(text, mx.end()) or (list(_COMPACT_Y.finditer(text)) or [None])[-1]) if mx else None
+            else:
+                mx, my = _COMPACT_X.search(text), _COMPACT_Y.search(text)
             if not (mx and my):
                 return None
             a = np.array([float(mx.group(1)), float(my.group(1))])
@@ -685,6 +692,7 @@ class PointMazeConfig:
     include_state: bool = True
     prompt_style: str = "pear"        # "pear" (paper Appendix H protocol) | "simple" | "compact" (small models) | "compact_rel" (goal relative to ball)
     think: bool | None = None         # "Think briefly" cue; None = style default (simple: on, pear: off)
+    parse_last: bool = False          # compact styles: read the last x/y in the reply instead of the first (reasoning models)
     settle: bool = True               # PEAR execution: act until target reached & at rest, or blocked
     max_turns: int = 12
     start_states: str = "random"      # "random" | minari dataset id | path.npz
@@ -733,7 +741,8 @@ def make_pointmaze(cfg: PointMazeConfig | None = None, **kw) -> EnvBundle:
                                                 max_delta=cfg.max_delta, image_size=cfg.image_size,
                                                 settle=cfg.settle),
         interface=PointMazeTextInterface(maze_map, cfg.action_mode, cfg.include_state, cfg.max_delta,
-                                         cfg.image_size, cfg.prompt_style, cfg.think),
+                                         cfg.image_size, cfg.prompt_style, cfg.think,
+                                         cfg.parse_last),
         train_sampler=train_sampler or sampler(cfg.start_states, "train"),
         eval_sampler=eval_sampler or sampler(cfg.eval_start_states, cfg.eval_split),
         max_turns=cfg.max_turns,

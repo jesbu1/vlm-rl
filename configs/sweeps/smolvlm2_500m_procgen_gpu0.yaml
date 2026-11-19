@@ -1,0 +1,38 @@
+# SmolVLM2-500M, GPU 0: like smolvlm2_500m_procgen_gpu1.yaml, but lets the model reason before it answers.
+# Replaced the SmolVLM-256M lr=3e-5 + kl_coef=0.05 run (smolvlm_procgen_rel_gpu0.yaml) at step 37: 25% eval at steps
+# 15-25, then its greedy reply flipped to prose (17.2% @30) and to the prompt's example move (3.6% @35).
+# On GPU1, SmolVLM2-500M hit 22.9% eval at step 5, then 5.7% at step 10 while T=1 rollouts kept improving (27%): its
+# greedy reply became step-by-step reasoning ("The ball is at (3.14, 1.60) and the goal is at (-0.9, -5.71). The ball
+# moves by 3 units to the right ...") cut off by max_new_tokens=64 before a move, and the parser read the *first*
+# x / y in the reply. Here:
+#   - max_new_tokens=192: room to finish the reasoning and state a move.
+#   - env_kwargs.parse_last=true: read the last x / y (the final move), not the first.
+#   - micro_batch_size=16 (GPU1: 32): up to 3x longer replies.
+group: smolvlm-procgen-v1
+project: vlm-rl-pointmaze
+train_gpu: 0
+vllm_gpu: 0
+vllm_port: 8011
+vllm_gpu_util: 0.35
+overrides:
+  - experiment=pointmaze_procgen
+  - on_invalid=noop
+  - reward=success
+  - steps=60
+  - groups_per_step=64
+  - group_size=16
+  - max_resample_rounds=3
+  - micro_batch_size=16
+  - eval_every=5
+  - eval_episodes=64
+  - wandb_entity=tri
+  - "wandb_tags='pointmaze,procgen,smolvlm2-500m,fft,sweep'"
+grid:
+  policy: [smolvlm2_500m]   # in the grid so the run name (and out_dir) differ from the 256M runs in this group
+  env_kwargs.prompt_style: [compact_rel]
+  lr: [1.0e-5]
+  kl_coef: [0.05]
+  max_new_tokens: [192]
+  env_kwargs.parse_last: [true]
+vllm_args:
+  HuggingFaceTB/SmolVLM2-500M-Video-Instruct: [--max-model-len, "8192", --mm-processor-kwargs, '{"do_image_splitting": false}', --api-server-count, "4", --max-num-seqs, "1024", --mm-processor-cache-gb, "0"]

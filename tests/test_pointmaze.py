@@ -231,6 +231,19 @@ def test_compact_observation_goal_absolute_or_relative(style):
     assert np.allclose(itf.parse_action(itf.format_action(np.array([0.5, -2.0]))), [0.5, -2.0])
 
 
+
+def test_compact_parse_last_reads_the_final_move_after_reasoning():
+    """parse_last reads a reasoning reply by its final move; the default keeps reading the first x / y."""
+    reply = 'The ball is at (x=3.1, y=1.6) and the goal is at (x=-0.9, y=-2.5). So the move is {"x": -0.9, "y": 1.2}'
+    first = PointMazeTextInterface(get_maze_map("umaze"), prompt_style="compact_rel", max_delta=3.0)
+    last = PointMazeTextInterface(get_maze_map("umaze"), prompt_style="compact_rel", max_delta=3.0, parse_last=True)
+    assert np.allclose(first.parse_action(reply), [3.1, 1.6])
+    assert np.allclose(last.parse_action(reply), [-0.9, 1.2])
+    assert np.allclose(last.parse_action('{"x": 0.5, "y": -2.0}'), [0.5, -2.0])
+    assert np.allclose(last.parse_action("y=1.0 then x=2.0"), [2.0, 1.0])   # no y after the last x: last y
+    assert last.parse_action("The ball is at (3.14, 1.60).") is None
+    assert make_pointmaze(maze="umaze", prompt_style="compact_rel", parse_last=True).interface.parse_last
+
 # ----------------------------------------------------------------------------- start states
 
 def test_random_sampler_free_cells_and_min_dist(rng):
