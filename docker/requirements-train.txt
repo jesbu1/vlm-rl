@@ -123,3 +123,6 @@ watchdog==7.1.0
 websockets==17.4
 xxhash==4.1.0
 scipy
+einops==0.8.2
+fla-core==0.6.0
+flash-linear-attention==0.6.0

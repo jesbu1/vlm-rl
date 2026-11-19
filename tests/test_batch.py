@@ -176,6 +176,7 @@ def test_free_port_base_returns_consecutive_free_ports():
     import random
     import socket
     base = entry.free_port_base(3, rng=random.Random(0))
+    assert base + 3 <= 32768                       # below the ephemeral range vLLM's internal sockets draw from
     for p in range(base, base + 3):
         s = socket.socket()
         s.bind(("127.0.0.1", p))

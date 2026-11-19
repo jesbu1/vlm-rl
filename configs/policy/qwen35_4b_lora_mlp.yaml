@@ -1,0 +1,7 @@
+# @package _global_
+# Qwen3.5-4B, LoRA on the language model's MLPs only (gate/up/down_proj in all 32 layers): no adapter on the gated
+# full attention (q_proj = query + output gate) or the linear-attention layers. A control for whether vLLM applies
+# LoRA on Qwen3.5's attention the way transformers does (watch train/logp_gap).
+defaults:
+  - qwen35_4b_lora
+lora_targets: '.*language_model.*\.(gate_proj|up_proj|down_proj)'

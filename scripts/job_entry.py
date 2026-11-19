@@ -81,9 +81,13 @@ def pick_scratch(candidates=("/opt/ml/scratch", "/tmp", "/dev/shm")) -> str:
     return best
 
 
-def free_port_base(n: int, lo: int = 20000, hi: int = 60000, rng=None) -> int:
+def free_port_base(n: int, lo: int = 10000, hi: int = 32000, rng=None) -> int:
     """A random base port with ``n`` consecutive free ports. Batch can place several jobs on one host with host
-    networking, so fixed ports (8011, 8012, ...) collide and a lane ends up talking to another job's server."""
+    networking, so fixed ports (8011, 8012, ...) collide and a lane ends up talking to another job's server.
+
+    The range stays below Linux's ephemeral ports (32768-60999): a running vLLM server opens internal sockets on
+    OS-assigned ephemeral ports, and with a base inside that range lane 0's server took lane 1's port (base + 1)
+    before lane 1 started ("Address already in use")."""
     import random
     import socket
     rng = rng or random.Random()
