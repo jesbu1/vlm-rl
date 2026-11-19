@@ -63,6 +63,7 @@ class TrainConfig:
     score_centering: bool = True                        # PEAR: correct rollout/learner mismatch (active when off-policy)
     score_centering_topk: int = 32                      # rollout-policy support used for the correction
     on_invalid: str = "terminate"                       # PEAR: an invalid action ends the episode | "noop"
+    eval_on_invalid: str | None = None                  # on_invalid for eval episodes; None = same as on_invalid
     max_context_tokens: int | None = None               # PEAR: episode ends when the context budget is reached
     clip_low: float = 0.2
     clip_high: float = 0.28
@@ -348,7 +349,7 @@ class Trainer:
         c = self.cfg
         tasks = [RolloutTask(s["env"], s["bundle"].interface, s["starts"], list(range(len(s["starts"]))),
                              s["bundle"].max_turns) for s in self.eval_sets]
-        out = rollout_pooled(self._gen(c.eval_temperature), tasks, c.max_images, on_invalid=c.on_invalid,
+        out = rollout_pooled(self._gen(c.eval_temperature), tasks, c.max_images, on_invalid=c.eval_on_invalid or c.on_invalid,
                              max_context_tokens=c.max_context_tokens,
                              last_tokens=lambda: getattr(self.generator, "last_num_tokens", []),
                              max_frames=c.max_frames)

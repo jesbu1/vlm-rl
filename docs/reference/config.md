@@ -55,6 +55,7 @@ Every field of `vlmrl.trainer.TrainConfig`, the Hydra schema. Set any of them on
 | `score_centering` | `bool` | `True` | PEAR: correct rollout/learner mismatch (active when off-policy) |
 | `score_centering_topk` | `int` | `32` | rollout-policy support used for the correction |
 | `on_invalid` | `str` | `'terminate'` | PEAR: an invalid action ends the episode \| "noop" |
+| `eval_on_invalid` | `str \| None` | `null` | on_invalid for eval episodes; None = same as on_invalid |
 | `max_context_tokens` | `int \| None` | `null` | PEAR: episode ends when the context budget is reached |
 | `clip_low` | `float` | `0.2` |  |
 | `clip_high` | `float` | `0.28` |  |

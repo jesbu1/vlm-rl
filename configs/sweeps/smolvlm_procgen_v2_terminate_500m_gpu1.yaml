@@ -1,0 +1,35 @@
+# smolvlm-procgen-v2, GPU 1: SmolVLM2-500M compact_rel lr=1e-5, 192 tokens + parse_last, same as
+# smolvlm_procgen_v2_gpu1.yaml (peak 29.7% eval at step 25, drifting from step 26) except:
+# PEAR rule: an invalid reply ENDS the episode during training (on_invalid=terminate), so junk turns can no longer sit
+# inside a successful episode and share its positive advantage (all v2 runs so far used on_invalid=noop, and all of them
+# drifted into invalid / gibberish replies). Eval stays on noop (eval_on_invalid=noop) so its numbers compare directly
+# with the noop runs. Risk: from scratch most replies are invalid, so few episodes reach the goal; the queue aborts the
+# run after step 3 if fewer than 6 groups carry a GRPO signal.
+group: smolvlm-procgen-v2
+project: vlm-rl-pointmaze
+train_gpu: 1
+vllm_gpu: 1
+vllm_port: 8012
+vllm_gpu_util: 0.35
+overrides:
+  - experiment=pointmaze_procgen
+  - eval_on_invalid=noop
+  - reward=success
+  - steps=40
+  - groups_per_step=64
+  - group_size=16
+  - max_resample_rounds=3
+  - micro_batch_size=16
+  - eval_every=5
+  - eval_episodes=64
+  - wandb_entity=tri
+  - "wandb_tags='pointmaze,procgen,smolvlm2-500m,fft,sweep'"
+grid:
+  on_invalid: [terminate]   # in the grid so the run name (and out_dir) differ from the noop run
+  policy: [smolvlm2_500m]   # in the grid so the run name (and out_dir) differ from the 256M runs in this group
+  env_kwargs.prompt_style: [compact_rel]
+  lr: [1.0e-5]
+  max_new_tokens: [192]
+  env_kwargs.parse_last: [true]
+vllm_args:
+  HuggingFaceTB/SmolVLM2-500M-Video-Instruct: [--max-model-len, "8192", --mm-processor-kwargs, '{"do_image_splitting": false}', --api-server-count, "4", --max-num-seqs, "1024", --mm-processor-cache-gb, "0"]
