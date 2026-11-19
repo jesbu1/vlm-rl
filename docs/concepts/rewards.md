@@ -22,6 +22,8 @@ judgments (preferences) are the same kind of object.
 | `format` | −fraction of turns with an unparseable action |
 | `efficiency` | `1 − turns/max_turns` for successful episodes, else 0 |
 | `pref_oracle_dist` | preference pipeline with a privileged oracle judge (success first, then lower final distance) |
+| `pref_mw` | Metaworld: preferences from ground truth (success first, then Metaworld's dense reward at the final state, `mw_progress`; differences < 0.1 of 10 are ties), win rates as scores |
+| `mw_progress` | Metaworld's dense reward (0-10) at the final state, as a scalar |
 | `success+0.5*neg_dist` | weighted sum (quote on the CLI: `reward='success+0.5*neg_dist'`) |
 | `examples.toy_wam:make_reward` | a custom factory |
 

@@ -29,7 +29,20 @@ With the runaway token gone, a collapse is no longer permanent: valid replies su
 * Models × prompts: Qwen3-VL-2B, Gemma 4 E2B and Qwen3-VL-4B × {`pear`, `compact`}.
 * Eval sets: ML1 push (train / held-out positions), ML10 (train / held-out tasks) and ML45 (held-out tasks), 32 greedy
   episodes each.
-* Next: ML1 RL (`configs/sweeps/metaworld_ml1_rl.yaml`) with the best zero-shot model and prompt.
+* Result: **zero-shot success is ~0 everywhere** (best: Gemma 4 E2B `compact`, 6% on ML10 training tasks; nothing
+  on ML1 push, ML10 held-out or ML45 held-out). With `pear`, invalid replies fall with size: Qwen3-VL-2B 98%,
+  Qwen3-VL-4B 30%, Gemma 4 E2B 8%. `compact` is always valid, but Qwen3-VL-2B echoes the hand's absolute position as
+  the move (the `compact` echo seen on PointMaze), so the hand drifts.
+
+**Metaworld ML1 RL** (Qwen3-VL-2B full FT, `compact`, lr 5e-6, 16 groups x 8, 40 steps, `rollout=hf` on one GPU):
+
+* The first attempt ran out of GPU memory. Each simulator opened its own EGL context (~128 MiB), ~25 GB per step;
+  fixed in `a41df82` with one shared renderer per task.
+* Reach, sparse success (`metaworld-ml1-rl-v1`): eval 0.22 (train positions) / 0.41 (held-out) at step 0, 6 of 16
+  groups with signal at step 1. Running.
+* Push, sparse success: 0 of 128 rollouts succeed, so no group has signal and nothing trains. Cancelled.
+* Push and reach with `reward=pref_mw` (`metaworld-ml1-pref-v1`): within-group preferences from the ground-truth
+  Metaworld reward at the final state ([Rewards](../concepts/rewards.md)). Running.
 
 ## 2026-11-18 · Small-model full fine-tuning on AWS Batch (wandb group `pointmaze-small-fft-batch-v1`)
 
