@@ -147,6 +147,7 @@ class MetaWorldVecEnv:
         self.blocked_window, self.blocked_eps, self.gain = blocked_window, blocked_eps, gain
         self.grip_steps = grip_steps   # a changed gripper command gets at least this many steps (fingers are slow)
         self._pool: dict[tuple, list] = {}
+        self._renderers: dict[str, object] = {}
         self._envs: list = []
         self._keys: list[tuple] = []
         self._obs: list[np.ndarray] = []
@@ -181,9 +182,24 @@ class MetaWorldVecEnv:
         env._partially_observable = was
         return o
 
+    def _render(self, k: int) -> np.ndarray:
+        """Render simulator k with one shared renderer per task class. Each simulator's own `env.render()` would open
+        its own GL context (~128 MiB of GPU memory each, so ~25 GB for a 128-episode step + eval). Simulators of one
+        class share the model structure (meshes, textures: what the GL context holds); the scene is built from the
+        simulator's own model and data, so per-task goal sites are drawn where they are."""
+        env, name = self._envs[k], self._keys[k][1]
+        r = self._renderers.get(name)
+        if r is None:
+            import mujoco
+            w, h = self.render_size
+            r = self._renderers[name] = mujoco.Renderer(env.model, height=h, width=w)
+        r._model = env.model   # update_scene() reads the model from here
+        r.update_scene(env.data, camera=self.camera)
+        return r.render()
+
     def _view(self, k: int, extras: dict | None = None) -> Obs:
         env, o = self._envs[k], self._obs[k]
-        img = env.render()
+        img = self._render(k)
         if env.camera_name == "corner":          # Metaworld's corner camera renders upside down
             img = img[::-1]
         img = self._crop(img)
@@ -254,7 +270,9 @@ class MetaWorldVecEnv:
     def close(self):
         for e in self._envs + [e for pool in self._pool.values() for e in pool]:
             e.close()
-        self._envs, self._pool = [], {}
+        for r in self._renderers.values():
+            r.close()
+        self._envs, self._pool, self._renderers = [], {}, {}
 
 
 def oracle_action(vec: MetaWorldVecEnv, k: int) -> np.ndarray:

@@ -112,3 +112,13 @@ def test_frames_are_rendered_large_and_cropped(renderable):
         assert o.image.shape == (224, 224, 3) and env.render_size == (640, 480)
         assert o.image.std() > 10                                    # a real scene, not a blank frame
         env.close()
+
+
+def test_simulators_of_one_task_share_a_renderer(renderable):
+    """One GL context per task class, not per simulator (~128 MiB of GPU memory each)."""
+    env = M.MetaWorldVecEnv("ML10", image_size=32)
+    ss = [_state("ML10", "train", n, task=i, seed=i) for i, n in enumerate(["reach-v3", "push-v3"] * 4)]
+    obs = env.reset(ss)
+    assert len(env._renderers) == 2 and all(o.image.std() > 10 for o in obs)
+    assert not np.array_equal(obs[0].image, obs[2].image)          # same task, other variation: its own scene
+    env.close()
