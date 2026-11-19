@@ -24,6 +24,8 @@
     * GPU0 now (queue, 40 steps each, a run is aborted if rollout invalid >85% two steps running after step 5):
       256M `compact_rel` **lr=5e-6** (max_frames=1) -> same with **max_frames=2** (the A/B) -> `compact` -> `simple`,
       all at lr=5e-6.
+    * lr=5e-6 step 5: eval **16.2%** (training 23.4, held-out 11x11 12.5, 15x15 12.5), eval invalid 12%; rollouts 28%,
+      invalid 79% -> 34%, grad norm ~0.5. Slower than lr=1e-5 (22.4% at step 5), as expected; the question is step 20+.
   * 500M (192 tokens + `parse_last`): step-5 eval **28.6%** (training 31.2, held-out 11x11 21.9, held-out 15x15
     **32.8**), 0% invalid eval replies; v1 500M with 64 tokens was 22.9% at step 5 and then lost it to truncated
     reasoning. Rollout success 30%, invalid 71% -> 33%, log-prob -1.8 -> -1.0.
