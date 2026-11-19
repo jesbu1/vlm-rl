@@ -5,6 +5,11 @@
 * **Reruns from scratch, group `smolvlm-procgen-v2`** (started 21:15, no KL):
   * GPU0: SmolVLM-256M, `compact_rel`, lr=3e-5: the v1 setting that collapsed fastest. Does it still collapse?
   * GPU1: SmolVLM2-500M, `compact_rel`, lr=1e-5, `max_new_tokens=192` + `parse_last` (final move of a reasoning reply).
+  * Step-0 evals match v1 (256M 1.6%, 500M 11.5%). **The panels below now show `smolvlm-procgen-v2`**; v1 numbers
+    are in the table further down.
+  * Queued on GPU0: once the 256M run passes step 20 (v1 collapsed by then) with eval >= 10% and mean log-prob
+    >= -4, it is replaced by the same run with **`max_frames=2`** (sees the previous round too; default 1 = only
+    the current image and text, so it cannot tell a move into a wall left it stuck).
 * Stopped v1 runs at the fix: SmolVLM2-500M 64 tokens (eval 3.6 / 22.9 / 5.7 / 20.8% at steps 0-15) and 192 tokens +
   `parse_last` (10.4% zero-shot vs 3.6%; stopped at step 2).
 
