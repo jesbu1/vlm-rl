@@ -13,10 +13,10 @@ SmolVLM2-2.2B at lr 5e-6 went to 97–99% invalid replies within 4–6 steps.
 
 | model | before the fix | after the fix |
 |---|---|---|
-| SmolVLM2-2.2B | invalid 31% → 96% → 97% (steps 4–6), grad norm up to 185 | invalid 37% → 25% → 17% (steps 1–3), grad norm 0.4–0.6 |
+| SmolVLM2-2.2B | invalid 31% → 96% → 97% (steps 4–6), grad norm up to 185, never recovered | invalid 37% → 17% (steps 1–3), a transient collapse to 96–99% at steps 5–7 (grad norm 7), then **recovered**: 12% invalid and rollout success 0.36 at step 9 |
 | MiniCPM-V 4.6 | invalid 0% → 99% (steps 1–4) | invalid 0–2%, but `mean_logp` −0.24 → −0.04 in two updates: a near-deterministic policy, no group with signal from step 3, cancelled |
 
-MiniCPM-V's second failure is a separate one: lr 5e-6 is too high for it. It reruns at 1e-6.
+With the runaway token gone, a collapse is no longer permanent: valid replies survive under `on_invalid=noop`, so groups keep a signal and the policy climbs back. lr 5e-6 is still on the edge for SmolVLM2-2.2B, and too high for MiniCPM-V (a separate failure: sharpening into a deterministic policy). MiniCPM-V reruns at 1e-6.
 
 **Reruns** (`configs/sweeps/batch_procgen_fft_v2.yaml`, wandb group `procgen-fft-v2`, running):
 
