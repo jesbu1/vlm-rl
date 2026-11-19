@@ -68,7 +68,7 @@ def test_gripper_closes_and_opens(renderable):
     env.close()
 
 
-@pytest.mark.parametrize("style", ["pear", "compact"])
+@pytest.mark.parametrize("style", ["pear", "compact", "compact_rel"])
 def test_parse_format_roundtrip(style):
     itf = M.MetaWorldTextInterface(prompt_style=style)
     a = np.array([2.5, -1.0, 0.5, -1.0])
@@ -124,4 +124,41 @@ def test_simulators_of_one_task_share_a_renderer(renderable):
     obs = env.reset(ss)
     assert len(env._renderers) == 2 and all(o.image.std() > 10 for o in obs)
     assert not np.array_equal(obs[0].image, obs[2].image)          # same task, other variation: its own scene
+    env.close()
+
+
+def test_corner_view_is_rotated_not_mirrored(renderable):
+    """The corner camera is rolled 180 degrees; the frame must be its 180-degree rotation. Checked against the camera's
+    own projection: in a correct (unmirrored) view, world +z goes up the image and the camera's world "right" axis
+    goes right."""
+    import mujoco
+    env = M.MetaWorldVecEnv("ML1:reach-v3", image_size=224)
+    env.reset([_state("ML1:reach-v3", "train", "reach-v3")])
+    e = env.raw(0)
+    cid = mujoco.mj_name2id(e.model, mujoco.mjtObj.mjOBJ_CAMERA, "corner")
+    R = e.data.cam_xmat[cid].reshape(3, 3)
+    assert R[2, 1] < -0.5                                     # camera "up" points down in the world: rolled
+    raw = env._renderers["reach-v3"].render()                 # raw camera image (upside down)
+    view = env._view(0).image
+    w, h = env.render_size
+    s = env.image_size
+    rot = raw[::-1, ::-1][(h - s) // 2:(h - s) // 2 + s, (w - s) // 2:(w - s) // 2 + s]
+    assert np.array_equal(view, rot)
+    # and +x (world) projects to the right in the rotated view: camera x axis (raw right) has a negative world-x part
+    assert R[0, 0] < 0
+    env.close()
+
+
+def test_compact_rel_has_no_absolute_coordinates(renderable):
+    b = M.make_metaworld(benchmark="ML1:reach-v3", image_size=32, prompt_style="compact_rel")
+    env, itf = b.make_vec_env(), b.interface
+    s = _state("ML1:reach-v3", "train", "reach-v3")
+    o = env.reset([s])[0]
+    first = itf.observation_message(o, 0, False, False)[1]["text"]
+    assert first == "Gripper: open. Move:"
+    r = env.step([0], [itf.parse_action('{"dx": 4.0, "dy": 0.0, "dz": -2.0, "grip": "open"}')])[0]
+    text = itf.observation_message(r.obs, 1, False, False)[1]["text"]
+    assert text.startswith("Gripper: open. Last move: dx=+") and "dz=-" in text and "y=6" not in text
+    assert "+dx moves the hand to the right" in itf.system_prompt(s)
+    assert itf.parse_action('{"x": 1, "y": 2, "z": 3}') is None            # absolute-looking keys are not moves
     env.close()

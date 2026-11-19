@@ -1,0 +1,28 @@
+# ML1 reach / push after the zero-shot and first RL round (docs: experiment log, 2026-11-19): compact_rel prompt
+# (no absolute coordinates to copy; the goal is only in the image), preference reward from Metaworld's ground truth
+# (pref_mw), corrected (unmirrored) camera view. Grid: model x task x rollout temperature. Submit subsets:
+#   Qwen3-VL-2B on 1-GPU machines (no room for a vLLM server next to full fine-tuning):
+#     python scripts/batch_submit.py configs/sweeps/metaworld_ml1_v3.yaml --gpus 1 --gpus_per_lane 1 \
+#         --only 'qwen3vl2b' --set rollout=hf
+#   Qwen3-VL-4B LoRA on 4-GPU machines, 2 GPUs per run (trainer + vLLM):
+#     python scripts/batch_submit.py configs/sweeps/metaworld_ml1_v3.yaml --queue <4-gpu queue> --gpus 4 \
+#         --gpus_per_lane 2 --only 'qwen3vl4b.*temperature=1.2'
+group: metaworld-ml1-v3
+project: vlm-rl-metaworld
+vllm_port: 8011
+overrides:
+  - experiment=metaworld_ml1
+  - env_kwargs.prompt_style=compact_rel
+  - reward=pref_mw
+  - max_new_tokens=64
+  - save_every=40
+  - resume_every=5
+  - wandb_entity=tri
+  - "wandb_tags='metaworld,ml1,rl,compact_rel'"
+grid:
+  policy: [qwen3vl2b_full, qwen3vl4b_lora]
+  env_kwargs.benchmark: [ML1:reach-v3, ML1:push-v3]
+  temperature: [1.0, 1.2]
+vllm_args:
+  Qwen/Qwen3-VL-2B-Instruct: [--mm-processor-cache-gb, "0"]
+  Qwen/Qwen3-VL-4B-Instruct: [--mm-processor-cache-gb, "0"]

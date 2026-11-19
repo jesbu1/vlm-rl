@@ -44,7 +44,7 @@ python scripts/train.py task=metaworld env_kwargs.benchmark=ML10 ...
   (reach, push, pick-place, shelf-place, box-close, basketball) goals, objects and the gripper stay in view. The
   basketball dunk's top position touches the upper edge. `crop: resize` scales the short side to 224 first: the whole
   scene, but objects are only a few pixels.
-* The `corner` camera is used by default (Metaworld renders it upside down; the env flips it).
+* The `corner` camera is used by default. It is rolled 180° (its "up" axis points down), so the env rotates the frame 180°. Runs before 2026-11-19 09:00 only flipped rows, which mirrored every frame left-right (`test_corner_view_is_rotated_not_mirrored` checks the rotation against the camera's projection). In the image, +x moves the hand right, +y left (both slightly away from the camera), +z up.
 * Rendering is headless MuJoCo: `MUJOCO_GL=egl` on GPU machines (the image sets
   `NVIDIA_DRIVER_CAPABILITIES=compute,utility,graphics`); `MUJOCO_GL=osmesa` works on CPU (slower).
 * The goal position is hidden in ML benchmarks (Metaworld's `_partially_observable`): the VLM sees it only in the image.
@@ -55,6 +55,9 @@ python scripts/train.py task=metaworld env_kwargs.benchmark=ML10 ...
 |---|---|---|
 | `pear` (default) | state JSON + image; task instruction in the system prompt's TASK section | fenced JSON change of `hand.x/y/z` and `gripper.opening` |
 | `compact` | image + `Hand: x=..., y=..., z=.... Gripper: open. Move:` | `{"x": 2.0, "y": -1.0, "z": 0.0, "grip": "close"}` |
+| `compact_rel` | image + `Gripper: open. Last move: dx=+2.0, dy=-1.0, dz=+0.0. Move:`; no absolute coordinates anywhere, axis directions in the image in the system prompt; the goal is only in the image | `{"dx": 3.0, "dy": -2.0, "dz": -1.0, "grip": "open"}` |
+
+With `compact`, Qwen3-VL-2B copies the hand's absolute position as its move; `compact_rel` gives it nothing absolute to copy.
 
 Metaworld has no language annotations: `metaworld.py::task_text` returns one instruction per task (`TASK_TEXT`, all 50, checked by hand).
 

@@ -33,7 +33,7 @@ os.environ.setdefault("MUJOCO_GL", "egl")   # headless rendering on GPU machines
 TASK_TEXT = {
     "assembly": "Pick up the nut and place it over the peg.",
     "basketball": "Pick up the ball and dunk it into the basket.",
-    "bin-picking": "Pick up the cube in the right bin and place it in the left bin.",
+    "bin-picking": "Pick up the cube in the left bin and place it in the right bin.",
     "box-close": "Pick up the lid and place it on the box to close it.",
     "button-press-topdown": "Press the button down from the top.",
     "button-press-topdown-wall": "Press the button down from the top; there is a wall next to it.",
@@ -201,8 +201,8 @@ class MetaWorldVecEnv:
     def _view(self, k: int, extras: dict | None = None) -> Obs:
         env, o = self._envs[k], self._obs[k]
         img = self._render(k)
-        if env.camera_name == "corner":          # Metaworld's corner camera renders upside down
-            img = img[::-1]
+        if env.camera_name == "corner":          # Metaworld's corner camera is rolled 180 degrees (its "up" axis points
+            img = img[::-1, ::-1]                # down): rotate, not flip rows only, which would mirror the scene
         img = self._crop(img)
         state = np.r_[o[:3] * 100.0, o[3]]       # hand xyz in cm, gripper opening in [0, 1]
         return Obs(image=np.ascontiguousarray(img), state=state,
@@ -241,7 +241,8 @@ class MetaWorldVecEnv:
                 new = 1.0 if a[3] < 0 else -1.0
                 grip_changed, self._grip[k] = new != self._grip[k], new
             min_steps = self.grip_steps if grip_changed else 3
-            target = self._obs[k][:3] * 100.0 + delta
+            start = self._obs[k][:3] * 100.0
+            target = start + delta
             success, stop, reward_sum, hist, low = False, "steps", 0.0, [], []
             for i in range(self.max_substeps):
                 if env.curr_path_length >= env.max_path_length:
@@ -266,7 +267,8 @@ class MetaWorldVecEnv:
                     stop = "blocked"
                     break
             truncated = not success and env.curr_path_length >= env.max_path_length
-            out.append(StepResult(obs=self._view(k), reward=float(success), terminated=success, truncated=truncated,
+            moved = self._obs[k][:3] * 100.0 - start
+            out.append(StepResult(obs=self._view(k, {"moved": moved}), reward=float(success), terminated=success, truncated=truncated,
                                   info={"success": success, "stop": stop, "mw_reward": reward_sum,
                                         "low_level_actions": np.stack(low) if low else np.zeros((0, 4))}))
         return out
@@ -314,18 +316,22 @@ def vec_action_scale(vec: MetaWorldVecEnv, k: int) -> float:
 
 _NUM = r"[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?"
 _COMPACT = {q: re.compile(rf'"?{q}"?\s*[:=]\s*({_NUM})', re.IGNORECASE) for q in ("x", "y", "z")}
+_COMPACT_REL = {q: re.compile(rf'"?d{q}"?\s*[:=]\s*({_NUM})', re.IGNORECASE) for q in ("x", "y", "z")}
 _COMPACT_GRIP = re.compile(r'"?(?:grip|gripper)"?\s*[:=]\s*"?(open|close|closed|' + _NUM + r')"?', re.IGNORECASE)
 
 
 class MetaWorldTextInterface:
     """``prompt_style="pear"``: PEAR's protocol (state JSON + image; reply = fenced JSON *change* of every
     quantity). ``"compact"``: one short line per turn, reply ``{"x": dx, "y": dy, "z": dz, "grip": "open|close"}``
-    (for small models)."""
+    (for small models). ``"compact_rel"``: ``compact`` without any absolute coordinate, so there is nothing to
+    copy: the reply is ``{"dx", "dy", "dz", "grip"}``, the system prompt says which way each axis moves the hand in the
+    image, and each turn reports how far the hand actually moved last turn. The goal is only in the image (unlike
+    PointMaze's ``compact_rel``, no goal offset is given)."""
 
     SCHEMA = {"hand": ["x", "y", "z"], "gripper": ["opening"]}
 
     def __init__(self, max_delta: float = 10.0, prompt_style: str = "pear", include_state: bool = True):
-        assert prompt_style in ("pear", "compact"), prompt_style
+        assert prompt_style in ("pear", "compact", "compact_rel"), prompt_style
         self.max_delta, self.prompt_style, self.include_state = max_delta, prompt_style, include_state
 
     def environment_section(self) -> str:
@@ -346,6 +352,14 @@ class MetaWorldTextInterface:
             from vlmrl.envs import protocol
             return protocol.system_prompt(self.environment_section(), task_text(start_state["env_name"]),
                                           length_unit="centimeters")
+        if self.prompt_style == "compact_rel":
+            return ("You control a robot arm with a gripper above a table, seen from a fixed camera. "
+                    f"Task: {task_text(start_state['env_name'])} "
+                    "Each turn, reply with only how far to move the hand, in centimeters, as JSON, for example "
+                    '{"dx": 3.0, "dy": -2.0, "dz": -1.0, "grip": "open"}. These are changes, not positions: '
+                    "in the image, +dx moves the hand to the right, +dy to the left, both slightly away from the "
+                    f"camera; +dz moves it up. At most {self.max_delta:g} cm per turn. "
+                    '"grip": "close" closes the gripper, "open" opens it.')
         return ("You control a robot arm with a gripper above a table, seen from a fixed camera. "
                 f"Task: {task_text(start_state['env_name'])} "
                 "Positions are in centimeters; z points up. Each turn, reply with only the move as JSON, for example "
@@ -364,6 +378,14 @@ class MetaWorldTextInterface:
                 parts.append(protocol.format_state(self.SCHEMA, obs.state))
             return ([{"type": "text", "text": "\n".join(parts)}] if parts else []) + [img]
         h = obs.state
+        if self.prompt_style == "compact_rel":
+            text = "No valid move last turn. " if parse_error else ""
+            if self.include_state:
+                text += f"Gripper: {'open' if h[3] > 0.6 else 'closed'}. "
+                m = obs.extras.get("moved")
+                if m is not None:
+                    text += f"Last move: dx={m[0]:+.1f}, dy={m[1]:+.1f}, dz={m[2]:+.1f}. "
+            return [img, {"type": "text", "text": text + "Move:"}]
         text = ("No valid move last turn. " if parse_error else "") + (
             f"Hand: x={h[0]:.1f}, y={h[1]:.1f}, z={h[2]:.1f}. Gripper: {'open' if h[3] > 0.6 else 'closed'}. Move:"
             if self.include_state else "Move:")
@@ -373,7 +395,8 @@ class MetaWorldTextInterface:
         if self.prompt_style == "pear":
             from vlmrl.envs import protocol
             return protocol.parse_action(text, self.SCHEMA)
-        vals = [m.group(1) if (m := _COMPACT[q].search(text)) else None for q in ("x", "y", "z")]
+        pats = _COMPACT_REL if self.prompt_style == "compact_rel" else _COMPACT
+        vals = [m.group(1) if (m := pats[q].search(text)) else None for q in ("x", "y", "z")]
         if any(v is None for v in vals):
             return None
         g = _COMPACT_GRIP.search(text)
@@ -390,6 +413,8 @@ class MetaWorldTextInterface:
             from vlmrl.envs import protocol
             return protocol.example_action(self.SCHEMA, a)
         grip = "close" if a[3] < 0 else "open"
+        if self.prompt_style == "compact_rel":
+            return f'{{"dx": {a[0]:.1f}, "dy": {a[1]:.1f}, "dz": {a[2]:.1f}, "grip": "{grip}"}}'
         return f'{{"x": {a[0]:.1f}, "y": {a[1]:.1f}, "z": {a[2]:.1f}, "grip": "{grip}"}}'
 
     def noop_action(self):
@@ -402,7 +427,7 @@ class MetaWorldTextInterface:
 class MetaWorldConfig:
     benchmark: str = "ML1:reach-v3"   # ML1:<task> | ML10 | ML45
     eval_split: str = "test"          # test = held-out goals (ML1) / held-out tasks (ML10, ML45) | train
-    prompt_style: str = "pear"
+    prompt_style: str = "pear"        # pear | compact | compact_rel
     include_state: bool = True
     image_size: int = 224              # square crop fed to the VLM
     render_width: int = 640            # rendered frame, before cropping
