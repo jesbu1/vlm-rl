@@ -27,4 +27,4 @@ kwargs reach vLLM and the trainer's tokenization, so both render the same prompt
   Full-history samples with thinking would not be prefix-stable, and the first batch's check would stop them.
 * **Actions are parsed after the last `</think>`** (`rollout.final_answer`). With `enable_thinking: true`, a reply
   that never closes its reasoning (cut off at `max_new_tokens`) is invalid.
-* Thinking runs need a larger `max_new_tokens` (512 in `configs/sweeps/metaworld_ml1_q35.yaml`).
+* Thinking runs need a much larger `max_new_tokens`: on Metaworld the reasoning runs ~2,000 characters per turn even when the prompt asks for only the move, and at 512 tokens every reply was cut off before `</think>` (100% invalid). The ML1 runs use 2048.
