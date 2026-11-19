@@ -17,6 +17,8 @@ no demonstrations.
 - **Any reward**: success, shaped, or pairwise **preferences** ([rewards](docs/concepts/rewards.md))
 - **PointMaze for VLM-RL** with PEAR's exact prompt protocol and reset-to-state from D4RL/Minari data
   ([PointMaze](docs/environments/pointmaze.md), [prompts](docs/environments/prompts.md))
+- **Metaworld** ML1 / ML10 / ML45 with Metaworld's train/test task splits, the same hand + gripper text protocol, and
+  scripted experts as an upper bound ([Metaworld](docs/environments/metaworld.md))
 - **Faithful PEAR algorithm**: GRPO z-score advantages, DAPO group filter, REINFORCE without clipping,
   score centering ([how PEAR works](docs/pear/index.md), [mapping](docs/pear/mapping.md))
 - **Hydra configs, a vLLM rollout server (LoRA or full-weight sync), sweeps, wandb** ([training](docs/training/index.md))
@@ -105,7 +107,7 @@ master weights and syncs the full weights into vLLM each step, over a maze × le
 | [Getting started](docs/getting-started/index.md) | installation · quickstart · your first real run |
 | [PEAR (the paper)](docs/pear/index.md) | protocol · RL objective · recipe & systems · results · PEAR ↔ vlmrl |
 | [Concepts](docs/concepts/index.md) | architecture · rollouts & episodes · algorithm · rewards & preferences |
-| [Environments](docs/environments/index.md) | PointMaze · prompts · world-action models · adding an environment |
+| [Environments](docs/environments/index.md) | PointMaze · Metaworld · prompts · world-action models · adding an environment |
 | [Models](docs/models/index.md) | Gemma 4 E2B · Qwen3-VL-4B · Qwen3-VL-2B · Qwen2.5-VL-3B · Qwen2.5-VL-7B · MiniCPM-V 4.6 · SmolVLM2-2.2B · SmolVLM-256M · adding a model |
 | [Training](docs/training/index.md) | configuration (Hydra) · rollout backends · sweeps · wandb · SageMaker + Docker · AWS Batch · experiment log |
 | [Development](docs/development/index.md) | testing · performance · writing docs · roadmap |

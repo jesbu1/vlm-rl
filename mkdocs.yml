@@ -71,6 +71,7 @@ nav:
   - Environments:
       - environments/index.md
       - PointMaze: environments/pointmaze.md
+      - Metaworld: environments/metaworld.md
       - Prompts: environments/prompts.md
       - World-action models: environments/world-models.md
       - Adding an environment: environments/adding.md

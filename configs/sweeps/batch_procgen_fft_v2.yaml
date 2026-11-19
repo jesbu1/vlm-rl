@@ -1,0 +1,35 @@
+# Procedural-maze generalization, after the loss-mask fix (commit 2e2b7d2): one run per model from SmolVLM2-500M to
+# Gemma 4 E2B, compact_rel prompt only (the prompt every model learned on in procgen-fft-larger-v1). Settings as
+# batch_procgen_fft.yaml: sparse success, on_invalid=noop, 32 groups x 16, up to 3 DAPO rounds, 64-token replies, no KL.
+# Learning rates (pass per model with --only/--set): 5e-6 for SmolVLM2-500M and Qwen3-VL-2B; 1e-6 for MiniCPM-V 4.6
+# (5e-6 sharpens it to a deterministic policy within 2 updates, then no group has signal) and Gemma 4 E2B.
+# SmolVLM2-2.2B at 5e-6 is the mask-fix validation run (wandb group procgen-fft-larger-v2-maskfix, same settings).
+#   python scripts/batch_submit.py configs/sweeps/batch_procgen_fft_v2.yaml --queue <1-gpu queue> --gpus_per_lane 1 \
+#       --only 'smolvlm2_500m' --set lr=5e-6
+group: procgen-fft-v2
+project: vlm-rl-pointmaze
+vllm_port: 8011
+overrides:
+  - experiment=pointmaze_procgen
+  - on_invalid=noop
+  - reward=success
+  - steps=40
+  - groups_per_step=32
+  - group_size=16
+  - max_resample_rounds=3
+  - micro_batch_size=4
+  - max_new_tokens=64
+  - eval_every=5
+  - eval_episodes=64
+  - save_every=40
+  - resume_every=5
+  - wandb_entity=tri
+  - "wandb_tags='pointmaze,procgen,fft,larger,batch,maskfix'"
+grid:
+  policy: [smolvlm2_500m, minicpmv46_full, qwen3vl2b_full, gemma4_e2b_full_48gb]
+  env_kwargs.prompt_style: [compact_rel]
+vllm_args:
+  google/gemma-4-E2B-it: [--mm-processor-cache-gb, "0"]
+  Qwen/Qwen3-VL-2B-Instruct: [--mm-processor-cache-gb, "0"]
+  openbmb/MiniCPM-V-4.6: [--mm-processor-cache-gb, "0"]
+  HuggingFaceTB/SmolVLM2-500M-Video-Instruct: [--max-model-len, "8192", --mm-processor-kwargs, '{"do_image_splitting": false}', --mm-processor-cache-gb, "0"]
