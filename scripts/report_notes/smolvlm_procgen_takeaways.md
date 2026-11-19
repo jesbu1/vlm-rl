@@ -83,6 +83,11 @@
     ball does not move, the next observation is identical (max_frames=1), so greedy repeats the same move for the
     rest of the episode (19 identical replies, e.g. `x=+3.65, y=+0.54`). Sampled rollouts escape by chance. This is
     the case for a sampled eval and for max_frames=2 (queued next on GPU0).
+    Steps 18-20: degrading after all: rollout success 33% -> 14%, invalid 4% -> 14%, grad norm 0.5 -> 1.7, log-prob
+    -0.62 -> -0.94; step-20 eval **13.0%** (eval invalid 12%). The junk now sits *after* a valid move, inside the same
+    reply: `x=+3.81, y=+0.94. neighboring cells with number equal to x and y ... the final answer is 3.81.` The
+    parser reads the leading move, so the reply is valid and its tail shares the episode's advantage; terminate only
+    removes junk that replaces the move. (Also seen again: a Unicode minus, `X=−1.32`, which now ends the episode.)
   * Queued on GPU0: once the 256M **lr=1e-5** run passes step 20 (v1 collapsed by then) with eval >= 10% and mean log-prob
     >= -4, it is replaced by the same run with **`max_frames=2`** (sees the previous round too; default 1 = only
     the current image and text, so it cannot tell a move into a wall left it stuck).
