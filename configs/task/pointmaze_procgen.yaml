@@ -17,6 +17,7 @@ env_kwargs:
   include_state: true
   prompt_style: pear
   think: null
+  parse_last: false        # compact styles: read the last x/y of a reply (reasoning models) instead of the first
   settle: true
   start_states: random
   eval_start_states: random
