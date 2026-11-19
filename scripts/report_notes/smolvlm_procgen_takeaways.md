@@ -45,6 +45,8 @@
     * Steps 26-29: early drift, the 256M pattern: rollout invalid 0.4% -> 24%, success 39% -> 25%, grad norm 0.14 ->
       0.37. Step-30 training replies drop the JSON (`2.40, -2.07.`), add arithmetic prose, or turn into gibberish
       (`akoIfillinthisdiskarexpandedheliopolis`). Queued 500M `simple`/`pear` runs moved to lr=5e-6.
+    * Step 30: eval still **27.6%** (training 31.2, held-out 11x11 23.4, 15x15 28.1), eval invalid 4%; rollouts 32%,
+      invalid 20%, grad norm 0.68 (rising). Greedy eval holds while sampled rollouts degrade; watching.
   * Queued on GPU0: once the 256M **lr=1e-5** run passes step 20 (v1 collapsed by then) with eval >= 10% and mean log-prob
     >= -4, it is replaced by the same run with **`max_frames=2`** (sees the previous round too; default 1 = only
     the current image and text, so it cannot tell a move into a wall left it stuck).
