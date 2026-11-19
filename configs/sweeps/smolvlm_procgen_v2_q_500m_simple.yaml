@@ -23,7 +23,7 @@ overrides:
 grid:
   policy: [smolvlm2_500m]
   env_kwargs.prompt_style: [simple]
-  lr: [1.0e-5]
+  lr: [5.0e-6]   # 500M lr=1e-5 compact_rel started to drift at steps 26-30 (rollout invalid 0.4% -> 24%)
   max_new_tokens: [256]
 vllm_args:
   HuggingFaceTB/SmolVLM2-500M-Video-Instruct: [--max-model-len, "8192", --mm-processor-kwargs, '{"do_image_splitting": false}', --api-server-count, "4", --max-num-seqs, "1024", --mm-processor-cache-gb, "0"]

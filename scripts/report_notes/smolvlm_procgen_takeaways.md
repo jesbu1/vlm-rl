@@ -26,6 +26,8 @@
       all at lr=5e-6.
     * lr=5e-6 step 5: eval **16.2%** (training 23.4, held-out 11x11 12.5, 15x15 12.5), eval invalid 12%; rollouts 28%,
       invalid 79% -> 34%, grad norm ~0.5. Slower than lr=1e-5 (22.4% at step 5), as expected; the question is step 20+.
+    * lr=5e-6 step 10: eval **24.0%** (training 29.7, held-out 11x11 20.3, 15x15 21.9), 0.1% invalid; rollouts 30-34%,
+      invalid 7%, log-prob -0.7, grad norm ~0.65 (lr=1e-5 at step 10: 19.3%, invalid 25%, grad norm 2.3).
   * 500M (192 tokens + `parse_last`): step-5 eval **28.6%** (training 31.2, held-out 11x11 21.9, held-out 15x15
     **32.8**), 0% invalid eval replies; v1 500M with 64 tokens was 22.9% at step 5 and then lost it to truncated
     reasoning. Rollout success 30%, invalid 71% -> 33%, log-prob -1.8 -> -1.0.
@@ -40,6 +42,9 @@
       log-prob ~-0.9, grad norm ~0.1 (stable). The step-15 dip was the parser, not the policy.
     * Step 25: eval **29.7%**, the best of any run so far (training 29.7, held-out 11x11 **26.6**, 15x15 32.8), 0% invalid;
       rollouts 37%, log-prob -0.8, grad norm 0.2. The held-out 11x11 gap (9-14% before) has nearly closed.
+    * Steps 26-29: early drift, the 256M pattern: rollout invalid 0.4% -> 24%, success 39% -> 25%, grad norm 0.14 ->
+      0.37. Step-30 training replies drop the JSON (`2.40, -2.07.`), add arithmetic prose, or turn into gibberish
+      (`akoIfillinthisdiskarexpandedheliopolis`). Queued 500M `simple`/`pear` runs moved to lr=5e-6.
   * Queued on GPU0: once the 256M **lr=1e-5** run passes step 20 (v1 collapsed by then) with eval >= 10% and mean log-prob
     >= -4, it is replaced by the same run with **`max_frames=2`** (sees the previous round too; default 1 = only
     the current image and text, so it cannot tell a move into a wall left it stuck).
