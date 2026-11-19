@@ -11,7 +11,9 @@ ENV DEBIAN_FRONTEND=noninteractive \
     UV_COMPILE_BYTECODE=1 \
     UV_NO_CACHE=1
 # gcc + libc headers: Triton compiles small launcher stubs at runtime (vLLM uses torch.compile / Inductor)
+# libegl1 / libgles2 / libosmesa6: headless MuJoCo rendering (EGL on GPUs, OSMesa fallback) for Metaworld
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl libgl1 libglib2.0-0 gcc libc6-dev \
+    libegl1 libgles2 libosmesa6 \
     && rm -rf /var/lib/apt/lists/*
 COPY --from=ghcr.io/astral-sh/uv:0.9 /uv /usr/local/bin/uv
 
@@ -41,6 +43,8 @@ ENV VLMRL_GIT_COMMIT=$GIT_COMMIT \
     PATH=/opt/venv-train/bin:$PATH \
     VLLM_BIN=/opt/venv-vllm/bin/vllm \
     PYTHONUNBUFFERED=1 \
+    MUJOCO_GL=egl \
+    NVIDIA_DRIVER_CAPABILITIES=compute,utility,graphics \
     TOKENIZERS_PARALLELISM=false
 LABEL org.opencontainers.image.source="https://github.com/jesbu1/vlm-rl" \
       org.opencontainers.image.revision=$GIT_COMMIT

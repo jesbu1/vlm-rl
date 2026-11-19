@@ -103,7 +103,7 @@ class TrainConfig:
     wandb_tags: str = ""                                # comma-separated
 
 
-ENV_REGISTRY = {"pointmaze": "vlmrl.envs.pointmaze:make_pointmaze"}
+ENV_REGISTRY = {"pointmaze": "vlmrl.envs.pointmaze:make_pointmaze", "metaworld": "vlmrl.envs.metaworld:make_metaworld"}
 
 
 def make_env_bundle(name: str, kwargs: dict) -> EnvBundle:
