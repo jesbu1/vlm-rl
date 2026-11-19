@@ -47,6 +47,17 @@
       (`akoIfillinthisdiskarexpandedheliopolis`). Queued 500M `simple`/`pear` runs moved to lr=5e-6.
     * Step 30: eval still **27.6%** (training 31.2, held-out 11x11 23.4, 15x15 28.1), eval invalid 4%; rollouts 32%,
       invalid 20%, grad norm 0.68 (rising). Greedy eval holds while sampled rollouts degrade; watching.
+    * Steps 31-32: grad norm 0.98 -> 2.5. Stopped at step 32 for the terminate-on-invalid A/B below.
+* **Why the runs collapse (hypothesis, not yet tested in isolation):** with `on_invalid=noop` an unparseable reply is
+  a free no-op, and the trajectory-level advantage is broadcast to every turn, so junk replies inside a successful
+  episode get the same positive push as the good moves (z-scored: ~+3.9 when 1 of 16 succeeds). Nothing anchors the
+  policy (full FT, no KL, REINFORCE without clipping), and the token-mean loss weights long rambles more. Lower lr only
+  delays it (3e-5: steps 7-10; 1e-5: ~20 for 256M, ~26 for 500M).
+* **Test: PEAR's rule, an invalid reply ends the episode** (`on_invalid=terminate` in training; eval stays `noop` via
+  the new `eval_on_invalid` so numbers compare with the noop runs). Same settings as the noop runs otherwise:
+  * GPU1 (now): SmolVLM2-500M, compact_rel, lr=1e-5, 192 tokens + parse_last (noop twin: peak 29.7% @25, drift from 26).
+  * GPU0 (after the lr=5e-6 noop baseline): SmolVLM-256M, compact_rel, lr=5e-6. Risk from scratch: ~80% invalid
+    replies at step 0, so few episodes survive to the goal; aborted after step 3 if <6 groups carry a signal.
   * Queued on GPU0: once the 256M **lr=1e-5** run passes step 20 (v1 collapsed by then) with eval >= 10% and mean log-prob
     >= -4, it is replaced by the same run with **`max_frames=2`** (sees the previous round too; default 1 = only
     the current image and text, so it cannot tell a move into a wall left it stuck).
