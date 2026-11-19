@@ -10,7 +10,9 @@
   * **First signs the fix was the problem** (256M, lr=3e-5, no KL): step-5 eval **27.6%** (v1 same setting: 22.9%;
     best v1 run ever: 25.0%), 0% invalid eval replies, rollout invalid 80% -> 3% in 5 steps, and mean log-prob
     **rising** -2.0 -> -0.9 (v1: falling to -8.3). 60 of 64 groups with signal.
-  * 500M (192 tokens + `parse_last`): rollout success 12% -> 19% by step 3, invalid 71% -> 53%, log-prob -1.8 -> -1.5.
+  * 500M (192 tokens + `parse_last`): step-5 eval **28.6%** (training 31.2, held-out 11x11 21.9, held-out 15x15
+    **32.8**), 0% invalid eval replies; v1 500M with 64 tokens was 22.9% at step 5 and then lost it to truncated
+    reasoning. Rollout success 30%, invalid 71% -> 33%, log-prob -1.8 -> -1.0.
   * Queued on GPU0: once the 256M run passes step 20 (v1 collapsed by then) with eval >= 10% and mean log-prob
     >= -4, it is replaced by the same run with **`max_frames=2`** (sees the previous round too; default 1 = only
     the current image and text, so it cannot tell a move into a wall left it stuck).
