@@ -7,6 +7,10 @@
   * GPU1: SmolVLM2-500M, `compact_rel`, lr=1e-5, `max_new_tokens=192` + `parse_last` (final move of a reasoning reply).
   * Step-0 evals match v1 (256M 1.6%, 500M 11.5%). **The panels below now show `smolvlm-procgen-v2`**; v1 numbers
     are in the table further down.
+  * **First signs the fix was the problem** (256M, lr=3e-5, no KL): step-5 eval **27.6%** (v1 same setting: 22.9%;
+    best v1 run ever: 25.0%), 0% invalid eval replies, rollout invalid 80% -> 3% in 5 steps, and mean log-prob
+    **rising** -2.0 -> -0.9 (v1: falling to -8.3). 60 of 64 groups with signal.
+  * 500M (192 tokens + `parse_last`): rollout success 12% -> 19% by step 3, invalid 71% -> 53%, log-prob -1.8 -> -1.5.
   * Queued on GPU0: once the 256M run passes step 20 (v1 collapsed by then) with eval >= 10% and mean log-prob
     >= -4, it is replaced by the same run with **`max_frames=2`** (sees the previous round too; default 1 = only
     the current image and text, so it cannot tell a move into a wall left it stuck).
