@@ -24,6 +24,8 @@
     * GPU0 now (queue, 40 steps each, a run is aborted if rollout invalid >85% two steps running after step 5):
       256M `compact_rel` **lr=5e-6** (max_frames=1) -> same with **max_frames=2** (the A/B) -> `compact` -> `simple`,
       all at lr=5e-6.
+    * max_frames=2 (noop, lr=5e-6) started 13:18 after the terminate run was stopped. Step-0 eval
+      2.1% (eval invalid 77%; max_frames=1 at step 0: 1.6%, 94% invalid): seeing the previous turn already helps format.
     * lr=5e-6 step 5: eval **16.2%** (training 23.4, held-out 11x11 12.5, 15x15 12.5), eval invalid 12%; rollouts 28%,
       invalid 79% -> 34%, grad norm ~0.5. Slower than lr=1e-5 (22.4% at step 5), as expected; the question is step 20+.
     * lr=5e-6 step 10: eval **24.0%** (training 29.7, held-out 11x11 20.3, 15x15 21.9), 0.1% invalid; rollouts 30-34%,
@@ -75,6 +77,11 @@
     grad norm 0.12 (noop twin at step 15: 6.8%, the parse_last misread; terminate's greedy reply stays clean).
     Step 20: eval **26.0%** (training 31.2, held-out 11x11 20.3, 15x15 26.6), 0% invalid; rollouts 35%, invalid 0.3%,
     grad norm 0.2, log-prob steady at -0.55 to -0.6 (noop twin at step 20: 22.4%, rollout invalid already rising soon after).
+    Step 25: eval **14.1%** (training 17.2, held-out 11x11 7.8, 15x15 17.2), eval invalid 3%; rollouts still 30-39%,
+    invalid 0.2%, grad norm 0.28, log-prob rising -0.55 -> -0.40 (more confident). Replies became one JSON object with
+    *two* x/y pairs, `{"x": 4.40, "y": -2.24, "x": -3.51, "y": 0.00};`; `parse_last` executes the second pair. Greedy
+    repeats one such reply 30-45 times per eval episode (stuck at a wall, identical observation). Valid-format junk again:
+    the first pair is never executed and never penalized.
   * 256M terminate (lr=5e-6), steps 1-5: survived the step-3 signal check: groups with signal 10 -> 34 of 64, rollout
     invalid ~85% -> 60%, turns/episode 1.4 -> 2.6. Step-5 eval **13.0%** (training 15.6, held-out 11x11 12.5, 15x15
     10.9), eval invalid 14% (noop twin at step 5: 16.2%). Pre-clip grad norm is high (2-4; clipped to 1.0).
