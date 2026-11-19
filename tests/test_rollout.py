@@ -200,3 +200,11 @@ def test_rollout_engine_logprobs_are_kept_per_turn(umaze, rng):
     assert all(t.gen_logp == -1.25 and t.gen_ntok == 5 for tr in trajs for t in tr.turns)
     trajs = rollout(gen, umaze.make_vec_env(), umaze.interface, starts, [0, 0], 2)
     assert all(t.gen_logp is None for tr in trajs for t in tr.turns)
+
+
+def test_final_answer_after_reasoning():
+    from vlmrl.rollout import final_answer
+    assert final_answer('weigh dx=9 first...\n</think>\n\n{"dx": 2.0}') == '\n\n{"dx": 2.0}'
+    assert final_answer('{"dx": 2.0}') == '{"dx": 2.0}'                         # no reasoning
+    assert final_answer('still thinking dx=9 ...', thinking=True) is None       # cut off mid-reasoning: invalid
+    assert final_answer('a</think>b</think>{"dx": 1}', thinking=True) == '{"dx": 1}'

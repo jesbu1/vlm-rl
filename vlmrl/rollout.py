@@ -67,7 +67,8 @@ def rollout(generate: Generate, env: VecEnv, interface: TextInterface, start_sta
             group_ids: Sequence[int], max_turns: int, max_images: int | None = None,
             on_invalid: str = "terminate", max_context_tokens: int | None = None,
             last_tokens: Callable[[], list[int]] | None = None,
-            max_frames: int | None = None, last_logprobs: Callable[[], list] | None = None) -> list[Trajectory]:
+            max_frames: int | None = None, last_logprobs: Callable[[], list] | None = None,
+            thinking: bool = False) -> list[Trajectory]:
     """Run ``len(start_states)`` episodes in lock-step. Each round, every unfinished episode gets one
     generation (batched) and one env step (batched over the still-active slots).
 
@@ -81,7 +82,18 @@ def rollout(generate: Generate, env: VecEnv, interface: TextInterface, start_sta
     ``Turn``; the trainer compares them with its own log-probs of the same replies).
     """
     return rollout_pooled(generate, [RolloutTask(env, interface, start_states, group_ids, max_turns)],
-                          max_images, on_invalid, max_context_tokens, last_tokens, max_frames, last_logprobs)[0]
+                          max_images, on_invalid, max_context_tokens, last_tokens, max_frames, last_logprobs,
+                          thinking)[0]
+
+
+def final_answer(text: str, thinking: bool = False) -> str | None:
+    """The part of a reply the action is parsed from: after the last ``</think>`` (reasoning models write
+    ``reasoning...</think>answer``; the generation prompt opens the ``<think>``). With ``thinking=True`` (the
+    template was asked to think) a reply that never closes its reasoning, e.g. cut off at ``max_new_tokens``, has no
+    answer: None, an invalid action, instead of a number picked out of half-finished reasoning."""
+    if "</think>" in text:
+        return text.rsplit("</think>", 1)[1]
+    return None if thinking else text
 
 
 def _gen_logp(last_logprobs, n):
@@ -94,7 +106,8 @@ def rollout_pooled(generate: Generate, tasks: Sequence[RolloutTask], max_images:
                    on_invalid: str = "terminate", max_context_tokens: int | None = None,
                    last_tokens: Callable[[], list[int]] | None = None,
                    max_frames: int | None = None,
-                   last_logprobs: Callable[[], list] | None = None) -> list[list[Trajectory]]:
+                   last_logprobs: Callable[[], list] | None = None,
+                   thinking: bool = False) -> list[list[Trajectory]]:
     """``rollout`` over several tasks at once (e.g. eval sets on different mazes): each round, the
     unfinished episodes of *all* tasks share one ``generate`` call, then every task steps its own env on
     its active slots. Returns one trajectory list per task, in task order."""
@@ -114,7 +127,8 @@ def rollout_pooled(generate: Generate, tasks: Sequence[RolloutTask], max_images:
         texts = generate([context_view(trajs[i][k].messages, max_images, max_frames) for i, k in active])
         ntok = last_tokens() if (max_context_tokens and last_tokens) else [0] * len(active)
         glp = _gen_logp(last_logprobs, len(active))
-        parsed = [tasks[i].interface.parse_action(x) for (i, _), x in zip(active, texts)]
+        answers = [final_answer(x, thinking) for x in texts]
+        parsed = [tasks[i].interface.parse_action(x) if x is not None else None for (i, _), x in zip(active, answers)]
         res_of = {}
         for i, task in enumerate(tasks):
             stepping = [j for j, (ti, _) in enumerate(active) if ti == i and (parsed[j] is not None or on_invalid == "noop")]

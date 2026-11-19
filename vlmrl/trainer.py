@@ -363,7 +363,7 @@ class Trainer:
         out = rollout_pooled(self._gen(c.eval_temperature), tasks, c.max_images, on_invalid=c.eval_on_invalid or c.on_invalid,
                              max_context_tokens=c.max_context_tokens,
                              last_tokens=lambda: getattr(self.generator, "last_num_tokens", []),
-                             max_frames=c.max_frames)
+                             max_frames=c.max_frames, thinking=self._thinking)
         by_set = {s["name"]: trajs for s, trajs in zip(self.eval_sets, out)}
         m = {}
         for name, trajs in by_set.items():
@@ -373,12 +373,17 @@ class Trainer:
             m.update({k: float(np.mean([p[k] for p in per])) for k in per[0]})
         return m, by_set
 
+    @property
+    def _thinking(self) -> bool:
+        """The chat template was explicitly asked to think: a reply must close its reasoning to count."""
+        return self.cfg.chat_template_kwargs.get("enable_thinking") is True
+
     def _rollout(self, temperature, starts, gids):
         c = self.cfg
         return rollout(self._gen(temperature), self.env, self.bundle.interface, starts, gids, self.bundle.max_turns,
                        c.max_images, on_invalid=c.on_invalid, max_context_tokens=c.max_context_tokens,
                        last_tokens=lambda: getattr(self.generator, "last_num_tokens", []), max_frames=c.max_frames,
-                       last_logprobs=lambda: getattr(self.generator, "last_logprobs", []))
+                       last_logprobs=lambda: getattr(self.generator, "last_logprobs", []), thinking=self._thinking)
 
     def dump_episode(self, tr, tag, step=None):
         """Write a video (mp4 or gif) + transcript to out_dir/episodes; returns (transcript, video path or None)."""

@@ -1,0 +1,12 @@
+# @package _global_
+# Qwen3.5-4B (Qwen3_5ForConditionalGeneration: 24 Gated-DeltaNet linear-attention + 8 full-attention layers, vision
+# tower). LoRA on the language model's full-attention projections and all 32 MLPs; the linear-attention projections
+# (in_proj_qkv/z/a/b, out_proj) are left frozen (vLLM serves LoRA on them only through packed in_proj_qkvz / ba).
+# Thinks by default: set chat_template_kwargs.enable_thinking explicitly (false = direct answer; true = reasoning
+# before the answer; earlier turns' reasoning is dropped from later contexts by the chat template).
+model: Qwen/Qwen3.5-4B
+lora_rank: 64
+lora_alpha: 128
+lora_targets: '.*language_model.*\.(q_proj|k_proj|v_proj|o_proj|gate_proj|up_proj|down_proj)'
+lr: 2.0e-5
+chat_template_kwargs: {enable_thinking: false}

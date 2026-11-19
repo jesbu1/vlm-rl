@@ -1,0 +1,24 @@
+# Qwen3.5-4B LoRA on ML1 reach / push (compact_rel prompt, pref_mw, corrected camera view), with and without
+# thinking. With thinking, each turn reasons before its JSON move; the chat template drops earlier turns' reasoning
+# from later contexts, and the action is parsed after the last </think> (no </think> = invalid). Per-mode settings
+# go on the command line (2 GPUs per run: trainer + vLLM):
+#   python scripts/batch_submit.py configs/sweeps/metaworld_ml1_q35.yaml --queue <4-gpu queue> --gpus 4 \
+#       --gpus_per_lane 2 --only 'enable_thinking=False' --set max_new_tokens=64 --set temperature=1.2
+#   ... --only 'enable_thinking=True' --set max_new_tokens=512 --set temperature=1.0
+group: metaworld-ml1-q35
+project: vlm-rl-metaworld
+vllm_port: 8011
+overrides:
+  - experiment=metaworld_ml1
+  - policy=qwen35_4b_lora
+  - env_kwargs.prompt_style=compact_rel
+  - reward=pref_mw
+  - save_every=40
+  - resume_every=5
+  - wandb_entity=tri
+  - "wandb_tags='metaworld,ml1,rl,compact_rel,qwen3.5'"
+grid:
+  env_kwargs.benchmark: [ML1:reach-v3, ML1:push-v3]
+  chat_template_kwargs.enable_thinking: [false, true]
+vllm_args:
+  Qwen/Qwen3.5-4B: [--mm-processor-cache-gb, "0"]

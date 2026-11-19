@@ -9,6 +9,7 @@ the settings it needs. Pick one with `policy=<name>`.
 |---|---|---|---|---|
 | [Gemma 4 E2B-it](gemma-4-e2b.md) | `gemma4_e2b_lora`, `gemma4_e2b_full` | 5.1B (≈2B effective) | 258 | smoke-tested; in the v4 sweep |
 | [Qwen3-VL-4B-Instruct](qwen3-vl-4b.md) | `qwen3vl4b_lora` (default) | 4B | 102 | **trained end-to-end**: UMaze 0.625 → 1.0 |
+| [Qwen3.5-4B](qwen3.5-4b.md) | `qwen35_4b_lora` | 4.5B | 64 (patch 16, merge 2 at 224 px) | template + masks checked (thinking on and off); Metaworld ML1 runs |
 | [Qwen3-VL-2B-Instruct](qwen3-vl-2b.md) | `qwen3vl2b_lora`, `qwen3vl2b_full` | 2B | 102 | trains; zero-shot struggles with the PEAR action semantics |
 | [Qwen2.5-VL-3B-Instruct](qwen2.5-vl-3b.md) | `qwen25vl3b_lora` | 3B | 146 | processor + template checked; not trained yet |
 | [Qwen2.5-VL-7B-Instruct](qwen2.5-vl-7b.md) | `qwen25vl7b_full` | 7B | 146 | full-FT preset for `experiment=pear_recipe`; needs >60 GB |
