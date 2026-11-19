@@ -12,6 +12,7 @@
     1 -> 5.8, groups with signal 60 -> 21, gibberish replies (`2.80, 6.90-off way to right! Ya rezured ...`), eval
     **1.0% at step 10**. Stopped at step 10. So the mask bug was not the whole story: lr=3e-5 is too high for 256M
     full fine-tuning. Replaced by **lr=1e-5, no KL** (GPU0, from 00:15).
+    * lr=1e-5 step 5: eval **22.4%** (v1 lr=1e-5: 10.4%), rollout 34%, invalid 80% -> 4%, mean log-prob -0.5.
   * 500M (192 tokens + `parse_last`): step-5 eval **28.6%** (training 31.2, held-out 11x11 21.9, held-out 15x15
     **32.8**), 0% invalid eval replies; v1 500M with 64 tokens was 22.9% at step 5 and then lost it to truncated
     reasoning. Rollout success 30%, invalid 71% -> 33%, log-prob -1.8 -> -1.0.
