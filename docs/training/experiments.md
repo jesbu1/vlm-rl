@@ -2,6 +2,35 @@
 
 All runs are on `puget` (2×RTX A6000 48 GB). wandb project: `tri/vlm-rl-pointmaze`.
 
+## 2026-11-18 · Loss-mask fix; procedural-maze reruns; Metaworld zero-shot (in progress)
+
+**Bug.** Every full-fine-tuning run before `2e2b7d2` trained the template newline after the end-of-turn token, a
+token the model never generates (see [Algorithm](../concepts/algorithm.md#multi-turn-loss-masks-model-agnostic)).
+Under sparse reward it ran away to log-prob −108 and caused the procedural-maze collapses: MiniCPM-V 4.6 and
+SmolVLM2-2.2B at lr 5e-6 went to 97–99% invalid replies within 4–6 steps.
+
+**Validation.** Same settings as the collapsed runs (lr 5e-6, wandb group `procgen-fft-larger-v2-maskfix`):
+
+| model | before the fix | after the fix |
+|---|---|---|
+| SmolVLM2-2.2B | invalid 31% → 96% → 97% (steps 4–6), grad norm up to 185 | invalid 37% → 25% → 17% (steps 1–3), grad norm 0.4–0.6 |
+| MiniCPM-V 4.6 | invalid 0% → 99% (steps 1–4) | invalid 0–2%, but `mean_logp` −0.24 → −0.04 in two updates: a near-deterministic policy, no group with signal from step 3, cancelled |
+
+MiniCPM-V's second failure is a separate one: lr 5e-6 is too high for it. It reruns at 1e-6.
+
+**Reruns** (`configs/sweeps/batch_procgen_fft_v2.yaml`, wandb group `procgen-fft-v2`, running):
+
+* Models: SmolVLM2-500M (lr 5e-6), MiniCPM-V 4.6 (1e-6), Qwen3-VL-2B (5e-6) and Gemma 4 E2B (1e-6), plus the
+  SmolVLM2-2.2B validation run.
+* Settings: `compact_rel`, sparse success, `on_invalid=noop`, 32 groups × 16, 40 steps, no KL.
+
+**Metaworld zero-shot** (`configs/sweeps/metaworld_zeroshot.yaml`, project `tri/vlm-rl-metaworld`, running):
+
+* Models × prompts: Qwen3-VL-2B, Gemma 4 E2B and Qwen3-VL-4B × {`pear`, `compact`}.
+* Eval sets: ML1 push (train / held-out positions), ML10 (train / held-out tasks) and ML45 (held-out tasks), 32 greedy
+  episodes each.
+* Next: ML1 RL (`configs/sweeps/metaworld_ml1_rl.yaml`) with the best zero-shot model and prompt.
+
 ## 2026-11-18 · Small-model full fine-tuning on AWS Batch (wandb group `pointmaze-small-fft-batch-v1`)
 
 `configs/sweeps/batch_small_fft.yaml` on `g6e` (L40S 48 GB) machines through [AWS Batch](batch.md): Qwen3-VL-2B,
