@@ -1,0 +1,19 @@
+# @package _global_
+# RL on one Metaworld task (ML1): train on Metaworld's 50 training goal / object positions, evaluate greedy on the
+# same positions and on the 50 held-out ones. Pick the task with env_kwargs.benchmark=ML1:<task>.
+defaults:
+  - pointmaze_q3vl4b_vllm
+  - override /task: metaworld
+env_kwargs:
+  benchmark: ML1:reach-v3
+groups_per_step: 16
+group_size: 8
+max_resample_rounds: 3
+max_new_tokens: 256
+steps: 40
+eval_every: 5
+eval_episodes: 32
+eval_sets:
+  train_positions: {eval_split: train}
+  heldout_positions: {eval_split: test}
+out_dir: runs/metaworld_ml1
