@@ -1,0 +1,31 @@
+# smolvlm-procgen-v2, GPU 0, after the no-KL lr=3e-5 run confirmed the loss-mask fix (smolvlm_procgen_v2_gpu0.yaml):
+# same SmolVLM-256M run with max_frames=2 (default 1: the model sees only the current image + text, so after a move
+# into a wall the next turn looks the same and it cannot tell it is stuck). With 2 it also sees the previous round:
+# its last image, text and reply. A/B vs the max_frames=1 run on the same settings.
+group: smolvlm-procgen-v2
+project: vlm-rl-pointmaze
+train_gpu: 0
+vllm_gpu: 0
+vllm_port: 8011
+vllm_gpu_util: 0.35
+overrides:
+  - experiment=pointmaze_procgen
+  - policy=smolvlm256m
+  - on_invalid=noop
+  - reward=success
+  - steps=60
+  - groups_per_step=64
+  - group_size=16
+  - max_resample_rounds=3
+  - micro_batch_size=64
+  - max_new_tokens=64
+  - eval_every=5
+  - eval_episodes=64
+  - wandb_entity=tri
+  - "wandb_tags='pointmaze,procgen,smolvlm,fft,sweep'"
+grid:
+  env_kwargs.prompt_style: [compact_rel]
+  lr: [3.0e-5]
+  max_frames: [2]
+vllm_args:
+  HuggingFaceTB/SmolVLM-256M-Instruct: [--max-model-len, "8192", --mm-processor-kwargs, '{"do_image_splitting": false}', --api-server-count, "4", --max-num-seqs, "1024", --mm-processor-cache-gb, "0"]
