@@ -18,6 +18,11 @@
     reasoning. Rollout success 30%, invalid 71% -> 33%, log-prob -1.8 -> -1.0.
     Step 10: eval 21.3% (training 21.9, held-out 11x11 12.5, 15x15 29.7), 0% invalid; rollouts 39%, invalid 4%;
     mean log-prob -0.42 (as confident as 256M lr=3e-5 just before it collapsed): watching.
+    Step 15: eval **6.8%** with 0% invalid, while rollouts are at their best (36-43%, log-prob -0.5 to -0.7).
+    * Cause: `parse_last` now misreads the greedy reply. The reply *starts* with the right move, then adds the
+      ball's position and commentary: `{"x": -0.90, "y": -5.71, "goal": {"x": 3.14, "y": 1.60}}` + `The ball is at
+      x=-0.90 and y=-5.71, and the goal is at x=3.14 and y=1.60 ...` -> the last x/y is the ball's position.
+    * Same theme as every run: the sampled policy is fine, the greedy reply drifts into a form the parser misreads.
   * Queued on GPU0: once the 256M **lr=1e-5** run passes step 20 (v1 collapsed by then) with eval >= 10% and mean log-prob
     >= -4, it is replaced by the same run with **`max_frames=2`** (sees the previous round too; default 1 = only
     the current image and text, so it cannot tell a move into a wall left it stuck).
