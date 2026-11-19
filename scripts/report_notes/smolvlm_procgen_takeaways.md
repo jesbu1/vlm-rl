@@ -1,3 +1,13 @@
+**All numbers below are from `smolvlm-procgen-v1`, which predates the loss-mask fix (2e2b7d2)**
+* Every v1 run trained the newline after `<end_of_utterance>` that the model never samples; its log-prob ran away
+  and dragged the policy. So the v1 **collapses, the late drift and the case for `kl_coef` are confounded** by the bug.
+* The prompt finding (`compact` vs `compact_rel`) and the ~25% straight-line ceiling are the most likely to survive.
+* **Reruns from scratch, group `smolvlm-procgen-v2`** (started 21:15, no KL):
+  * GPU0: SmolVLM-256M, `compact_rel`, lr=3e-5: the v1 setting that collapsed fastest. Does it still collapse?
+  * GPU1: SmolVLM2-500M, `compact_rel`, lr=1e-5, `max_new_tokens=192` + `parse_last` (final move of a reasoning reply).
+* Stopped v1 runs at the fix: SmolVLM2-500M 64 tokens (eval 3.6 / 22.9 / 5.7 / 20.8% at steps 0-15) and 192 tokens +
+  `parse_last` (10.4% zero-shot vs 3.6%; stopped at step 2).
+
 **Bottom line**
 * SmolVLM-256M (full fine-tuning, GRPO, **sparse success reward only**) learns the procedural mazes once the prompt
   gives the goal **relative to the ball** (`compact_rel`): greedy eval goes from 1.6% to **~23%** in 15 steps.
