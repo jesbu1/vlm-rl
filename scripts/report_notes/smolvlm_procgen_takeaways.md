@@ -26,6 +26,8 @@
       all at lr=5e-6.
     * max_frames=2 (noop, lr=5e-6) started 13:18 after the terminate run was stopped. Step-0 eval
       2.1% (eval invalid 77%; max_frames=1 at step 0: 1.6%, 94% invalid): seeing the previous turn already helps format.
+      Step 5: eval **14.6%** (training 17.2, held-out 11x11 14.1, 15x15 12.5), eval invalid **2.6%** (max_frames=1 at
+      step 5: 16.2%, 11.6% invalid); rollouts 21%, invalid 73% -> 23%, log-prob -0.25 (very confident early).
     * lr=5e-6 step 5: eval **16.2%** (training 23.4, held-out 11x11 12.5, 15x15 12.5), eval invalid 12%; rollouts 28%,
       invalid 79% -> 34%, grad norm ~0.5. Slower than lr=1e-5 (22.4% at step 5), as expected; the question is step 20+.
     * lr=5e-6 step 10: eval **24.0%** (training 29.7, held-out 11x11 20.3, 15x15 21.9), 0.1% invalid; rollouts 30-34%,
@@ -82,6 +84,7 @@
     *two* x/y pairs, `{"x": 4.40, "y": -2.24, "x": -3.51, "y": 0.00};`; `parse_last` executes the second pair. Greedy
     repeats one such reply 30-45 times per eval episode (stuck at a wall, identical observation). Valid-format junk again:
     the first pair is never executed and never penalized.
+    Steps 26-28: degrading: rollout success 39% -> 18-25%, grad norm 0.25 -> 0.79, groups with signal 63 -> 39.
   * 256M terminate (lr=5e-6), steps 1-5: survived the step-3 signal check: groups with signal 10 -> 34 of 64, rollout
     invalid ~85% -> 60%, turns/episode 1.4 -> 2.6. Step-5 eval **13.0%** (training 15.6, held-out 11x11 12.5, 15x15
     10.9), eval invalid 14% (noop twin at step 5: 16.2%). Pre-clip grad norm is high (2-4; clipped to 1.0).
