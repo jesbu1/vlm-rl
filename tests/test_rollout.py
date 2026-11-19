@@ -183,3 +183,20 @@ def test_media_placeholders_in_replies_are_scrubbed(umaze, rng):
     replies = [m["content"][0]["text"] for m in t.messages if m["role"] == "assistant"]
     assert replies and all("<image>" not in r for r in replies)
     assert t.turns[0].response == reply
+
+
+def test_rollout_engine_logprobs_are_kept_per_turn(umaze, rng):
+    """``last_logprobs`` (from the vLLM generator) lands on each Turn; unknown -> None (HF generator)."""
+    gen = const_generate((0.3, 0.0))
+    seen = []
+
+    def generate(convs):
+        seen.append(len(convs))
+        return gen(convs)
+    starts = umaze.train_sampler.sample(2, rng)
+    env = umaze.make_vec_env()
+    trajs = rollout(generate, env, umaze.interface, starts, [0, 0], 3,
+                    last_logprobs=lambda: [(-1.25, 5)] * seen[-1])
+    assert all(t.gen_logp == -1.25 and t.gen_ntok == 5 for tr in trajs for t in tr.turns)
+    trajs = rollout(gen, umaze.make_vec_env(), umaze.interface, starts, [0, 0], 2)
+    assert all(t.gen_logp is None for tr in trajs for t in tr.turns)

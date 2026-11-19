@@ -97,19 +97,25 @@ class VLLMServerGenerator:
         greedy = temperature <= 0
         payload = {"model": self.current, "messages": to_openai_messages(msgs), "max_tokens": max_new_tokens,
                    "temperature": 0.0 if greedy else temperature, "top_p": 1.0 if greedy else top_p,
-                   "top_k": -1, "n": 1}
+                   "top_k": -1, "n": 1, "logprobs": True}
         if self.chat_template_kwargs:
             payload["chat_template_kwargs"] = self.chat_template_kwargs
         r = _post(f"{self.url}/v1/chat/completions", payload)
         u = r.get("usage") or {}
         ntok = int(u.get("prompt_tokens", 0)) + int(u.get("completion_tokens", 0))
-        return (r["choices"][0]["message"].get("content") or "").strip(), ntok
+        # log-probs of the sampled tokens, from the raw model output (vLLM's default logprobs mode, i.e. before
+        # temperature / top-p): the trainer's log-probs of the same tokens should match them on-policy
+        lps = [c.get("logprob") for c in ((r["choices"][0].get("logprobs") or {}).get("content") or [])]
+        lps = [x for x in lps if x is not None and x > -1e30]
+        lp = (float(sum(lps)), len(lps)) if lps else (None, 0)
+        return (r["choices"][0]["message"].get("content") or "").strip(), ntok, lp
 
     def generate(self, convs, max_new_tokens=256, temperature=1.0, top_p=1.0, batch_size=None):
         futs = [self.pool.submit(self._one, c, max_new_tokens, temperature, top_p) for c in convs]
         res = [f.result() for f in futs]
-        self.last_num_tokens = [n for _, n in res]  # context length per item, for token budgets
-        return [t for t, _ in res]
+        self.last_num_tokens = [n for _, n, _ in res]  # context length per item, for token budgets
+        self.last_logprobs = [lp for _, _, lp in res]  # (sum of sampled-token log-probs, n tokens) per item
+        return [t for t, _, _ in res]
 
     def sync(self, policy, step: int):
         """Push the current weights to the server. LoRA: save adapter -> hot-load -> unload previous.

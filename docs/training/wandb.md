@@ -12,8 +12,8 @@ can be grouped and filtered by `config.reward`, `config.model`, `config.env_kwar
 
 | prefix | keys |
 |---|---|
-| `rollout/` | `success`, `score`, `turns`, `invalid_frac`, `resp_chars`, `groups_kept`, `rounds`, `end_{success,invalid,max_turns,context,terminated,truncated}` |
-| `train/` | `loss`, `grad_norm`, `tokens`, `sequences`, `mean_logp`, `clipfrac` (ppo_clip only), `skipped` |
+| `rollout/` | `success`, `score`, `turns`, `invalid_frac`, `resp_chars`, `groups_kept`, `rounds`, `end_{success,invalid,max_turns,context,terminated,truncated}`, `vllm_logp` (vLLM rollouts: the server's mean log-prob of the sampled reply tokens, on the trained trajectories) |
+| `train/` | `loss`, `grad_norm`, `tokens`, `sequences`, `mean_logp`, `logp_gap` (`mean_logp` − `rollout/vllm_logp`), `tok_ratio` (trained tokens / sampled tokens), `clipfrac` (ppo_clip only), `skipped` |
 | `eval/` | `success`, `turns`, `invalid_frac`, `end_*` (greedy by default, `eval_temperature`). With [`eval_sets`](../environments/pointmaze.md#eval-sets-in-and-out-of-distribution): `eval/<name>/…` per set, and `eval/…` is the mean over sets |
 | `time/` | `rollout`, `train` |
 | media | `train/episode`, `eval/episode` (**MP4 video**, H.264, 2 fps = one frame per round, captioned with success / score / rounds / end reason; upscaled with nearest-neighbour to ≥ `video_min_size` (672) px and encoded at `video_crf` (18) so thin lines and small dots stay sharp; `video_format=gif` and `video_fps` to change) and `train/transcript`, `eval/transcript` (HTML) for one episode, plus incremental tables **`train/samples`, `eval/samples`** with `samples_per_log` (4) episodes per dump: step, success, score, advantage, turns, invalid turns, end reason, mean reply chars, **full reasoning transcript**, video. Every `log_samples_every` / `eval_every` steps |
@@ -24,6 +24,12 @@ Reading them:
   groups get filtered. Move to a harder task.
 - **`rollout/end_invalid` high** means format problems. Try a format reward, or check the model's page.
 - **`rollout/end_context` > 0** means episodes are hitting `max_context_tokens`.
+- **`train/logp_gap` away from 0** means the trainer is not scoring what the rollout engine sampled. The trainer's
+  forward pass runs before the optimizer step, so on-policy the two log-probs agree up to numerics (bf16 vs the
+  server's kernels: a few hundredths). A gap that grows over training points at the weight sync. `train/tok_ratio`
+  far from 1 points at re-tokenization: the replies are re-tokenized from text, plus one end-of-turn token per
+  reply, so short replies sit slightly above 1. Both stay flat while `mean_logp` falls = a real drift of the policy
+  (e.g. too high an lr), not a mismatch.
 - **Reading reasoning chains**: open the `eval/samples` table and filter by `episode`. Eval rows come from
   the same fixed start states every time, so one maze's reasoning can be followed across training. Train rows
   mix successes and failures. With `eval_sets`, each set has its own `eval/<name>/samples` table and

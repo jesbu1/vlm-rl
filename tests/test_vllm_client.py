@@ -21,7 +21,9 @@ class _Handler(BaseHTTPRequestHandler):
         if self.path == "/v1/chat/completions":
             n_img = sum(1 for m in body["messages"] if isinstance(m["content"], list)
                         for c in m["content"] if c["type"] == "image_url")
-            out = {"choices": [{"message": {"content": f" {body['model']}|{n_img}|{body['temperature']} "}}]}
+            out = {"choices": [{"message": {"content": f" {body['model']}|{n_img}|{body['temperature']} "},
+                                "logprobs": {"content": [{"token": "a", "logprob": -0.5},
+                                                         {"token": "b", "logprob": -1.0}]}}]}
             data = json.dumps(out).encode()
         else:
             data = b"Success"
@@ -67,6 +69,14 @@ def test_generate_preserves_order_and_params(server):
     assert out == ["base-model|2|0.7", "base-model|1|0.7", "base-model|2|0.7"]
     assert all(b["top_k"] == -1 for p, b in _Handler.log)
     assert g.generate([_conv()[:2]], temperature=0)[0].endswith("|0.0")
+
+
+def test_generate_records_sampled_token_logprobs(server):
+    """Per reply: (sum of the sampled tokens' log-probs, n tokens), for the trainer's on-policy check."""
+    g = VLLMServerGenerator(server, "base-model", "/tmp/unused", max_workers=4)
+    g.generate([_conv(), _conv()])
+    assert g.last_logprobs == [(-1.5, 2), (-1.5, 2)]
+    assert all(b["logprobs"] is True for p, b in _Handler.log if p == "/v1/chat/completions")
 
 
 class _FakePeft:

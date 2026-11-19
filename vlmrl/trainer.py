@@ -326,7 +326,18 @@ class Trainer:
                 self.opt.step()
             else:
                 print("[warn] non-finite grad norm, skipping step")
-        return {"train/loss": stats["loss"] / c.ppo_epochs, "train/grad_norm": float(gn),
+        # rollout engine vs trainer on the same trained replies. On-policy (the forward pass above runs before the
+        # optimizer step) the two mean log-probs should match: a growing gap means the engine is not sampling from
+        # these weights (sync) or the re-tokenized replies are not the sampled tokens (tok_ratio far from 1)
+        gen = [(tu.gen_logp, tu.gen_ntok) for t in trajs for tu in t.turns if tu.gen_logp is not None]
+        n_gen = sum(n for _, n in gen)
+        diag = {}
+        if n_gen:
+            vlogp = sum(x for x, _ in gen) / n_gen
+            diag = {"rollout/vllm_logp": vlogp,
+                    "train/logp_gap": stats["logp_sum"] / max(n_tok, 1) / c.ppo_epochs - vlogp,
+                    "train/tok_ratio": n_tok / n_gen}
+        return {**diag, "train/loss": stats["loss"] / c.ppo_epochs, "train/grad_norm": float(gn),
                 "train/tokens": n_tok, "train/sequences": len(samples),
                 "train/mean_logp": stats["logp_sum"] / max(n_tok, 1) / c.ppo_epochs,
                 **({"train/clipfrac": stats["clipfrac_sum"] / n_tok / c.ppo_epochs}
@@ -366,7 +377,8 @@ class Trainer:
         c = self.cfg
         return rollout(self._gen(temperature), self.env, self.bundle.interface, starts, gids, self.bundle.max_turns,
                        c.max_images, on_invalid=c.on_invalid, max_context_tokens=c.max_context_tokens,
-                       last_tokens=lambda: getattr(self.generator, "last_num_tokens", []), max_frames=c.max_frames)
+                       last_tokens=lambda: getattr(self.generator, "last_num_tokens", []), max_frames=c.max_frames,
+                       last_logprobs=lambda: getattr(self.generator, "last_logprobs", []))
 
     def dump_episode(self, tr, tag, step=None):
         """Write a video (mp4 or gif) + transcript to out_dir/episodes; returns (transcript, video path or None)."""

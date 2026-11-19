@@ -433,3 +433,22 @@ def test_kl_penalty_is_inert_at_the_reference_and_pulls_back_toward_it(tmp_path)
     assert b1["train/kl"] > 0
     assert torch.allclose(ta1, torch.full((4,), 2.0))                # no KL: stays put
     assert (tb1 < 2.0).any() and (tb1 <= 2.0).all()                  # KL: pulled back toward 0
+
+
+def test_update_compares_rollout_engine_and_trainer_logprobs(tmp_path):
+    """train/logp_gap = trainer mean log-prob - engine mean log-prob on the same trained replies; tok_ratio = trained
+    tokens / sampled tokens. Absent when the engine reports none (HF rollouts)."""
+    tr = _trainer(tmp_path, random_generate(0), filter_groups=False)
+    kept, _, _ = tr.collect()
+    g = kept[0]
+    for i, t in enumerate(g):
+        t.advantage = 1.0 if i < 2 else -1.0
+    assert "train/logp_gap" not in tr.update([g])
+    for t in g:
+        for tu in t.turns:
+            tu.gen_logp, tu.gen_ntok = -1.0, 2
+    m = tr.update([g])
+    n_gen = 2 * sum(len(t.turns) for t in g)
+    assert m["rollout/vllm_logp"] == pytest.approx(-0.5)
+    assert m["train/logp_gap"] == pytest.approx(m["train/mean_logp"] + 0.5)
+    assert m["train/tok_ratio"] == pytest.approx(m["train/tokens"] / n_gen)

@@ -82,6 +82,8 @@ def test_parse_format_roundtrip(style):
 def test_compact_grip_words():
     itf = M.MetaWorldTextInterface(prompt_style="compact")
     assert itf.parse_action('{"x": 1, "y": 2, "z": 3, "grip": "open"}')[3] == 1.0
+    assert np.allclose(itf.parse_action('{"grip": "close"}'), [0, 0, 0, -1])          # gripper-only: no move
+    assert np.allclose(itf.parse_action('{"x": 2.5}'), [2.5, 0, 0, 0])
     assert itf.parse_action('{"x": 1, "y": 2, "z": 3}')[3] == 0.0          # no grip word: keep the command
 
 
@@ -161,4 +163,5 @@ def test_compact_rel_has_no_absolute_coordinates(renderable):
     assert text.startswith("Gripper: open. Last move: dx=+") and "dz=-" in text and "y=6" not in text
     assert "+dx moves the hand to the right" in itf.system_prompt(s)
     assert itf.parse_action('{"x": 1, "y": 2, "z": 3}') is None            # absolute-looking keys are not moves
+    assert np.allclose(itf.parse_action('{"grip": "open"}'), [0, 0, 0, 1])
     env.close()

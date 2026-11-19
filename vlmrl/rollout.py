@@ -67,7 +67,7 @@ def rollout(generate: Generate, env: VecEnv, interface: TextInterface, start_sta
             group_ids: Sequence[int], max_turns: int, max_images: int | None = None,
             on_invalid: str = "terminate", max_context_tokens: int | None = None,
             last_tokens: Callable[[], list[int]] | None = None,
-            max_frames: int | None = None) -> list[Trajectory]:
+            max_frames: int | None = None, last_logprobs: Callable[[], list] | None = None) -> list[Trajectory]:
     """Run ``len(start_states)`` episodes in lock-step. Each round, every unfinished episode gets one
     generation (batched) and one env step (batched over the still-active slots).
 
@@ -76,16 +76,25 @@ def rollout(generate: Generate, env: VecEnv, interface: TextInterface, start_sta
     ``on_invalid="terminate"`` -- a response contains no valid action. ``on_invalid="noop"`` instead
     executes ``interface.noop_action()`` and tells the model in the next observation.
     ``last_tokens()`` returns the context length (prompt + reply tokens) of each item of the most
-    recent ``generate`` call; it is needed only for ``max_context_tokens``.
+    recent ``generate`` call; it is needed only for ``max_context_tokens``. ``last_logprobs()`` returns, per item,
+    (sum of the sampled tokens' log-probs, number of tokens) as the rollout engine computed them (stored on each
+    ``Turn``; the trainer compares them with its own log-probs of the same replies).
     """
     return rollout_pooled(generate, [RolloutTask(env, interface, start_states, group_ids, max_turns)],
-                          max_images, on_invalid, max_context_tokens, last_tokens, max_frames)[0]
+                          max_images, on_invalid, max_context_tokens, last_tokens, max_frames, last_logprobs)[0]
+
+
+def _gen_logp(last_logprobs, n):
+    """(sum of sampled-token log-probs, n tokens) per item of the last generate call, or (None, 0) if unknown."""
+    lp = list(last_logprobs() or []) if last_logprobs else []
+    return lp if len(lp) == n else [(None, 0)] * n
 
 
 def rollout_pooled(generate: Generate, tasks: Sequence[RolloutTask], max_images: int | None = None,
                    on_invalid: str = "terminate", max_context_tokens: int | None = None,
                    last_tokens: Callable[[], list[int]] | None = None,
-                   max_frames: int | None = None) -> list[list[Trajectory]]:
+                   max_frames: int | None = None,
+                   last_logprobs: Callable[[], list] | None = None) -> list[list[Trajectory]]:
     """``rollout`` over several tasks at once (e.g. eval sets on different mazes): each round, the
     unfinished episodes of *all* tasks share one ``generate`` call, then every task steps its own env on
     its active slots. Returns one trajectory list per task, in task order."""
@@ -104,6 +113,7 @@ def rollout_pooled(generate: Generate, tasks: Sequence[RolloutTask], max_images:
             break
         texts = generate([context_view(trajs[i][k].messages, max_images, max_frames) for i, k in active])
         ntok = last_tokens() if (max_context_tokens and last_tokens) else [0] * len(active)
+        glp = _gen_logp(last_logprobs, len(active))
         parsed = [tasks[i].interface.parse_action(x) for (i, _), x in zip(active, texts)]
         res_of = {}
         for i, task in enumerate(tasks):
@@ -123,11 +133,13 @@ def rollout_pooled(generate: Generate, tasks: Sequence[RolloutTask], max_images:
                 info.update({key: v for key, v in obs[i][k].extras.items() if np.isscalar(v)})
                 info.update(success=False, invalid=True)
                 tr.turns.append(Turn(obs=obs[i][k], response=text, action=None,
-                                     result=StepResult(obs=obs[i][k], terminated=True, info=info)))
+                                     result=StepResult(obs=obs[i][k], terminated=True, info=info),
+                                     gen_logp=glp[j][0], gen_ntok=glp[j][1]))
                 tr.done, tr.end_reason = True, "invalid"
                 continue
             res = res_of[j]
-            tr.turns.append(Turn(obs=obs[i][k], response=text, action=a, result=res))
+            tr.turns.append(Turn(obs=obs[i][k], response=text, action=a, result=res,
+                                 gen_logp=glp[j][0], gen_ntok=glp[j][1]))
             obs[i][k] = res.obs
             if res.terminated or res.truncated:
                 tr.done = True

@@ -36,6 +36,8 @@ class Turn:
     response: str
     action: np.ndarray | None          # parsed action (None => parse failure, a no-op was executed)
     result: StepResult
+    gen_logp: float | None = None      # sum of the rollout engine's log-probs of the sampled reply tokens (vLLM only)
+    gen_ntok: int = 0                  # number of sampled reply tokens
 
 
 @dataclass

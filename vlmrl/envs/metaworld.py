@@ -397,9 +397,10 @@ class MetaWorldTextInterface:
             return protocol.parse_action(text, self.SCHEMA)
         pats = _COMPACT_REL if self.prompt_style == "compact_rel" else _COMPACT
         vals = [m.group(1) if (m := pats[q].search(text)) else None for q in ("x", "y", "z")]
-        if any(v is None for v in vals):
-            return None
         g = _COMPACT_GRIP.search(text)
+        if all(v is None for v in vals) and not g:
+            return None
+        vals = [v if v is not None else "0" for v in vals]   # a missing axis is no move along it ({"grip": "open"})
         grip = 0.0
         if g:
             w = g.group(1).lower()
