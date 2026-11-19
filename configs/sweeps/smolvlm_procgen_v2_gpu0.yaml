@@ -1,0 +1,31 @@
+# smolvlm-procgen-v2: reruns after the loss-mask fix (2e2b7d2: masks end at the stop token; before it, the newline
+# chat templates add after <end_of_utterance> was trained but never sampled, its log-prob ran away under net-negative
+# sparse-reward advantages and dragged the policy). Every smolvlm-procgen-v1 run predates the fix.
+# GPU 0: SmolVLM-256M, compact_rel, lr=3e-5, **no KL** -- the setting that collapsed fastest in v1 (eval 24.5% @10 ->
+# 0% @20, mean logp -2.3 -> -8.3). Tests whether the collapse (and the need for kl_coef) was the mask bug.
+group: smolvlm-procgen-v2
+project: vlm-rl-pointmaze
+train_gpu: 0
+vllm_gpu: 0
+vllm_port: 8011
+vllm_gpu_util: 0.35
+overrides:
+  - experiment=pointmaze_procgen
+  - policy=smolvlm256m
+  - on_invalid=noop
+  - reward=success
+  - steps=60
+  - groups_per_step=64
+  - group_size=16
+  - max_resample_rounds=3
+  - micro_batch_size=64
+  - max_new_tokens=64
+  - eval_every=5
+  - eval_episodes=64
+  - wandb_entity=tri
+  - "wandb_tags='pointmaze,procgen,smolvlm,fft,sweep'"
+grid:
+  env_kwargs.prompt_style: [compact_rel]
+  lr: [3.0e-5]
+vllm_args:
+  HuggingFaceTB/SmolVLM-256M-Instruct: [--max-model-len, "8192", --mm-processor-kwargs, '{"do_image_splitting": false}', --api-server-count, "4", --max-num-seqs, "1024", --mm-processor-cache-gb, "0"]

@@ -1,0 +1,31 @@
+# smolvlm-procgen-v2 (after the loss-mask fix 2e2b7d2; see smolvlm_procgen_v2_gpu0.yaml), GPU 1:
+# SmolVLM2-500M, compact_rel, lr=1e-5, **no KL**, max_new_tokens=192 + env_kwargs.parse_last=true (room to reason,
+# scored on the final move: 10.4% zero-shot vs 3.6% with 64 tokens / first move). Differs from the AWS Batch
+# SmolVLM2-500M run (procgen-fft-v2: 64 tokens, 32x16) on purpose.
+group: smolvlm-procgen-v2
+project: vlm-rl-pointmaze
+train_gpu: 1
+vllm_gpu: 1
+vllm_port: 8012
+vllm_gpu_util: 0.35
+overrides:
+  - experiment=pointmaze_procgen
+  - on_invalid=noop
+  - reward=success
+  - steps=60
+  - groups_per_step=64
+  - group_size=16
+  - max_resample_rounds=3
+  - micro_batch_size=16
+  - eval_every=5
+  - eval_episodes=64
+  - wandb_entity=tri
+  - "wandb_tags='pointmaze,procgen,smolvlm2-500m,fft,sweep'"
+grid:
+  policy: [smolvlm2_500m]   # in the grid so the run name (and out_dir) differ from the 256M runs in this group
+  env_kwargs.prompt_style: [compact_rel]
+  lr: [1.0e-5]
+  max_new_tokens: [192]
+  env_kwargs.parse_last: [true]
+vllm_args:
+  HuggingFaceTB/SmolVLM2-500M-Video-Instruct: [--max-model-len, "8192", --mm-processor-kwargs, '{"do_image_splitting": false}', --api-server-count, "4", --max-num-seqs, "1024", --mm-processor-cache-gb, "0"]
