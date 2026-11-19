@@ -192,7 +192,7 @@ def build(a) -> str:
                   wr.WeavePanelSummaryTable(table_name=f"{split}/samples", layout=wr.Layout(x=0, y=10, w=24, h=12))]),
         ]
 
-    by_prompt = runs("by prompt", ["config.env_kwargs.prompt_style"])
+    by_prompt = runs("by prompt", ["config.env_kwargs.prompt_style", "config.model"])
     set_keys = [f"eval/{s}/success" for s in SETS]
     takeaways = open(a.takeaways).read() if a.takeaways else "_(to be written)_"
     stamp = datetime.now().strftime("%Y-%m-%d %H:%M")
@@ -210,7 +210,8 @@ def build(a) -> str:
         grid(lines(["eval/success", "rollout/success"],
                    ["Eval success (greedy, mean of 3 sets)", "Training rollout success (T=1)"])),
         wr.H1("By prompt: absolute vs relative goal"),
-        bullets("Runs grouped by `env_kwargs.prompt_style`: line = mean over runs, band = min/max.",
+        bullets("Runs grouped by `env_kwargs.prompt_style` and model (SmolVLM2-500M kept separate): line = mean over "
+                "runs, band = min/max.",
                 "`compact` echoes the absolute goal: eval stays < 7%. `compact_rel`: the echo is the straight-line "
                 "move, ~20-25% (the band's floor late on is the degenerated lr=3e-5 run)."),
         grid(lines(["eval/success", "rollout/success", "rollout/invalid_frac", "train/mean_logp"],
