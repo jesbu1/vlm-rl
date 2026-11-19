@@ -48,9 +48,10 @@ SETUP = """\
 TAKEAWAYS = "scripts/report_notes/smolvlm_procgen_takeaways.md"
 RELATED = "scripts/report_notes/smolvlm_procgen_related.md"
 PROMPT_RESULTS = "scripts/report_notes/prompts_results.md"
-RELATED_GROUPS = "pointmaze-small-fft-batch-v1,pointmaze-small-fft-batch-v2"
+RELATED_GROUPS = "pointmaze-small-fft-batch-v1,pointmaze-small-fft-batch-v2,pointmaze-gemma4-fft-batch-v1"
+RELATED_PROCGEN_GROUPS = "procgen-fft-larger-v1,procgen-fft-larger-v1-lr1e-6"
 REPORT_URL = ("https://forge.coreweave.com/wandb/tri/vlm-rl-pointmaze/reports/"
-              "SmolVLM-256M-learns-procedural-mazes-from-sparse-reward--VmlldzoxODMzMDEyNg==")
+              "SmolVLM-256M-learns-procedural-mazes-from-sparse-reward--VmlldzoxODMzMjEwNA==")
 
 PROMPT_STYLES = {  # style -> (who it is for, where the goal is given)
     "pear": ("PEAR paper protocol, App. H; 4B-class models", "absolute, once, in the system prompt's TASK section"),
@@ -140,9 +141,20 @@ def related_blocks(a, wr) -> list:
         return wr.Runset(entity=a.entity, project=a.project, name=g, filters=f"Group == '{g}'")
     keys = [("eval/success", "Eval success (greedy, 32 episodes)"), ("rollout/invalid_frac", "Invalid replies"),
             ("rollout/success", "Training rollout success (T=1)"), ("train/grad_norm", "Gradient norm")]
+    procgen = [g for g in a.related_procgen_groups.split(",") if g]
+    set_keys = [("eval/success", "Eval success (mean of 3 sets)"), ("eval/id_layouts/success", "id_layouts"),
+                ("eval/ood_layouts/success", "ood_layouts (held-out 11x11)"),
+                ("eval/ood_larger/success", "ood_larger (held-out 15x15)"),
+                ("rollout/invalid_frac", "Invalid replies"), ("rollout/groups_kept", "Groups with signal")]
     return [
         wr.H1("Related runs: other models and fixed mazes (AWS Batch)"),
         wr.MarkdownBlock(open(a.related).read()),
+        *([wr.H2("Larger models on the procedural setup (live)"),
+           wr.PanelGrid(runsets=[rs(g) for g in procgen],
+                        panels=[wr.LinePlot(title=t, x="Step", y=[k], max_runs_to_show=30) for k, t in set_keys]
+                        + [wr.BarPlot(title="Latest eval success per set", metrics=[k for k, _ in set_keys[1:4]],
+                                      orientation="h", max_runs_to_show=30)])] if procgen else []),
+        wr.H2("Fixed mazes (live)"),
         wr.PanelGrid(runsets=[rs(g) for g in groups],
                      panels=[wr.LinePlot(title=t, x="Step", y=[k], max_runs_to_show=30) for k, t in keys]
                      + [wr.BarPlot(title="Latest eval success", metrics=["eval/success"], orientation="h",
@@ -261,12 +273,19 @@ def main():
     ap.add_argument("--project", default="vlm-rl-pointmaze")
     ap.add_argument("--title", default="SmolVLM-256M learns procedural mazes from sparse reward")
     ap.add_argument("--takeaways", default=TAKEAWAYS, help="markdown file for the takeaways section")
-    ap.add_argument("--url", default=REPORT_URL, help="report to update in place ('' = create a new one)")
-    ap.add_argument("--draft", action="store_true", help="save as an unpublished draft")
+    ap.add_argument("--url", default=None,
+                    help="report to update in place (default: REPORT_URL, or a new report with --draft; '' = new)")
+    ap.add_argument("--draft", action="store_true",
+                    help="save as a new unpublished draft (never over the live report unless --url is given)")
     ap.add_argument("--related", default=RELATED, help="markdown for the related-runs section ('' = omit)")
     ap.add_argument("--no_prompts", dest="prompts", action="store_false", help="omit the prompts section")
     ap.add_argument("--related_groups", default=RELATED_GROUPS, help="comma-separated wandb groups for its panels")
-    print(build(ap.parse_args()))
+    ap.add_argument("--related_procgen_groups", default=RELATED_PROCGEN_GROUPS,
+                    help="related wandb groups on the procedural setup (per-eval-set panels)")
+    a = ap.parse_args()
+    if a.url is None:   # a draft is a separate report; only an explicit --url targets an existing one
+        a.url = "" if a.draft else REPORT_URL
+    print(build(a))
 
 
 if __name__ == "__main__":
