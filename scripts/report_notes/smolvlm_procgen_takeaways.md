@@ -17,6 +17,13 @@
       grad norm 0.4 -> 2.3, rollout invalid 45%: the same early signs as lr=3e-5, but slower.
     * Step 15: eval **10.9%** (invalid 11%); rollouts 15-20%; log-prob bottomed at -2.5 (step 12) and is back to -1.7,
       grad norm ~2.7. Not collapsed (lr=3e-5 reached 90% invalid by step 8), but it has lost half its step-5 eval.
+    * Step 20: **collapsed** too, just later than lr=3e-5: eval 7.3% (training 0, held-out 11x11 1.6, 15x15 20.3), eval
+      invalid 74%; rollout invalid 82% -> 91%, grad norm 6.8. Stopped at step 20. So the mask fix alone does not stop
+      256M full fine-tuning from collapsing; it only delays it at a lower lr. The max_frames=2 swap was conditional on
+      this run holding, so it did not happen as planned.
+    * GPU0 now (queue, 40 steps each, a run is aborted if rollout invalid >85% two steps running after step 5):
+      256M `compact_rel` **lr=5e-6** (max_frames=1) -> same with **max_frames=2** (the A/B) -> `compact` -> `simple`,
+      all at lr=5e-6.
   * 500M (192 tokens + `parse_last`): step-5 eval **28.6%** (training 31.2, held-out 11x11 21.9, held-out 15x15
     **32.8**), 0% invalid eval replies; v1 500M with 64 tokens was 22.9% at step 5 and then lost it to truncated
     reasoning. Rollout success 30%, invalid 71% -> 33%, log-prob -1.8 -> -1.0.
