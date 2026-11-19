@@ -85,6 +85,10 @@
     repeats one such reply 30-45 times per eval episode (stuck at a wall, identical observation). Valid-format junk again:
     the first pair is never executed and never penalized.
     Steps 26-28: degrading: rollout success 39% -> 18-25%, grad norm 0.25 -> 0.79, groups with signal 63 -> 39.
+    Steps 29-30: **collapsing** in training: rollout success 5%, invalid 46%, turns/episode 16 -> 4.6, grad norm
+    1.3-2.3, log-prob -0.4 -> -1.06; the greedy eval still read 26.0% at step 30 (eval lags the sampled policy).
+    Stopped at step 30. Verdict for 500M: terminate delayed the drift by ~3 steps (noop: ~26, terminate: ~26-29), it
+    did not prevent it. Both models find junk the reward never checks (tails after the move, a second x/y pair).
   * 256M terminate (lr=5e-6), steps 1-5: survived the step-3 signal check: groups with signal 10 -> 34 of 64, rollout
     invalid ~85% -> 60%, turns/episode 1.4 -> 2.6. Step-5 eval **13.0%** (training 15.6, held-out 11x11 12.5, 15x15
     10.9), eval invalid 14% (noop twin at step 5: 16.2%). Pre-clip grad norm is high (2-4; clipped to 1.0).
