@@ -1,0 +1,31 @@
+# smolvlm-procgen-v2 (after the loss-mask fix), GPU 0: SmolVLM-256M, compact_rel, lr=1e-5, no KL.
+# Replaced the lr=3e-5 run (smolvlm_procgen_v2_gpu0.yaml), which collapsed again *with* the fix: 27.6% eval at step 5,
+# mean logp rising to -0.46 (step 3), then steps 7-10 rollout invalid 2% -> 90%, grad norm 1 -> 5.8, gibberish replies
+# ("2.80, 6.90-off way to right! Ya rezured ..."), eval 1% at step 10. So lr=3e-5 is too high for 256M full FT even
+# without the mask bug. Does lr=1e-5 hold past step 20 without KL?
+group: smolvlm-procgen-v2
+project: vlm-rl-pointmaze
+train_gpu: 0
+vllm_gpu: 0
+vllm_port: 8011
+vllm_gpu_util: 0.35
+overrides:
+  - experiment=pointmaze_procgen
+  - policy=smolvlm256m
+  - on_invalid=noop
+  - reward=success
+  - steps=60
+  - groups_per_step=64
+  - group_size=16
+  - max_resample_rounds=3
+  - micro_batch_size=64
+  - max_new_tokens=64
+  - eval_every=5
+  - eval_episodes=64
+  - wandb_entity=tri
+  - "wandb_tags='pointmaze,procgen,smolvlm,fft,sweep'"
+grid:
+  env_kwargs.prompt_style: [compact_rel]
+  lr: [1.0e-5]
+vllm_args:
+  HuggingFaceTB/SmolVLM-256M-Instruct: [--max-model-len, "8192", --mm-processor-kwargs, '{"do_image_splitting": false}', --api-server-count, "4", --max-num-seqs, "1024", --mm-processor-cache-gb, "0"]

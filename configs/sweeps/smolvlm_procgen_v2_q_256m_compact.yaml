@@ -23,7 +23,7 @@ overrides:
   - "wandb_tags='pointmaze,procgen,smolvlm,fft,sweep'"
 grid:
   env_kwargs.prompt_style: [compact]
-  lr: [3.0e-5]
+  lr: [1.0e-5]   # 3e-5 collapsed 256M even after the mask fix
   max_new_tokens: [64]
 vllm_args:
   HuggingFaceTB/SmolVLM-256M-Instruct: [--max-model-len, "8192", --mm-processor-kwargs, '{"do_image_splitting": false}', --api-server-count, "4", --max-num-seqs, "1024", --mm-processor-cache-gb, "0"]
