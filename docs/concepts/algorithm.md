@@ -68,11 +68,25 @@ For assistant message *k*:
 ```
 start = len(tokenize(messages[:k],   add_generation_prompt=True))
 end   = len(tokenize(messages[:k+1]))
+end   = 1 + first index in [start, end) of a stop token      # policy.py::HFPolicy._trim_to_stop
 mask[start:end] = 1
 ```
 
-This covers the reply plus the template's end-of-turn token (so the model learns to stop), and never
-covers prompts, images or the generation header. It relies on the chat template being
+This covers the reply plus the model's end-of-turn token (so the model learns to stop), and never
+covers prompts, images, the generation header, **or template tokens after the end-of-turn token**.
+
+!!! danger "Never train tokens the model did not generate"
+    Every chat template here appends a newline after the end-of-turn token (`<|im_end|>\n`, `<turn|>\n`,
+    `<end_of_utterance>\n`). Generation stops at the end-of-turn token, so the newline is never sampled. An earlier
+    version trained it anyway. Under net-negative token-weighted advantages (sparse reward, long failed episodes,
+    `on_invalid=noop`), each update pushed its log-prob down. It is never sampled, so nothing pushed back, and it
+    ran away to **−108** in MiniCPM-V. That one token then dominated the gradient (norms 33–185) and dragged the rest
+    of the distribution with it: replies drifted into prose or junk tokens and full fine-tuning collapsed to ~100%
+    invalid replies. The tell-tale sign is `train/mean_logp` falling to −2 … −8 per token while vLLM's own sampled
+    log-probs stay near −0.3. veRL (PEAR) trains exactly the generated token ids, so it never had this problem and
+    did not need a KL penalty for it.
+
+The stop tokens are the model's `generation_config.eos_token_id` plus the tokenizer's EOS. The mask relies on the chat template being
 **prefix-stable**, which is asserted on the first batch. Templates that rewrite history need
 `max_images=<int>` (see [Models](../models/index.md#prefix-stable-chat-templates)).
 

@@ -220,3 +220,17 @@ def test_token_logprobs_whether_or_not_the_model_honors_logits_to_keep(honors_ke
                                   "advantages": torch.ones(1)})
     ref = table.log_softmax(-1)[first - 1:T - 1].gather(-1, ids[0, first:, None]).squeeze(-1)
     assert logp.shape == (1, T - first) and torch.allclose(logp[0], ref, atol=1e-6) and m.sum() == T - first
+
+
+@pytest.mark.slow
+def test_mask_ends_at_the_stop_token_not_the_template_newline(tiny_vlm, umaze, rng):
+    """Chat templates append e.g. '<end_of_utterance>' + '\\n' after a reply; the model only generates up to the stop
+    token, so the trailing '\\n' must not be trained (its log-prob ran away to -108 and collapsed full-FT runs)."""
+    t = _traj_with_texts(umaze, rng, ['one <action>{"dx": 1, "dy": 0}</action>', "two"])
+    t.advantage = 1.0
+    for s in to_samples([t], None) + to_samples([t], 1):
+        batch = tiny_vlm.build_batch([s])
+        ids, m = batch["input_ids"][0], batch["loss_mask"][0].bool()
+        ends = [i for i in range(1, len(m)) if m[i - 1] and not m[i]] + ([len(m)] if m[-1] else [])
+        assert ends and all(int(ids[e - 1]) in tiny_vlm.stop_ids for e in ends)   # every span ends on a stop token
+        assert all(tiny_vlm.tokenizer.decode([int(ids[e])]) == "\n" for e in ends if e < len(ids))

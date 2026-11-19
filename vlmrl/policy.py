@@ -127,6 +127,33 @@ class HFPolicy:
         self.logprob_chunk = logprob_chunk
         self.chat_template_kwargs = dict(chat_template_kwargs or {})
         self._prefix_checked = False
+        self.stop_ids = self._stop_token_ids()
+
+    def _stop_token_ids(self) -> set[int]:
+        """Token ids generation stops at (generation_config eos ids + the tokenizer's eos). The model's reply ends
+        with one of them; the chat template may add more tokens after it (e.g. '<|im_end|>' + '\n')."""
+        ids = set()
+        gc = getattr(self.model, "generation_config", None)
+        eos = getattr(gc, "eos_token_id", None)
+        for e in (eos if isinstance(eos, (list, tuple)) else [eos]):
+            if e is not None:
+                ids.add(int(e))
+        if getattr(self.tokenizer, "eos_token_id", None) is not None:
+            ids.add(int(self.tokenizer.eos_token_id))
+        return ids
+
+    def _trim_to_stop(self, ids: torch.Tensor, start: int, end: int) -> int:
+        """End of the trained span: just after the first stop token in [start, end). Template tokens after the
+        model's end-of-turn token (every chat template here appends a '\n') are never generated, so they must not
+        be trained: with net-negative advantages their log-prob runs away (-108 seen) with nothing in the rollouts
+        to pull it back, its gradient dominates the update and the policy collapses. (veRL / PEAR train exactly
+        the generated ids, so they never see this.)"""
+        if not self.stop_ids:
+            return end
+        for i in range(start, end):
+            if int(ids[i]) in self.stop_ids:
+                return i + 1
+        return end
 
     def _amp(self):
         dev = self.device.split(":")[0]
@@ -219,7 +246,7 @@ class HFPolicy:
         for b, s in enumerate(samples):
             span = self._last_reply_span(s, enc["input_ids"][b], int(enc["attention_mask"][b].sum()))
             if span is not None:  # fast path: per-turn samples (the trained reply is the last message)
-                loss_mask[b, span[0]:span[1]] = 1
+                loss_mask[b, span[0]:self._trim_to_stop(enc["input_ids"][b], *span)] = 1
                 continue
             for k in s.train_msg_idx:
                 assert s.messages[k]["role"] == "assistant"
@@ -230,7 +257,7 @@ class HFPolicy:
                         raise RuntimeError(
                             "Chat template is not prefix-stable for this model (re-rendering the full chat "
                             "changes earlier turns), so multi-turn masks are ambiguous. Set max_images=<int> (per-turn samples).")
-                loss_mask[b, start:len(end_ids)] = 1
+                loss_mask[b, start:self._trim_to_stop(enc["input_ids"][b], start, len(end_ids))] = 1
         self._prefix_checked = True
         enc = dict(enc)
         enc["loss_mask"] = loss_mask * enc["attention_mask"]
