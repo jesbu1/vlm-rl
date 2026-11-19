@@ -300,7 +300,7 @@ def build(a) -> str:
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--group", default="smolvlm-procgen-v1")
+    ap.add_argument("--group", default="smolvlm-procgen-v2")   # v1 predates the loss-mask fix
     ap.add_argument("--entity", default="tri")
     ap.add_argument("--project", default="vlm-rl-pointmaze")
     ap.add_argument("--title", default="SmolVLM-256M learns procedural mazes from sparse reward")
