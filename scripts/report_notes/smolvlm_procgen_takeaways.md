@@ -13,9 +13,10 @@
 
 | run | step 0 | 5 | 10 | 15 | 20 | status |
 |---|---|---|---|---|---|---|
-| `compact_rel`, lr=3e-5, **kl_coef=0.05** | 1.6 | 13.5 | 24.0 | **25.0** | **25.0** | running (GPU0); 24.5 @25, 17.2 @30, **3.6 @35** |
+| `compact_rel`, lr=3e-5, **kl_coef=0.05** | 1.6 | 13.5 | 24.0 | **25.0** | **25.0** | 24.5 @25, 17.2 @30, **3.6 @35**; stopped @37 |
 | `compact_rel`, lr=1e-5, **kl_coef=0.05** | 1.6 | 4.7 | 20.3 | 22.9 | | stable; stopped @19 for SmolVLM2-500M |
-| **SmolVLM2-500M**, `compact_rel`, lr=1e-5, kl_coef=0.05 | 3.6 | **22.9** | | | | running (GPU1), started 16:30 |
+| **SmolVLM2-500M**, `compact_rel`, lr=1e-5, kl_coef=0.05 | 3.6 | **22.9** | 5.7 | | | running (GPU1): reasoning cut off at 64 tokens |
+| **SmolVLM2-500M**, same + 192 new tokens + `parse_last` | | | | | | running (GPU0), started ~20:00 |
 | `compact_rel`, lr=1e-5 | 1.6 | 10.4 | 20.8 | **22.9** | 20.8 | degenerated at step 25 (0.5%), stopped |
 | `compact_rel`, lr=1e-5, top_p=0.95 | 1.6 | 5.7 | | | | stopped @5 (behind top_p=1 at step 5) |
 | `compact_rel`, lr=3e-5 | 1.6 | 22.9 | **24.5** | 18.2 | 0.0 | degenerated, stopped @20 |
@@ -63,6 +64,13 @@
   * Zero-shot 3.6% (256M: 1.6%), 64% invalid (256M: 95%).
   * **22.9% eval at step 5** (training 29.7, held-out 11x11 18.8, 15x15 20.3); 256M needed 10-15 steps for that.
   * ~20 min/step (256M: 13-16); GPU1 at 33 of 48 GB.
+  * Step 10: eval **5.7%** while T=1 rollouts kept improving (27%). The greedy reply became step-by-step reasoning
+    (`The ball is at (3.14, 1.60) and the goal is at (-0.9, -5.71). The ball moves by 3 units to the right ...`)
+    that hits `max_new_tokens=64` before a move; the parser reads the *first* x/y, so 48% of eval turns are invalid.
+* GPU0 now runs SmolVLM2-500M with `max_new_tokens=192` and `env_kwargs.parse_last=true` (new option: read the last
+  x/y of the reply, i.e. the final move): lets the model finish reasoning and be scored on its answer.
+* Common pattern in all three runs: T=1 rollouts stay healthy while the **greedy** reply flips between modes
+  (offset echo, prose, prompt-example echo, truncated reasoning); greedy eval is the fragile part.
 
 **Scale / cost**
 * <= 3072 episodes per step (64 groups x 16, up to 3 DAPO rounds), 13-16 min/step, one A6000 per run (trainer +
