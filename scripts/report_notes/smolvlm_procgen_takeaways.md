@@ -16,6 +16,12 @@
     the current image and text, so it cannot tell a move into a wall left it stuck).
 * Stopped v1 runs at the fix: SmolVLM2-500M 64 tokens (eval 3.6 / 22.9 / 5.7 / 20.8% at steps 0-15) and 192 tokens +
   `parse_last` (10.4% zero-shot vs 3.6%; stopped at step 2).
+  * **Follow-up queue** (40 steps each, no KL, starts when a GPU frees up; a run is dropped after step 3 if < 6
+    groups carried signal):
+    * GPU1, SmolVLM2-500M back to the richer prompts: `simple` (think, then `<action>`; 256 tokens), then `pear`
+      (full PEAR protocol, fenced json; 384 tokens).
+    * GPU0, SmolVLM-256M after `max_frames=2`: `compact` (absolute goal; does `compact_rel`'s edge survive the fix?),
+      then `simple` (128 tokens).
 
 **Bottom line**
 * SmolVLM-256M (full fine-tuning, GRPO, **sparse success reward only**) learns the procedural mazes once the prompt
