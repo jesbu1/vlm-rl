@@ -78,6 +78,11 @@
     10.9), eval invalid 14% (noop twin at step 5: 16.2%). Pre-clip grad norm is high (2-4; clipped to 1.0).
     Step 10: eval **22.4%** (training 29.7, held-out 11x11 15.6, 15x15 21.9), eval invalid 2%; rollouts 27-30%,
     invalid 6%, grad norm back to 0.5 (noop twin at step 10: 24.0%).
+    Step 15: eval **16.7%** (training 18.8, held-out 11x11 12.5, 15x15 18.8), eval invalid 3%, while rollouts improve
+    (33%, invalid 4%, grad norm 0.5-0.7). Not a collapse: the greedy reply gets stuck. When a move hits a wall the
+    ball does not move, the next observation is identical (max_frames=1), so greedy repeats the same move for the
+    rest of the episode (19 identical replies, e.g. `x=+3.65, y=+0.54`). Sampled rollouts escape by chance. This is
+    the case for a sampled eval and for max_frames=2 (queued next on GPU0).
   * Queued on GPU0: once the 256M **lr=1e-5** run passes step 20 (v1 collapsed by then) with eval >= 10% and mean log-prob
     >= -4, it is replaced by the same run with **`max_frames=2`** (sees the previous round too; default 1 = only
     the current image and text, so it cannot tell a move into a wall left it stuck).
