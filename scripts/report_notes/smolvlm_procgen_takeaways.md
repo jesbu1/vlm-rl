@@ -90,6 +90,10 @@
     reply: `x=+3.81, y=+0.94. neighboring cells with number equal to x and y ... the final answer is 3.81.` The
     parser reads the leading move, so the reply is valid and its tail shares the episode's advantage; terminate only
     removes junk that replaces the move. (Also seen again: a Unicode minus, `X=−1.32`, which now ends the episode.)
+    Step 25: **collapsed**: eval 7.8% (eval invalid 36%), rollouts 8%, invalid 24%, grad norm 2.4, log-prob -1.33.
+    Stopped at step 25. Verdict for 256M: terminate-on-invalid delays nothing (noop at the same lr collapsed ~step 18,
+    this one ~step 18-20); it only changes where the junk goes. Proposed next: a strict format check (any text beyond
+    the move is invalid) so junk tails also end the episode.
   * Queued on GPU0: once the 256M **lr=1e-5** run passes step 20 (v1 collapsed by then) with eval >= 10% and mean log-prob
     >= -4, it is replaced by the same run with **`max_frames=2`** (sees the previous round too; default 1 = only
     the current image and text, so it cannot tell a move into a wall left it stuck).
