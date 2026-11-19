@@ -208,3 +208,20 @@ def test_final_answer_after_reasoning():
     assert final_answer('{"dx": 2.0}') == '{"dx": 2.0}'                         # no reasoning
     assert final_answer('still thinking dx=9 ...', thinking=True) is None       # cut off mid-reasoning: invalid
     assert final_answer('a</think>b</think>{"dx": 1}', thinking=True) == '{"dx": 1}'
+
+
+def test_generated_ids_reach_turns_and_per_turn_samples(umaze, rng):
+    gen = const_generate((0.3, 0.0))
+    seen = []
+
+    def generate(convs):
+        seen.append(len(convs))
+        return gen(convs)
+    trajs = rollout(generate, umaze.make_vec_env(), umaze.interface, umaze.train_sampler.sample(2, rng), [0, 0], 3,
+                    last_gen_ids=lambda: [[11, 12, 13]] * seen[-1])
+    assert all(t.gen_ids == [11, 12, 13] for tr in trajs for t in tr.turns)
+    for tr in trajs:
+        tr.advantage = 1.0
+    per_turn = to_samples(trajs, None, max_frames=1)
+    assert per_turn and all(s.gen_ids == [11, 12, 13] for s in per_turn)
+    assert all(s.gen_ids is None for s in to_samples(trajs, None))          # full history: text path

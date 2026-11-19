@@ -68,7 +68,7 @@ def rollout(generate: Generate, env: VecEnv, interface: TextInterface, start_sta
             on_invalid: str = "terminate", max_context_tokens: int | None = None,
             last_tokens: Callable[[], list[int]] | None = None,
             max_frames: int | None = None, last_logprobs: Callable[[], list] | None = None,
-            thinking: bool = False) -> list[Trajectory]:
+            thinking: bool = False, last_gen_ids: Callable[[], list] | None = None) -> list[Trajectory]:
     """Run ``len(start_states)`` episodes in lock-step. Each round, every unfinished episode gets one
     generation (batched) and one env step (batched over the still-active slots).
 
@@ -83,7 +83,7 @@ def rollout(generate: Generate, env: VecEnv, interface: TextInterface, start_sta
     """
     return rollout_pooled(generate, [RolloutTask(env, interface, start_states, group_ids, max_turns)],
                           max_images, on_invalid, max_context_tokens, last_tokens, max_frames, last_logprobs,
-                          thinking)[0]
+                          thinking, last_gen_ids)[0]
 
 
 def final_answer(text: str, thinking: bool = False) -> str | None:
@@ -94,6 +94,11 @@ def final_answer(text: str, thinking: bool = False) -> str | None:
     if "</think>" in text:
         return text.rsplit("</think>", 1)[1]
     return None if thinking else text
+
+
+def _gen_ids(last_gen_ids, n):
+    ids = list(last_gen_ids() or []) if last_gen_ids else []
+    return ids if len(ids) == n else [None] * n
 
 
 def _gen_logp(last_logprobs, n):
@@ -107,7 +112,7 @@ def rollout_pooled(generate: Generate, tasks: Sequence[RolloutTask], max_images:
                    last_tokens: Callable[[], list[int]] | None = None,
                    max_frames: int | None = None,
                    last_logprobs: Callable[[], list] | None = None,
-                   thinking: bool = False) -> list[list[Trajectory]]:
+                   thinking: bool = False, last_gen_ids: Callable[[], list] | None = None) -> list[list[Trajectory]]:
     """``rollout`` over several tasks at once (e.g. eval sets on different mazes): each round, the
     unfinished episodes of *all* tasks share one ``generate`` call, then every task steps its own env on
     its active slots. Returns one trajectory list per task, in task order."""
@@ -127,6 +132,7 @@ def rollout_pooled(generate: Generate, tasks: Sequence[RolloutTask], max_images:
         texts = generate([context_view(trajs[i][k].messages, max_images, max_frames) for i, k in active])
         ntok = last_tokens() if (max_context_tokens and last_tokens) else [0] * len(active)
         glp = _gen_logp(last_logprobs, len(active))
+        gids = _gen_ids(last_gen_ids, len(active))
         answers = [final_answer(x, thinking) for x in texts]
         parsed = [tasks[i].interface.parse_action(x) if x is not None else None for (i, _), x in zip(active, answers)]
         res_of = {}
@@ -148,12 +154,12 @@ def rollout_pooled(generate: Generate, tasks: Sequence[RolloutTask], max_images:
                 info.update(success=False, invalid=True)
                 tr.turns.append(Turn(obs=obs[i][k], response=text, action=None,
                                      result=StepResult(obs=obs[i][k], terminated=True, info=info),
-                                     gen_logp=glp[j][0], gen_ntok=glp[j][1]))
+                                     gen_logp=glp[j][0], gen_ntok=glp[j][1], gen_ids=gids[j]))
                 tr.done, tr.end_reason = True, "invalid"
                 continue
             res = res_of[j]
             tr.turns.append(Turn(obs=obs[i][k], response=text, action=a, result=res,
-                                 gen_logp=glp[j][0], gen_ntok=glp[j][1]))
+                                 gen_logp=glp[j][0], gen_ntok=glp[j][1], gen_ids=gids[j]))
             obs[i][k] = res.obs
             if res.terminated or res.truncated:
                 tr.done = True
@@ -179,7 +185,8 @@ def to_samples(trajs: Sequence[Trajectory], max_images: int | None, max_frames: 
         if max_images is None and max_frames is None:
             samples.append(Sample(tr.messages, a_idx, tr.advantage, {"group": tr.group_id}))
         else:
-            for i in a_idx:
+            for j, i in enumerate(a_idx):        # the j-th assistant message is the j-th turn's reply
                 view = context_view(tr.messages[:i], max_images, max_frames) + [tr.messages[i]]
-                samples.append(Sample(view, [len(view) - 1], tr.advantage, {"group": tr.group_id}))
+                gen = tr.turns[j].gen_ids if j < len(tr.turns) else None
+                samples.append(Sample(view, [len(view) - 1], tr.advantage, {"group": tr.group_id}, gen_ids=gen))
     return samples

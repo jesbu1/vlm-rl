@@ -22,8 +22,8 @@ class _Handler(BaseHTTPRequestHandler):
             n_img = sum(1 for m in body["messages"] if isinstance(m["content"], list)
                         for c in m["content"] if c["type"] == "image_url")
             out = {"choices": [{"message": {"content": f" {body['model']}|{n_img}|{body['temperature']} "},
-                                "logprobs": {"content": [{"token": "a", "logprob": -0.5},
-                                                         {"token": "b", "logprob": -1.0}]}}]}
+                                "logprobs": {"content": [{"token": "token_id:5", "logprob": -0.5},
+                                                         {"token": "token_id:7", "logprob": -1.0}]}}]}
             data = json.dumps(out).encode()
         else:
             data = b"Success"
@@ -76,7 +76,9 @@ def test_generate_records_sampled_token_logprobs(server):
     g = VLLMServerGenerator(server, "base-model", "/tmp/unused", max_workers=4)
     g.generate([_conv(), _conv()])
     assert g.last_logprobs == [(-1.5, 2), (-1.5, 2)]
-    assert all(b["logprobs"] is True for p, b in _Handler.log if p == "/v1/chat/completions")
+    assert g.last_gen_ids == [[5, 7], [5, 7]]                                  # the sampled ids, for exact training
+    assert all(b["logprobs"] is True and b["return_tokens_as_token_ids"] is True
+               for p, b in _Handler.log if p == "/v1/chat/completions")
 
 
 class _FakePeft:

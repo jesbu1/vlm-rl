@@ -337,6 +337,11 @@ class Trainer:
             diag = {"rollout/vllm_logp": vlogp,
                     "train/logp_gap": stats["logp_sum"] / max(n_tok, 1) / c.ppo_epochs - vlogp,
                     "train/tok_ratio": n_tok / n_gen}
+        # how often re-tokenizing a reply's text would not give the sampled ids (training uses the sampled ids
+        # whenever the engine reports them; this measures what the old text path would have trained instead)
+        with_ids = [s for s in samples if s.gen_ids and s.train_msg_idx == [len(s.messages) - 1]]
+        if with_ids and hasattr(pol, "retok_differs"):
+            diag["rollout/retok_mismatch"] = float(np.mean([pol.retok_differs(s) for s in with_ids]))
         return {**diag, "train/loss": stats["loss"] / c.ppo_epochs, "train/grad_norm": float(gn),
                 "train/tokens": n_tok, "train/sequences": len(samples),
                 "train/mean_logp": stats["logp_sum"] / max(n_tok, 1) / c.ppo_epochs,
@@ -383,7 +388,8 @@ class Trainer:
         return rollout(self._gen(temperature), self.env, self.bundle.interface, starts, gids, self.bundle.max_turns,
                        c.max_images, on_invalid=c.on_invalid, max_context_tokens=c.max_context_tokens,
                        last_tokens=lambda: getattr(self.generator, "last_num_tokens", []), max_frames=c.max_frames,
-                       last_logprobs=lambda: getattr(self.generator, "last_logprobs", []), thinking=self._thinking)
+                       last_logprobs=lambda: getattr(self.generator, "last_logprobs", []), thinking=self._thinking,
+                       last_gen_ids=lambda: getattr(self.generator, "last_gen_ids", []))
 
     def dump_episode(self, tr, tag, step=None):
         """Write a video (mp4 or gif) + transcript to out_dir/episodes; returns (transcript, video path or None)."""

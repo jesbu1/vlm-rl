@@ -96,9 +96,22 @@ flowchart LR
   a1 --> u2["user 2: state JSON + image<br/>mask 0"] --> a2["assistant 2<br/>mask 1, advantage A"] --> d["..."] --> aT["assistant T<br/>mask 1, advantage A"]
 ```
 
-Responses are re-tokenized from text for training, as in most HF-based RL stacks. Tests check that
-the masked tokens decode to exactly the replies, and that log-probs computed with `logits_to_keep`
-match a naive full forward pass.
+**Per-turn samples train the exact generated ids.** Both rollout engines report the token ids they sampled
+(vLLM via `return_tokens_as_token_ids`, HF from `generate`). A per-turn sample is then built as the rendered prompt
+(with its images, as the engine saw it) + exactly those ids, and only those ids are trained
+(`policy.py::HFPolicy._build_exact`), as in veRL. Full-history samples, and replies without ids, fall back to
+re-tokenizing the reply text with the masks above.
+
+!!! warning "Why not re-tokenize the text"
+    Sampling at T=1 can produce a valid but non-canonical split of a string (e.g. `{` + `"` instead of `{"`).
+    Re-tokenizing the reply text gives the canonical split, which the policy rates as unlikely once it has learned
+    to produce the other one, so the trainer pushes on tokens the engine never sampled. On procedural mazes this
+    showed as `train/tok_ratio` falling below 1 (0.99 → 0.93) while `train/logp_gap` opened (−0.02 → −0.37) and
+    the run collapsed. `rollout/retok_mismatch` reports how often the text path would have differed.
+
+Tests check that the masked tokens decode to exactly the replies, that exact ids are trained as generated (a
+non-canonical split stays split; a reply cut off at `max_new_tokens` gets no end-of-turn token), and that log-probs
+computed with `logits_to_keep` match a naive full forward pass.
 
 ## Sequence diagram
 

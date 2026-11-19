@@ -234,3 +234,37 @@ def test_mask_ends_at_the_stop_token_not_the_template_newline(tiny_vlm, umaze, r
         ends = [i for i in range(1, len(m)) if m[i - 1] and not m[i]] + ([len(m)] if m[-1] else [])
         assert ends and all(int(ids[e - 1]) in tiny_vlm.stop_ids for e in ends)   # every span ends on a stop token
         assert all(tiny_vlm.tokenizer.decode([int(ids[e])]) == "\n" for e in ends if e < len(ids))
+
+
+@pytest.mark.slow
+def test_exact_generated_ids_are_trained_as_generated(tiny_vlm, umaze, rng):
+    """With the engine's ids, the batch is prompt + exactly those ids: a canonical reply gives the same trained tokens
+    as the text path; a non-canonical split is trained as generated; a reply cut off at max_new_tokens gets no
+    end-of-turn token it never generated."""
+    t = _traj_with_texts(umaze, rng, ['{"dx": 1, "dy": 0}'])
+    t.advantage = 1.0
+    s_text = to_samples([t], 1)[0]
+    tok, eos = tiny_vlm.tokenizer, sorted(tiny_vlm.stop_ids)[0]
+    body = tok('{"dx": 1, "dy": 0}', add_special_tokens=False)["input_ids"]
+    text_b = tiny_vlm.build_batch([s_text])
+    text_ids = text_b["input_ids"][0][text_b["loss_mask"][0].bool()].tolist()
+    s_exact = Sample(s_text.messages, s_text.train_msg_idx, 1.0, gen_ids=text_ids)
+    ex = tiny_vlm.build_batch([s_exact])
+    assert ex["input_ids"][0][ex["loss_mask"][0].bool()].tolist() == text_ids        # same tokens as the text path
+    assert not tiny_vlm.retok_differs(s_exact)
+    # non-canonical: split the first token into its characters (same string, other ids)
+    first = tok.decode([body[0]])
+    pieces = [tok.convert_tokens_to_ids(c) for c in first] if len(first) > 1 else None
+    if pieces and all(isinstance(p, int) and p != tok.unk_token_id for p in pieces):
+        odd = pieces + body[1:] + [eos]
+        b = tiny_vlm.build_batch([Sample(s_text.messages, s_text.train_msg_idx, 1.0, gen_ids=odd)])
+        assert b["input_ids"][0][b["loss_mask"][0].bool()].tolist() == odd
+        assert tiny_vlm.retok_differs(Sample(s_text.messages, s_text.train_msg_idx, 1.0, gen_ids=odd))
+    cut = body[:3]                                                                   # no stop token generated
+    b = tiny_vlm.build_batch([Sample(s_text.messages, s_text.train_msg_idx, 1.0, gen_ids=cut)])
+    trained = b["input_ids"][0][b["loss_mask"][0].bool()].tolist()
+    assert trained == cut and not set(trained) & tiny_vlm.stop_ids
+    # mixed lengths in one batch: prompt + ids per row, padding untrained, log-probs finite
+    b = tiny_vlm.build_batch([s_exact, Sample(s_text.messages, s_text.train_msg_idx, -1.0, gen_ids=cut)])
+    logp, m = tiny_vlm.token_logprobs(b)
+    assert int(b["loss_mask"].sum()) == len(text_ids) + len(cut) and torch.isfinite(logp[m.bool()]).all()

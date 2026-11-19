@@ -24,11 +24,15 @@ import torch.nn.functional as F
 
 @dataclass
 class Sample:
-    """One training sequence: a chat + which assistant messages to train on + their advantage."""
+    """One training sequence: a chat + which assistant messages to train on + their advantage.
+
+    ``gen_ids``: the token ids the rollout engine generated for the last message (the trained reply of a per-turn
+    sample). When set, training uses exactly these ids instead of re-tokenizing the reply's text."""
     messages: list[dict]
     train_msg_idx: list[int]
     advantage: float
     meta: dict = field(default_factory=dict)
+    gen_ids: list[int] | None = None
 
 
 def chunked_token_logprobs(logits: torch.Tensor, targets: torch.Tensor, chunk: int = 1024) -> torch.Tensor:
@@ -142,6 +146,26 @@ class HFPolicy:
             ids.add(int(self.tokenizer.eos_token_id))
         return ids
 
+    def _cut_at_stop(self, ids: list[int]) -> list[int]:
+        """Generated ids up to and including the first stop token (generate() pads after it); all of them if the
+        reply hit max_new_tokens."""
+        for i, t in enumerate(ids):
+            if t in self.stop_ids:
+                return ids[:i + 1]
+        return ids
+
+    def retok_differs(self, s: Sample) -> bool:
+        """Would the text path (re-render the chat, re-tokenize the reply after the prompt, trim at the stop token)
+        train other ids than the ones generated? Sampling can produce a non-canonical split of a string, and the
+        stored reply text is stripped."""
+        tpl, kw = self.processor.apply_chat_template, self.chat_template_kwargs
+        full = tpl(s.messages, add_generation_prompt=False, tokenize=False, **kw)
+        prompt = tpl(s.messages[:-1], add_generation_prompt=True, tokenize=False, **kw)
+        if not (isinstance(full, str) and full.startswith(prompt)):
+            return True
+        sfx = self.tokenizer(full[len(prompt):], add_special_tokens=False)["input_ids"]
+        return self._cut_at_stop(sfx) != list(s.gen_ids)
+
     def _trim_to_stop(self, ids: torch.Tensor, start: int, end: int) -> int:
         """End of the trained span: just after the first stop token in [start, end). Template tokens after the
         model's end-of-turn token (every chat template here appends a '\n') are never generated, so they must not
@@ -184,6 +208,7 @@ class HFPolicy:
         self._gen_bs = min(getattr(self, "_gen_bs", batch_size), batch_size)
         texts, s = [], 0
         self.last_num_tokens: list[int] = []   # context length (prompt + reply) per item, for token budgets
+        self.last_gen_ids: list[list[int]] = []  # generated token ids per item, up to and including the stop token
         while s < len(convs):
             bs = self._gen_bs
             try:
@@ -208,6 +233,7 @@ class HFPolicy:
         new = out[:, enc["input_ids"].shape[1]:]
         n_new = (new != self.tokenizer.pad_token_id).sum(1)
         self.last_num_tokens += (enc["attention_mask"].sum(1) + n_new).tolist()
+        self.last_gen_ids += [self._cut_at_stop(row.tolist()) for row in new]
         return [t.strip() for t in self.tokenizer.batch_decode(new, skip_special_tokens=True)]
 
     def _sample(self, enc, max_new_tokens, temperature, top_p, greedy):
@@ -239,7 +265,36 @@ class HFPolicy:
             return None
         return start, length
 
+    def _build_exact(self, samples: list[Sample]) -> dict[str, Any]:
+        """Per-turn samples with the engine's generated ids: render only the prompt (with its images, the way the
+        engine did), append the generated ids, and train exactly those (veRL-style). Nothing is re-tokenized, and
+        nothing after the stop token, or after a reply cut off at max_new_tokens, is trained."""
+        enc = dict(self._apply([s.messages[:-1] for s in samples], add_generation_prompt=True, padding_side="right"))
+        B, Tp = enc["input_ids"].shape
+        lens = enc["attention_mask"].sum(1).tolist()
+        T = max(int(l) + len(s.gen_ids) for l, s in zip(lens, samples))
+        pad = self.tokenizer.pad_token_id if self.tokenizer.pad_token_id is not None else 0
+        per_token = [k for k, v in enc.items()
+                     if torch.is_tensor(v) and v.dim() == 2 and tuple(v.shape) == (B, Tp) and k != "input_ids"]
+        ids = torch.full((B, T), pad, dtype=enc["input_ids"].dtype)
+        out = {k: torch.zeros((B, T), dtype=enc[k].dtype) for k in per_token}
+        loss_mask = torch.zeros(B, T)
+        for b, (l, s) in enumerate(zip(lens, samples)):
+            l, g = int(l), torch.tensor(s.gen_ids, dtype=ids.dtype)
+            ids[b, :l], ids[b, l:l + len(g)] = enc["input_ids"][b, :l], g
+            for k in per_token:          # attention_mask -> 1 on the reply; other per-token ids (token types) -> 0
+                out[k][b, :l] = enc[k][b, :l]
+                if k == "attention_mask":
+                    out[k][b, l:l + len(g)] = 1
+            loss_mask[b, l:l + len(g)] = 1
+        enc.update(out, input_ids=ids)
+        enc["loss_mask"] = loss_mask
+        enc["advantages"] = torch.tensor([s.advantage for s in samples], dtype=torch.float32)
+        return enc
+
     def build_batch(self, samples: list[Sample]) -> dict[str, Any]:
+        if samples and all(s.gen_ids and s.train_msg_idx == [len(s.messages) - 1] for s in samples):
+            return self._build_exact(samples)
         enc = self._apply([s.messages for s in samples], add_generation_prompt=False, padding_side="right")
         B, T = enc["input_ids"].shape
         loss_mask = torch.zeros(B, T)

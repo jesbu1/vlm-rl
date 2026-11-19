@@ -38,6 +38,7 @@ class Turn:
     result: StepResult
     gen_logp: float | None = None      # sum of the rollout engine's log-probs of the sampled reply tokens (vLLM only)
     gen_ntok: int = 0                  # number of sampled reply tokens
+    gen_ids: list[int] | None = None   # the sampled reply's token ids, up to and including the stop token
 
 
 @dataclass

@@ -12,7 +12,7 @@ can be grouped and filtered by `config.reward`, `config.model`, `config.env_kwar
 
 | prefix | keys |
 |---|---|
-| `rollout/` | `success`, `score`, `turns`, `invalid_frac`, `resp_chars`, `groups_kept`, `rounds`, `end_{success,invalid,max_turns,context,terminated,truncated}`, `vllm_logp` (vLLM rollouts: the server's mean log-prob of the sampled reply tokens, on the trained trajectories) |
+| `rollout/` | `success`, `score`, `turns`, `invalid_frac`, `resp_chars`, `groups_kept`, `rounds`, `end_{success,invalid,max_turns,context,terminated,truncated}`, `vllm_logp` (vLLM rollouts: the server's mean log-prob of the sampled reply tokens, on the trained trajectories), `retok_mismatch` (fraction of trained per-turn replies whose re-tokenized text differs from the sampled ids) |
 | `train/` | `loss`, `grad_norm`, `tokens`, `sequences`, `mean_logp`, `logp_gap` (`mean_logp` − `rollout/vllm_logp`), `tok_ratio` (trained tokens / sampled tokens), `clipfrac` (ppo_clip only), `skipped` |
 | `eval/` | `success`, `turns`, `invalid_frac`, `end_*` (greedy by default, `eval_temperature`). With [`eval_sets`](../environments/pointmaze.md#eval-sets-in-and-out-of-distribution): `eval/<name>/…` per set, and `eval/…` is the mean over sets |
 | `time/` | `rollout`, `train` |
