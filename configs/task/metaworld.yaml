@@ -1,0 +1,18 @@
+# @package _global_
+# Metaworld (vlmrl/envs/metaworld.py): Sawyer arm, PEAR-protocol hand + gripper waypoints, sparse task success.
+# benchmark: ML1:<task> (train / test = disjoint goal and object positions) | ML10 (10 / 5 held-out tasks) | ML45 (45 / 5).
+env: metaworld
+env_kwargs:
+  benchmark: ML1:push-v3
+  eval_split: test           # test = held-out goals (ML1) or held-out tasks (ML10 / ML45) | train
+  prompt_style: pear         # pear | compact
+  include_state: true        # hand xyz + gripper opening each turn
+  image_size: 224            # center crop of a 640x480 render
+  render_width: 640
+  render_height: 480
+  crop: center
+  camera: corner
+  max_delta: 10.0            # cm per action
+  max_substeps: 40           # simulator steps per action (Metaworld moves the hand <= 1 cm per step)
+  max_turns: 15
+reward: success

@@ -1,0 +1,16 @@
+# Zero-shot Metaworld (experiment=metaworld_zeroshot): models x prompt style, eval only (steps=0).
+#   python scripts/batch_submit.py configs/sweeps/metaworld_zeroshot.yaml --gpus 1 --vcpus 16 --memory_mib 120000
+group: metaworld-zeroshot-v1
+project: vlm-rl-metaworld
+vllm_port: 8011
+overrides:
+  - experiment=metaworld_zeroshot
+  - wandb_entity=tri
+  - "wandb_tags='metaworld,zeroshot'"
+grid:
+  policy: [qwen3vl2b_full, gemma4_e2b_full_48gb, qwen3vl4b_lora]
+  env_kwargs.prompt_style: [pear, compact]
+vllm_args:
+  google/gemma-4-E2B-it: [--mm-processor-cache-gb, "0"]
+  Qwen/Qwen3-VL-2B-Instruct: [--mm-processor-cache-gb, "0"]
+  Qwen/Qwen3-VL-4B-Instruct: [--mm-processor-cache-gb, "0"]

@@ -1,0 +1,16 @@
+# @package _global_
+# Zero-shot evaluation on Metaworld (no training): one pooled rollout over ML1 / ML10 / ML45 eval sets.
+defaults:
+  - pointmaze_q3vl4b_vllm
+  - override /task: metaworld
+steps: 0
+eval_every: 1
+eval_episodes: 32
+max_new_tokens: 512
+eval_sets:
+  ml1_push_train: {benchmark: ML1:push-v3, eval_split: train}
+  ml1_push_test: {benchmark: ML1:push-v3, eval_split: test}
+  ml10_train: {benchmark: ML10, eval_split: train}
+  ml10_test: {benchmark: ML10, eval_split: test}
+  ml45_test: {benchmark: ML45, eval_split: test}
+out_dir: runs/metaworld_zeroshot
