@@ -13,7 +13,7 @@
 
 | run | step 0 | 5 | 10 | 15 | 20 | status |
 |---|---|---|---|---|---|---|
-| `compact_rel`, lr=3e-5, **kl_coef=0.05** | 1.6 | 13.5 | 24.0 | **25.0** | **25.0** | running (GPU0); 24.5 @25, 17.2 @30 |
+| `compact_rel`, lr=3e-5, **kl_coef=0.05** | 1.6 | 13.5 | 24.0 | **25.0** | **25.0** | running (GPU0); 24.5 @25, 17.2 @30, **3.6 @35** |
 | `compact_rel`, lr=1e-5, **kl_coef=0.05** | 1.6 | 4.7 | 20.3 | 22.9 | | stable; stopped @19 for SmolVLM2-500M |
 | **SmolVLM2-500M**, `compact_rel`, lr=1e-5, kl_coef=0.05 | 3.6 | **22.9** | | | | running (GPU1), started 16:30 |
 | `compact_rel`, lr=1e-5 | 1.6 | 10.4 | 20.8 | **22.9** | 20.8 | degenerated at step 25 (0.5%), stopped |
@@ -52,7 +52,12 @@
 * KL fixed stability, not the ~25% ceiling (lr=3e-5 + KL: 24.0 / 25.0 / 25.0 / 24.5% at steps 10-25).
 * lr=3e-5 + KL slipped at step 30 (eval 17.2%, eval invalid 0% -> 49%) without a log-prob slide (-2.2): replies
   drifted back to pretrained-style prose (`The goal is to move the ball to the right 3.81 units.`, repeated), which
-  doesn't parse. Rollout invalid replies had crept 30% -> 55% since step 11. Watching step 35.
+  doesn't parse. Rollout invalid replies had crept 30% -> 55% since step 11.
+* Step 35: eval **3.6%** with 0% invalid: every greedy reply is the system prompt's example move
+  `{"x": 1.0, "y": -0.5}`, repeated. T=1 rollouts are still fine (24.5% success, log-prob -1.8).
+  * So with KL the sampled policy is stable, but its **greedy mode keeps flipping** (offset echo -> prose ->
+    prompt-example echo): greedy eval is fragile at lr=3e-5 even when training looks healthy.
+  * A prompt fix to try: drop the concrete example values from the system prompt (the model copies them).
 * GPU1 now runs **SmolVLM2-500M** (`HuggingFaceTB/SmolVLM2-500M-Video-Instruct`, 2x the parameters) with the same
   prompt, batch, eval and lr=1e-5 + `kl_coef=0.05`: does a larger model learn to route around walls?
   * Zero-shot 3.6% (256M: 1.6%), 64% invalid (256M: 95%).
