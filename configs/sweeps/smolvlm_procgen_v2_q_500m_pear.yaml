@@ -1,0 +1,29 @@
+# smolvlm-procgen-v2 follow-up queue (after the loss-mask fix), run by the scratchpad queue script once the GPU's
+# earlier v2 runs finish; 40 steps; aborted after step 3 if fewer than 6 groups carried a GRPO signal (no valid
+# replies to learn from). SmolVLM2-500M, `pear` prompt (PEAR protocol, state JSON, fenced json change).
+group: smolvlm-procgen-v2
+project: vlm-rl-pointmaze
+train_gpu: 1
+vllm_gpu: 1
+vllm_port: 8012
+vllm_gpu_util: 0.35
+overrides:
+  - experiment=pointmaze_procgen
+  - on_invalid=noop
+  - reward=success
+  - steps=40
+  - groups_per_step=64
+  - group_size=16
+  - max_resample_rounds=3
+  - micro_batch_size=8
+  - eval_every=5
+  - eval_episodes=64
+  - wandb_entity=tri
+  - "wandb_tags='pointmaze,procgen,smolvlm2-500m,fft,sweep'"
+grid:
+  policy: [smolvlm2_500m]
+  env_kwargs.prompt_style: [pear]
+  lr: [1.0e-5]
+  max_new_tokens: [384]
+vllm_args:
+  HuggingFaceTB/SmolVLM2-500M-Video-Instruct: [--max-model-len, "8192", --mm-processor-kwargs, '{"do_image_splitting": false}', --api-server-count, "4", --max-num-seqs, "1024", --mm-processor-cache-gb, "0"]
