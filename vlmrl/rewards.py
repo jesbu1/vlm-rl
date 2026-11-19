@@ -134,12 +134,25 @@ class ScoreFnPreference:
     head: replace ``score`` with the WAM's progress/value estimate on imagined trajectories.
     """
 
-    def __init__(self, score: Callable[[Trajectory], float], tau: float = 0.1):
-        self.score, self.tau = score, tau
+    def __init__(self, score: Callable[[Trajectory], float], tau: float = 0.1, margin: float = 0.0):
+        self.score, self.tau, self.margin = score, tau, margin
 
     def compare(self, pairs):
+        """``margin``: score differences below it are ties (p = 0.5), so a group of practically equal outcomes has no
+        spread and is filtered, instead of z-scoring tiny differences into full-size advantages."""
         d = np.array([self.score(a) - self.score(b) for a, b in pairs])
+        d = np.where(np.abs(d) < self.margin, 0.0, d)
         return 1 / (1 + np.exp(-d / self.tau))
+
+
+def _final_extra(t: Trajectory, key: str, default: float = 0.0) -> float:
+    """A scalar the env reports in every observation (``Obs.extras``), read at the episode's final state."""
+    return float(t.turns[-1].result.obs.extras.get(key, default)) if t.turns else default
+
+
+def mw_final_score(t: Trajectory) -> float:
+    """Metaworld ground truth: success first (+10), then the dense reward at the final state (0-10)."""
+    return 10.0 * t.success + _final_extra(t, "mw_progress")
 
 
 # ----------------------------------------------------------------------------- registry
@@ -163,6 +176,11 @@ def build_reward(spec: str, max_turns: int = 1) -> RewardFn:
         # preference pipeline driven by a privileged-state oracle: prefers lower final distance, then success
         "pref_oracle_dist": lambda: preference_reward(ScoreFnPreference(
             lambda t: (2.0 * t.success - (t.turns[-1].result.info["dist"] if t.turns else 0.0)), tau=0.2)),
+        # Metaworld: preferences from the ground-truth dense reward. Within a group, a success beats a failure, then
+        # the higher Metaworld reward (0-10) at the final state wins; win rates become the scores, so every group with
+        # any progress difference has a signal (sparse success alone gives none on push / pick-place early on)
+        "pref_mw": lambda: preference_reward(ScoreFnPreference(mw_final_score, tau=0.5, margin=0.1)),
+        "mw_progress": lambda: per_traj(lambda t: _final_extra(t, "mw_progress")),
     }
     terms = []
     for part in spec.split("+"):

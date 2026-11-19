@@ -48,6 +48,7 @@ def test_reset_is_exact_and_hand_moves_toward_target(renderable):
     s = _state("ML1:reach-v3", "train", "reach-v3", task=3, seed=7)
     a, b = env.reset([s])[0], env.reset([s])[0]
     assert np.allclose(a.state, b.state) and np.array_equal(a.image, b.image) and a.image.shape == (32, 32, 3)
+    assert 0.0 <= a.extras["mw_progress"] <= 10.0
     start = a.state[:3].copy()
     r = env.step([0], [np.array([0.0, 0.0, 5.0, 0.0])])[0]          # 5 cm up
     assert r.info["stop"] in ("reached", "steps", "success") and r.obs.state[2] - start[2] > 3.5
@@ -95,6 +96,8 @@ def test_scripted_expert_solves_push_through_the_text_protocol(renderable):
             if r.terminated or r.truncated:
                 break
         wins += int(r.info["success"])
+        if r.info["success"]:                       # Metaworld's dense reward at the final state, for pref_mw
+            assert r.obs.extras["mw_progress"] > 5.0
     assert wins >= 2
     env.close()
 

@@ -98,3 +98,22 @@ def test_score_fn_preference_is_logistic():
     pm = ScoreFnPreference(lambda t: t.turns[-1].result.info["dist"], tau=1.0)
     p = pm.compare([(make_traj(dist=1), make_traj(dist=1)), (make_traj(dist=2), make_traj(dist=1))])
     assert np.isclose(p[0], 0.5) and np.isclose(p[1], 1 / (1 + np.exp(-1)))
+
+
+def _mw(progress, success=False):
+    t = make_traj(success=success)
+    t.turns[-1].result.obs.extras = {"mw_progress": progress}
+    return t
+
+
+def test_pref_mw_ranks_by_success_then_final_metaworld_reward():
+    g = [_mw(1.0), _mw(9.5, success=True), _mw(4.0), _mw(0.2)]
+    s = build_reward("pref_mw")([g])[0]
+    assert list(np.argsort(s)) == [3, 0, 2, 1]
+    assert np.allclose(build_reward("mw_progress")([g])[0], [1.0, 9.5, 4.0, 0.2])
+
+
+def test_pref_mw_ties_have_no_spread():
+    """Practically equal outcomes (difference < 0.1 of 10) are ties: the group has no signal and DAPO drops it."""
+    s = build_reward("pref_mw")([[_mw(0.053), _mw(0.0531), _mw(0.06)]])[0]
+    assert np.std(s) == 0
