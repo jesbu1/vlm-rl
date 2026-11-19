@@ -27,6 +27,8 @@
       ball's position and commentary: `{"x": -0.90, "y": -5.71, "goal": {"x": 3.14, "y": 1.60}}` + `The ball is at
       x=-0.90 and y=-5.71, and the goal is at x=3.14 and y=1.60 ...` -> the last x/y is the ball's position.
     * Same theme as every run: the sampled policy is fine, the greedy reply drifts into a form the parser misreads.
+    * Step 20: eval back to **22.4%** (training 32.8, held-out 11x11 14.1, 15x15 20.3), 0% invalid; rollouts 37-47%,
+      log-prob ~-0.9, grad norm ~0.1 (stable). The step-15 dip was the parser, not the policy.
   * Queued on GPU0: once the 256M **lr=1e-5** run passes step 20 (v1 collapsed by then) with eval >= 10% and mean log-prob
     >= -4, it is replaced by the same run with **`max_frames=2`** (sees the previous round too; default 1 = only
     the current image and text, so it cannot tell a move into a wall left it stuck).
