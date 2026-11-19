@@ -32,6 +32,9 @@
       grad norm 0.9). Greedy eval replies repeat one move for the whole episode: the goal offset echoed back
       (`x=+3.10, y=+3.89 from the ball.`), and in one episode written with a Unicode minus (`x=−3.51`, U+2212), which
       the parser does not accept, so all 19 turns were no-ops. Same greedy-fragility theme, not a collapse (so far).
+    * Steps 16-19: now collapsing too, later than lr=1e-5: rollout invalid 9% -> 77%, grad norm 0.9 -> 2.2, success
+      30% -> 9%. So under `on_invalid=noop` every lr tried collapses (3e-5: ~step 8, 1e-5: ~20, 5e-6: ~18). Stopped
+      after its step-20 eval to start the 256M terminate run.
   * 500M (192 tokens + `parse_last`): step-5 eval **28.6%** (training 31.2, held-out 11x11 21.9, held-out 15x15
     **32.8**), 0% invalid eval replies; v1 500M with 64 tokens was 22.9% at step 5 and then lost it to truncated
     reasoning. Rollout success 30%, invalid 71% -> 33%, log-prob -1.8 -> -1.0.
@@ -65,6 +68,8 @@
   * 500M terminate, steps 1-5: groups with signal 7 -> 53 of 64, rollout invalid 85% -> 33%, success 0.3% -> 12%,
     turns/episode 1.4 -> 2.7+. Step-5 eval **26.0%** (training 28.1, held-out 11x11 21.9, 15x15 28.1), 0% invalid
     (noop twin at step 5: 28.6%). Starting from scratch under terminate cost almost nothing for 500M.
+  * 500M terminate step 10: eval **26.6%** (training 29.7, held-out 11x11 21.9, 15x15 28.1), 0% invalid; rollouts
+    38%, invalid 2%, all 53-64 groups with signal, grad norm 0.2-0.3 (noop twin at step 10: 21.3%).
   * Queued on GPU0: once the 256M **lr=1e-5** run passes step 20 (v1 collapsed by then) with eval >= 10% and mean log-prob
     >= -4, it is replaced by the same run with **`max_frames=2`** (sees the previous round too; default 1 = only
     the current image and text, so it cannot tell a move into a wall left it stuck).
