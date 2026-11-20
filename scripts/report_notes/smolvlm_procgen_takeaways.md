@@ -241,6 +241,8 @@
       **25.0%** (training 31.2, held-out 11x11 23.4, 15x15 20.3), 33% invalid: matches seed 0 at step 15. Catching up.
       Steps 21-25: groups 49-59, rollout invalid 42% -> 35%, rollouts 8% -> 14%, grad norm 0.09-0.12. Step-25 eval
       **25.0%** (training 28.1, held-out 11x11 25.0, 15x15 21.9), eval invalid 13%.
+      Steps 26-30: rollouts 12% -> 19%, invalid 34% -> 28%, grad norm 0.08-0.09. Step-30 eval **26.6%** (training 28.1,
+      held-out 11x11 23.4, 15x15 28.1), eval invalid 4%. Past step 30 with no drift: the stability replicates.
     * 256M `compact` (absolute goal, lr=5e-6, noop) started 20:46: step-0 eval 0.5% (95% invalid). Steps 1-4: groups
       with signal 19 -> 38, rollout invalid 77% -> 66%, success 2% -> 6%. Step-5 eval **2.6%** (training 1.6, held-out
       11x11 0.0, 15x15 6.2), eval invalid **49%**. Same model, lr and step with `compact_rel`: **16.2%**, 12% invalid.
