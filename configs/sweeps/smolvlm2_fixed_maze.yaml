@@ -1,0 +1,37 @@
+# Sanity check: can SmolVLM2 learn PointMaze at all with the procedural-maze settings? Same prompt (compact_rel),
+# reward (sparse success), on_invalid=noop, action size (3 cells), turns (20), batch (32 groups x 16) and lr (5e-6)
+# as batch_procgen_fft_v2.yaml, but one fixed layout (UMaze or medium; random start/goal pairs), 100 steps. If these
+# learn and the procedural runs collapse, layout sampling is implicated; if these collapse too, it is the model /
+# optimization. 2.2B: 2 GPUs per run; 500M: shares one GPU with its vLLM server.
+#   python scripts/batch_submit.py configs/sweeps/smolvlm2_fixed_maze.yaml --queue <4-gpu queue> --gpus 4 \
+#       --gpus_per_lane 2 --only 'smolvlm2_2b'
+#   python scripts/batch_submit.py configs/sweeps/smolvlm2_fixed_maze.yaml --gpus 1 --gpus_per_lane 1 --only 'smolvlm2_500m'
+group: smolvlm2-fixed-maze-v1
+project: vlm-rl-pointmaze
+vllm_port: 8011
+overrides:
+  - experiment=pointmaze_q3vl4b_vllm
+  - env_kwargs.prompt_style=compact_rel
+  - +env_kwargs.max_delta=3.0
+  - env_kwargs.max_turns=20
+  - on_invalid=noop
+  - reward=success
+  - steps=100
+  - groups_per_step=32
+  - group_size=16
+  - max_resample_rounds=3
+  - micro_batch_size=4
+  - max_new_tokens=64
+  - lr=5e-6
+  - eval_every=10
+  - eval_episodes=64
+  - save_every=100
+  - resume_every=5
+  - wandb_entity=tri
+  - "wandb_tags='pointmaze,fixed,fft,smolvlm2,sanity'"
+grid:
+  policy: [smolvlm2_2b_full, smolvlm2_500m]
+  env_kwargs.maze: [umaze, medium]
+vllm_args:
+  HuggingFaceTB/SmolVLM2-2.2B-Instruct: [--max-model-len, "8192", --mm-processor-kwargs, '{"do_image_splitting": false}', --mm-processor-cache-gb, "0"]
+  HuggingFaceTB/SmolVLM2-500M-Video-Instruct: [--max-model-len, "8192", --mm-processor-kwargs, '{"do_image_splitting": false}', --mm-processor-cache-gb, "0"]
