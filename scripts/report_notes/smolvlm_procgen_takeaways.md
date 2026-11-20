@@ -181,6 +181,7 @@
       Steps 16-19: 45-52 groups with signal, rollout invalid 50% -> 45%, success 6% -> 12%, turns 3.1 -> 3.4, grad
       norm 0.12-0.14 (the lowest of any v2 run). Step-20 eval **32.3%**, the **best of any run so far** (training 37.5,
       held-out 11x11 29.7, 15x15 29.7), eval invalid 18% (twin at 20: 26.0%; previous best 29.7%, 500M noop step 25).
+      Steps 21-24: 53-58 groups, rollout invalid 41% -> 33%, success 9% -> 15%, turns 3.9 -> 5.0, grad norm 0.09.
     * 256M `simple` (lr=5e-6, 128 tokens, noop) started 07:13: step-0 eval **1.6%**, eval invalid 82%.
       Steps 1-3: 1-2 groups with signal, rollout invalid 93%, success ~0%: **dropped after step 3**. 256M cannot
       bootstrap the `<action>` JSON format from scratch (500M could: 9-16 groups at steps 1-4).
@@ -188,6 +189,8 @@
       does its slower drift leave room for a faster lr (compact_rel at 1e-5 collapsed by ~step 20)?
       Step 0: eval 1.0% (94% invalid). Steps 1-3: groups with signal 17 -> 45, rollout invalid 78% -> 34%, success
       2% -> 10% (faster than compact at 5e-6: 19 -> 37 groups, invalid 77% -> 71%).
+      Step-5 eval **6.2%** (training 7.8, held-out 11x11 4.7, 15x15 6.2), eval invalid 12% (compact at 5e-6, step 5:
+      2.6%, 49% invalid); rollouts 14%, invalid 26%.
     * 256M `compact` (absolute goal, lr=5e-6, noop) started 20:46: step-0 eval 0.5% (95% invalid). Steps 1-4: groups
       with signal 19 -> 38, rollout invalid 77% -> 66%, success 2% -> 6%. Step-5 eval **2.6%** (training 1.6, held-out
       11x11 0.0, 15x15 6.2), eval invalid **49%**. Same model, lr and step with `compact_rel`: **16.2%**, 12% invalid.
