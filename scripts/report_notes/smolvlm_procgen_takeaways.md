@@ -156,6 +156,8 @@
       `<action>{"goal_position": {x: 0.88, y: -2.23}}</action>`, 20 times per episode. It is not valid JSON, so the
       lenient fallback takes the first two numbers and executes the *absolute goal* as a relative move. The same
       parser-loophole theme as compact (the echoed goal offset) and compact_rel (tails, second pairs).
+      Steps 26-30: rollouts 14-23%, invalid 9% -> 13%, grad norm 0.12-0.17; step-30 eval **6.2%** (same goal-echo
+      replies). Plateaued at ~6% greedy / ~18% sampled; stable through step 30 (the compact_rel 500M twin drifted at ~26).
     * 256M `compact` (absolute goal, lr=5e-6, noop) started 20:46: step-0 eval 0.5% (95% invalid). Steps 1-4: groups
       with signal 19 -> 38, rollout invalid 77% -> 66%, success 2% -> 6%. Step-5 eval **2.6%** (training 1.6, held-out
       11x11 0.0, 15x15 6.2), eval invalid **49%**. Same model, lr and step with `compact_rel`: **16.2%**, 12% invalid.
