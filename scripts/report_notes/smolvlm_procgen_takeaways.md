@@ -188,6 +188,8 @@
       26%, 57-62 groups with signal, turns 5.7 -> 6.5, grad norm flat at 0.08. Step-30 eval **29.2%** (training 32.8,
       held-out 11x11 26.6, 15x15 28.1), eval invalid 4%. Halving the lr under terminate is the first change that has
       held 500M stable through step 30 while still improving.
+      Steps 31-35: rollouts 20-28% (rollout success at step 35: 28%), invalid 24% -> 22%, turns 6.9 -> 7.7, grad norm
+      0.07-0.09. Step-35 eval **28.6%** (training 35.9, held-out 11x11 26.6, 15x15 23.4), eval invalid 2%.
     * 256M `simple` (lr=5e-6, 128 tokens, noop) started 07:13: step-0 eval **1.6%**, eval invalid 82%.
       Steps 1-3: 1-2 groups with signal, rollout invalid 93%, success ~0%: **dropped after step 3**. 256M cannot
       bootstrap the `<action>` JSON format from scratch (500M could: 9-16 groups at steps 1-4).
@@ -200,6 +202,7 @@
       Steps 6-8: rollouts 12-14%, invalid 16-25%, grad norm 0.67-0.98 (higher than at 5e-6).
       Step 9: rollout invalid jumps 22% -> 59%, success 14% -> 9%. Step-10 eval **6.2%** (6.2 on every set), eval
       invalid **39%** (compact at 5e-6, step 10: 5.7%, 2% invalid). Possible early drift; watching.
+      Step 11: rollout invalid back down to 34%, grad norm 0.39: a wobble, not (yet) a collapse.
     * 256M `compact` (absolute goal, lr=5e-6, noop) started 20:46: step-0 eval 0.5% (95% invalid). Steps 1-4: groups
       with signal 19 -> 38, rollout invalid 77% -> 66%, success 2% -> 6%. Step-5 eval **2.6%** (training 1.6, held-out
       11x11 0.0, 15x15 6.2), eval invalid **49%**. Same model, lr and step with `compact_rel`: **16.2%**, 12% invalid.
