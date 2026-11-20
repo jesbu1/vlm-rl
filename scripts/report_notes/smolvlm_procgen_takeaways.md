@@ -151,6 +151,11 @@
       Step 20: eval **5.2%** (training 7.8, held-out 11x11 3.1, 15x15 4.7), 0.3% invalid; rollouts 15%, grad norm 0.15.
       Rising steadily (1.0 -> 0.5 -> 2.6 -> 2.1 -> 5.2%) and the most stable run so far (no drift by step 20, unlike
       every compact/compact_rel run), but far below 500M compact_rel at step 20 (22.4% noop, 26.0% terminate).
+      Step 25: eval **6.2%** (training 7.8, held-out 11x11 6.2, 15x15 4.7), eval invalid 2%, while rollouts are at
+      14-20% (grad norm 0.14-0.19, still no drift). The greedy reply echoes the goal instead of a move:
+      `<action>{"goal_position": {x: 0.88, y: -2.23}}</action>`, 20 times per episode. It is not valid JSON, so the
+      lenient fallback takes the first two numbers and executes the *absolute goal* as a relative move. The same
+      parser-loophole theme as compact (the echoed goal offset) and compact_rel (tails, second pairs).
     * 256M `compact` (absolute goal, lr=5e-6, noop) started 20:46: step-0 eval 0.5% (95% invalid). Steps 1-4: groups
       with signal 19 -> 38, rollout invalid 77% -> 66%, success 2% -> 6%. Step-5 eval **2.6%** (training 1.6, held-out
       11x11 0.0, 15x15 6.2), eval invalid **49%**. Same model, lr and step with `compact_rel`: **16.2%**, 12% invalid.
@@ -158,6 +163,7 @@
       Greedy replies are stuck repeats (`x=0.88, y=-2.23.` 20 times) or number runs (`3.81, 2.24, 2.24, 2.24, ...`).
       Step 10: eval **5.7%** (training 7.8, held-out 11x11 4.7, 15x15 4.7), eval invalid 2%; rollouts 11%, invalid 65% ->
       40%, grad norm ~0.4 (compact_rel at step 10: 24.0%). Format is now learned; the moves lag far behind.
+      Steps 11-14: rollouts 8-13%, invalid 30% -> 19%, grad norm ~0.3: steady, no drift yet.
 
 **Bottom line**
 * SmolVLM-256M (full fine-tuning, GRPO, **sparse success reward only**) learns the procedural mazes once the prompt
