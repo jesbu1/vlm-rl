@@ -34,6 +34,12 @@
       grad norm ~0.4 -- identical to max_frames=1 at step 10 (24.0%). The real test is steps 15-20, where max_frames=1
       got stuck at walls (step 15) and then collapsed.
       Steps 11-12: rollouts 29-40%, invalid 5%, grad norm 0.4-0.5, log-prob -0.34 -> -0.72 (less confident).
+      Steps 13-14: rollouts 36% -> 30%, grad norm 0.8 -> 1.0 (rising, the usual pre-collapse sign).
+      Step 15: eval **13.0%** (training 14.1, held-out 11x11 **3.1**, 15x15 21.9), eval invalid **25%** (max_frames=1
+      at step 15: 12.5%, 13% invalid). The second frame did not fix the greedy loops; it gave them a new form. The
+      model sees its own previous reply and copies it, with a tail: `x=+1.60, y=+0.54. No change. Move: x=+1.60,
+      y=+0.54. No change. ...` repeated to the token limit, or a run of alternating pairs (`x=4.40, y=-4.40,
+      x=-3.51, y=+2.16, x=3.87, ...`). Valid-looking junk again, now fed by the extra context.
     * lr=5e-6 step 5: eval **16.2%** (training 23.4, held-out 11x11 12.5, 15x15 12.5), eval invalid 12%; rollouts 28%,
       invalid 79% -> 34%, grad norm ~0.5. Slower than lr=1e-5 (22.4% at step 5), as expected; the question is step 20+.
     * lr=5e-6 step 10: eval **24.0%** (training 29.7, held-out 11x11 20.3, 15x15 21.9), 0.1% invalid; rollouts 30-34%,
@@ -134,6 +140,7 @@
       just the tag, mostly valid (`<action>{"dx": 1.5, "dy": 1.5}</action>`) with some junk keys
       (`<action>{"velocity": -0.14, "direction": ""]</action>`). Absolute coordinates, no reasoning: the same task
       as `compact` with a harder format, so it should trail compact_rel (500M compact_rel at step 10: 21.3%).
+      Steps 11-12: rollouts 6-8%, invalid 14%, 42-50 groups with signal, grad norm 0.13-0.15 (very stable).
 
 **Bottom line**
 * SmolVLM-256M (full fine-tuning, GRPO, **sparse success reward only**) learns the procedural mazes once the prompt
