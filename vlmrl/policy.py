@@ -83,7 +83,8 @@ class HFPolicy:
                  attn_implementation: str | None = None, gradient_checkpointing: bool = True,
                  lora_rank: int = 0, lora_alpha: int = 32, lora_targets: str = "all-linear",
                  processor_kwargs: dict | None = None, logprob_chunk: int = 1024,
-                 chat_template_kwargs: dict | None = None, freeze: str = "", fp32_master: bool = True):
+                 chat_template_kwargs: dict | None = None, freeze: str = "", fp32_master: bool = True,
+                 fp32_frozen: bool = False):
         """Full fine-tuning (``lora_rank=0``): parameters whose name fully matches the regex ``freeze`` stay
         frozen; with ``fp32_master`` the trainable ones are kept in fp32 while the forward pass runs under
         bf16/fp16 autocast. (Plain bf16 weights silently drop most updates: at lr 1e-6 an Adam step is
@@ -120,8 +121,10 @@ class HFPolicy:
                     if re.fullmatch(freeze, n):
                         p.requires_grad_(False)
             if fp32_master and self.dtype in (torch.bfloat16, torch.float16):
+                # frozen parameters stay in the model dtype (memory) unless fp32_frozen: some models merge frozen and
+                # trainable activations without a cast (SmolVLM2: bf16 image features into fp32 text embeddings)
                 for p in self.model.parameters():
-                    if p.requires_grad:
+                    if p.requires_grad or fp32_frozen:
                         p.data = p.data.float()
                 self._autocast = True
             n_train = sum(p.numel() for p in self.model.parameters() if p.requires_grad)

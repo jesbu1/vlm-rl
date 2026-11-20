@@ -21,6 +21,7 @@ Every field of `vlmrl.trainer.TrainConfig`, the Hydra schema. Set any of them on
 | `lora_targets` | `str` | `'.*language_model.*\\.(q_proj\|k_proj\|v_proj\|o_proj\|gate_proj\|up_proj\|down_proj)'` | PEFT target_modules; a regex string also works |
 | `freeze` | `str` | `''` | full FT: regex (fullmatch) of parameter names to keep frozen |
 | `fp32_master` | `bool` | `True` | full FT: keep trainable weights in fp32, bf16 autocast forward |
+| `fp32_frozen` | `bool` | `False` | with freeze + fp32_master: keep frozen params in fp32 too |
 
 ## rollout backend
 

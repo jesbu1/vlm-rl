@@ -268,3 +268,16 @@ def test_exact_generated_ids_are_trained_as_generated(tiny_vlm, umaze, rng):
     b = tiny_vlm.build_batch([s_exact, Sample(s_text.messages, s_text.train_msg_idx, -1.0, gen_ids=cut)])
     logp, m = tiny_vlm.token_logprobs(b)
     assert int(b["loss_mask"].sum()) == len(text_ids) + len(cut) and torch.isfinite(logp[m.bool()]).all()
+
+
+@pytest.mark.slow
+def test_fp32_frozen_keeps_frozen_params_fp32():
+    from conftest import TINY_VLM
+    from vlmrl.policy import HFPolicy
+    kw = dict(device="cpu", dtype="bfloat16", processor_kwargs={"do_image_splitting": False}, lora_rank=0,
+              gradient_checkpointing=False, freeze=r"model[.]vision_model[.].*", fp32_master=True)
+    for fp32_frozen, frozen_dtype in ((False, torch.bfloat16), (True, torch.float32)):
+        pol = HFPolicy(TINY_VLM, fp32_frozen=fp32_frozen, **kw)
+        frozen = {p.dtype for n, p in pol.model.named_parameters() if not p.requires_grad}
+        trained = {p.dtype for n, p in pol.model.named_parameters() if p.requires_grad}
+        assert frozen == {frozen_dtype} and trained == {torch.float32}

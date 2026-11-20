@@ -41,6 +41,7 @@ class TrainConfig:
     lora_targets: str = "all-linear"                    # PEFT target_modules; a regex string also works
     freeze: str = ""                                    # full FT: regex (fullmatch) of parameter names to keep frozen
     fp32_master: bool = True                            # full FT: keep trainable weights in fp32, bf16 autocast forward
+    fp32_frozen: bool = False                           # with freeze + fp32_master: keep frozen params in fp32 too
     # rollout backend
     rollout_backend: str = "hf"                         # "hf" (in-process generate) | "vllm" (server)
     vllm_url: str = "http://localhost:8000"
@@ -175,7 +176,8 @@ class Trainer:
             cfg.model, dtype=cfg.dtype, attn_implementation=cfg.attn_implementation,
             gradient_checkpointing=cfg.gradient_checkpointing, lora_rank=cfg.lora_rank,
             lora_alpha=cfg.lora_alpha, lora_targets=cfg.lora_targets, processor_kwargs=cfg.processor_kwargs,
-            chat_template_kwargs=cfg.chat_template_kwargs, freeze=cfg.freeze, fp32_master=cfg.fp32_master)
+            chat_template_kwargs=cfg.chat_template_kwargs, freeze=cfg.freeze, fp32_master=cfg.fp32_master,
+            fp32_frozen=cfg.fp32_frozen)
         if cfg.rollout_backend not in ("hf", "vllm"):
             raise ValueError(f"unknown rollout_backend {cfg.rollout_backend!r}")
         params = [p for p in self.policy.model.parameters() if p.requires_grad]
