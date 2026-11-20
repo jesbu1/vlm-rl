@@ -182,6 +182,8 @@
       norm 0.12-0.14 (the lowest of any v2 run). Step-20 eval **32.3%**, the **best of any run so far** (training 37.5,
       held-out 11x11 29.7, 15x15 29.7), eval invalid 18% (twin at 20: 26.0%; previous best 29.7%, 500M noop step 25).
       Steps 21-24: 53-58 groups, rollout invalid 41% -> 33%, success 9% -> 15%, turns 3.9 -> 5.0, grad norm 0.09.
+      Step-25 eval **31.8%** (training 37.5, held-out 11x11 26.6, 15x15 31.2), eval invalid 11% (twin at 25: 14.1%,
+      the double-x/y-pair junk). Holding at the top; no sign of the twin's drift yet.
     * 256M `simple` (lr=5e-6, 128 tokens, noop) started 07:13: step-0 eval **1.6%**, eval invalid 82%.
       Steps 1-3: 1-2 groups with signal, rollout invalid 93%, success ~0%: **dropped after step 3**. 256M cannot
       bootstrap the `<action>` JSON format from scratch (500M could: 9-16 groups at steps 1-4).
