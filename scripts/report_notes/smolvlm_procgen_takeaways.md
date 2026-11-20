@@ -197,6 +197,8 @@
     * 500M compact_rel **noop at lr=5e-6** (192 tokens + parse_last; started 11:52 on GPU1): the noop twin of the run
       above. Isolates on_invalid: is the stability from terminate or from the lower lr? (Distinct from the AWS run,
       which uses 64 tokens and no parse_last.)
+      Step-0 eval 7.3% (57% invalid; terminate twin 7.8%). Steps 1-3: rollouts 12-13%, invalid 71% -> 66%, 50-57 groups
+      with signal (terminate twin: 6-14 groups, 86% invalid): noop starts learning much faster than terminate.
     * 256M `simple` (lr=5e-6, 128 tokens, noop) started 07:13: step-0 eval **1.6%**, eval invalid 82%.
       Steps 1-3: 1-2 groups with signal, rollout invalid 93%, success ~0%: **dropped after step 3**. 256M cannot
       bootstrap the `<action>` JSON format from scratch (500M could: 9-16 groups at steps 1-4).
@@ -212,6 +214,13 @@
       Step 11: rollout invalid back down to 34%, grad norm 0.39: a wobble, not (yet) a collapse.
       Steps 12-15: rollouts 11-15%, invalid 7-23%, grad norm 0.39-0.55. Step-15 eval **4.7%** (training 6.2,
       held-out 11x11 3.1, 15x15 4.7), eval invalid 33%. Not collapsing, but no better than compact at 5e-6 (peak 8.8%).
+      Steps 16-20: rollouts 11% -> 6%, invalid 44% -> 60%, groups with signal 46 -> 32-36, grad norm 0.66 -> 1.1-1.2.
+      Step-20 eval **2.1%**, eval invalid 56%. Replies drift into pseudo-arithmetic (`x=0.88, y=0.40.
+      (x+y=1.80+0.40=1.28)`, `Two-dimensionalietzschean: x-y=4.40-3.42= 1.28`), the same move repeated every turn.
+      **Collapsed; stopped at step 20.** Verdict: doubling the lr for `compact` neither raised the peak (6.2% vs 8.8%)
+      nor kept it stable; `compact` is best at 5e-6.
+    * 500M compact_rel terminate lr=5e-6, **seed 1** (started ~12:40 on GPU0): replicate of the best run. seed also
+      changes the 64 eval start states, so evals are on a different same-distribution set.
     * 256M `compact` (absolute goal, lr=5e-6, noop) started 20:46: step-0 eval 0.5% (95% invalid). Steps 1-4: groups
       with signal 19 -> 38, rollout invalid 77% -> 66%, success 2% -> 6%. Step-5 eval **2.6%** (training 1.6, held-out
       11x11 0.0, 15x15 6.2), eval invalid **49%**. Same model, lr and step with `compact_rel`: **16.2%**, 12% invalid.
