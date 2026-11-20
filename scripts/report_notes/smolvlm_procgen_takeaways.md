@@ -156,6 +156,8 @@
       11x11 0.0, 15x15 6.2), eval invalid **49%**. Same model, lr and step with `compact_rel`: **16.2%**, 12% invalid.
       So compact_rel's edge survives the mask fix: giving the goal relative to the ball is most of the early learning.
       Greedy replies are stuck repeats (`x=0.88, y=-2.23.` 20 times) or number runs (`3.81, 2.24, 2.24, 2.24, ...`).
+      Step 10: eval **5.7%** (training 7.8, held-out 11x11 4.7, 15x15 4.7), eval invalid 2%; rollouts 11%, invalid 65% ->
+      40%, grad norm ~0.4 (compact_rel at step 10: 24.0%). Format is now learned; the moves lag far behind.
 
 **Bottom line**
 * SmolVLM-256M (full fine-tuning, GRPO, **sparse success reward only**) learns the procedural mazes once the prompt
