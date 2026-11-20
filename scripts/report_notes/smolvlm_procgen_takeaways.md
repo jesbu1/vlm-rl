@@ -174,6 +174,8 @@
       Step 0: eval 7.8% (54% invalid). Steps 1-4: groups with signal 6 -> 14 of 64 (lr=1e-5 twin: 7 -> 53), rollout
       invalid 86% -> 82%, turns/episode 1.3-1.5: most episodes end on the first, invalid, reply. Step-5 eval **14.6%**
       (63% invalid; twin 26.0%, 0% invalid). Half the lr learns the format far more slowly under terminate.
+      Steps 6-9: groups with signal 27-28, rollout invalid 76% -> 67% (clear of the queue's 85% abort), turns 1.7 -> 2.0.
+      Step-10 eval **19.3%** (58% invalid; twin 26.6%). Improving steadily, about 5 steps behind the lr=1e-5 twin.
     * 256M `simple` (lr=5e-6, 128 tokens, noop) started 07:13: step-0 eval **1.6%**, eval invalid 82%.
       Steps 1-3: 1-2 groups with signal, rollout invalid 93%, success ~0%: **dropped after step 3**. 256M cannot
       bootstrap the `<action>` JSON format from scratch (500M could: 9-16 groups at steps 1-4).
