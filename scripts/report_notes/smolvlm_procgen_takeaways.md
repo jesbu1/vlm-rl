@@ -199,6 +199,8 @@
       which uses 64 tokens and no parse_last.)
       Step-0 eval 7.3% (57% invalid; terminate twin 7.8%). Steps 1-3: rollouts 12-13%, invalid 71% -> 66%, 50-57 groups
       with signal (terminate twin: 6-14 groups, 86% invalid): noop starts learning much faster than terminate.
+      Step 4: rollouts 18%, invalid 65%. ~21 min/step (episodes run ~19 turns vs 1.4 under terminate early on), so 40
+      steps take ~14 h.
     * 256M `simple` (lr=5e-6, 128 tokens, noop) started 07:13: step-0 eval **1.6%**, eval invalid 82%.
       Steps 1-3: 1-2 groups with signal, rollout invalid 93%, success ~0%: **dropped after step 3**. 256M cannot
       bootstrap the `<action>` JSON format from scratch (500M could: 9-16 groups at steps 1-4).
@@ -221,6 +223,9 @@
       nor kept it stable; `compact` is best at 5e-6.
     * 500M compact_rel terminate lr=5e-6, **seed 1** (started ~12:40 on GPU0): replicate of the best run. seed also
       changes the 64 eval start states, so evals are on a different same-distribution set.
+      Step 0: eval 7.3% (59% invalid; seed 0: 7.8%). Steps 1-5: groups with signal 10 -> 21 (seed 0: 6 -> 14 by step 4),
+      rollout invalid 85% -> 78%, turns 1.4-1.6, grad norm 1.5 -> 0.46. Step-5 eval **5.7%**, 77% invalid (seed 0 at
+      step 5: 14.6%, 63% invalid): a slower start than seed 0.
     * 256M `compact` (absolute goal, lr=5e-6, noop) started 20:46: step-0 eval 0.5% (95% invalid). Steps 1-4: groups
       with signal 19 -> 38, rollout invalid 77% -> 66%, success 2% -> 6%. Step-5 eval **2.6%** (training 1.6, held-out
       11x11 0.0, 15x15 6.2), eval invalid **49%**. Same model, lr and step with `compact_rel`: **16.2%**, 12% invalid.
