@@ -175,7 +175,10 @@
       invalid 86% -> 82%, turns/episode 1.3-1.5: most episodes end on the first, invalid, reply. Step-5 eval **14.6%**
       (63% invalid; twin 26.0%, 0% invalid). Half the lr learns the format far more slowly under terminate.
     * 256M `simple` (lr=5e-6, 128 tokens, noop) started 07:13: step-0 eval **1.6%**, eval invalid 82%.
-      Steps 1-2: 1-2 groups with signal, rollout invalid 93%, success ~0%: likely dropped at step 3.
+      Steps 1-3: 1-2 groups with signal, rollout invalid 93%, success ~0%: **dropped after step 3**. 256M cannot
+      bootstrap the `<action>` JSON format from scratch (500M could: 9-16 groups at steps 1-4).
+    * 256M `compact` at **lr=1e-5** (started 07:52 on the free GPU0): compact at 5e-6 never collapsed but peaked at 8.8%;
+      does its slower drift leave room for a faster lr (compact_rel at 1e-5 collapsed by ~step 20)?
     * 256M `compact` (absolute goal, lr=5e-6, noop) started 20:46: step-0 eval 0.5% (95% invalid). Steps 1-4: groups
       with signal 19 -> 38, rollout invalid 77% -> 66%, success 2% -> 6%. Step-5 eval **2.6%** (training 1.6, held-out
       11x11 0.0, 15x15 6.2), eval invalid **49%**. Same model, lr and step with `compact_rel`: **16.2%**, 12% invalid.

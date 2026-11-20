@@ -1,0 +1,29 @@
+# smolvlm-procgen-v2, GPU 0: SmolVLM-256M `compact` (absolute goal) at lr=1e-5, otherwise as smolvlm_procgen_v2_q_256m_compact.yaml.
+# At lr=5e-6 compact was the only 256M v2 run to finish 40 steps without collapsing, but peaked at 8.8%; compact_rel
+# at lr=1e-5 collapsed by ~step 20. Does compact's slower drift leave room for a faster lr?
+group: smolvlm-procgen-v2
+project: vlm-rl-pointmaze
+train_gpu: 0
+vllm_gpu: 0
+vllm_port: 8011
+vllm_gpu_util: 0.35
+overrides:
+  - experiment=pointmaze_procgen
+  - policy=smolvlm256m
+  - on_invalid=noop
+  - reward=success
+  - steps=40
+  - groups_per_step=64
+  - group_size=16
+  - max_resample_rounds=3
+  - micro_batch_size=64
+  - eval_every=5
+  - eval_episodes=64
+  - wandb_entity=tri
+  - "wandb_tags='pointmaze,procgen,smolvlm,fft,sweep'"
+grid:
+  env_kwargs.prompt_style: [compact]
+  lr: [1.0e-5]
+  max_new_tokens: [64]
+vllm_args:
+  HuggingFaceTB/SmolVLM-256M-Instruct: [--max-model-len, "8192", --mm-processor-kwargs, '{"do_image_splitting": false}', --api-server-count, "4", --max-num-seqs, "1024", --mm-processor-cache-gb, "0"]
