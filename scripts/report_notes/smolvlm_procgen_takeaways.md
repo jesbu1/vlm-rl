@@ -205,6 +205,8 @@
       12.5, 15x15 14.1), 47% invalid (terminate twin at 5: 14.6%, 63% invalid; noop lr=1e-5 at 5: 28.6%, 0% invalid).
       Steps 6-9: rollouts 24% -> **36%** (highest rollout success of any v2 run), invalid 52% -> 20%, grad norm 0.08-0.19,
       mean logp -1.52 -> -0.81 (sharpening quickly).
+      Step 10: rollouts **37.5%**, invalid 15%. Step-10 eval **24.5%** (training 29.7, held-out 11x11 18.8, 15x15 25.0),
+      eval invalid **0%** (terminate twin at 10: 19.3%; noop lr=1e-5 at 10: 21.3%).
     * 256M `simple` (lr=5e-6, 128 tokens, noop) started 07:13: step-0 eval **1.6%**, eval invalid 82%.
       Steps 1-3: 1-2 groups with signal, rollout invalid 93%, success ~0%: **dropped after step 3**. 256M cannot
       bootstrap the `<action>` JSON format from scratch (500M could: 9-16 groups at steps 1-4).
