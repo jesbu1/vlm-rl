@@ -198,6 +198,8 @@
       Step-5 eval **6.2%** (training 7.8, held-out 11x11 4.7, 15x15 6.2), eval invalid 12% (compact at 5e-6, step 5:
       2.6%, 49% invalid); rollouts 14%, invalid 26%.
       Steps 6-8: rollouts 12-14%, invalid 16-25%, grad norm 0.67-0.98 (higher than at 5e-6).
+      Step 9: rollout invalid jumps 22% -> 59%, success 14% -> 9%. Step-10 eval **6.2%** (6.2 on every set), eval
+      invalid **39%** (compact at 5e-6, step 10: 5.7%, 2% invalid). Possible early drift; watching.
     * 256M `compact` (absolute goal, lr=5e-6, noop) started 20:46: step-0 eval 0.5% (95% invalid). Steps 1-4: groups
       with signal 19 -> 38, rollout invalid 77% -> 66%, success 2% -> 6%. Step-5 eval **2.6%** (training 1.6, held-out
       11x11 0.0, 15x15 6.2), eval invalid **49%**. Same model, lr and step with `compact_rel`: **16.2%**, 12% invalid.
