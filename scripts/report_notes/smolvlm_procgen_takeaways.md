@@ -164,6 +164,7 @@
       Step 10: eval **5.7%** (training 7.8, held-out 11x11 4.7, 15x15 4.7), eval invalid 2%; rollouts 11%, invalid 65% ->
       40%, grad norm ~0.4 (compact_rel at step 10: 24.0%). Format is now learned; the moves lag far behind.
       Steps 11-14: rollouts 8-13%, invalid 30% -> 19%, grad norm ~0.3: steady, no drift yet.
+      Step 15: eval **7.3%** (training 7.8, held-out 11x11 6.2, 15x15 7.8), 0% invalid; rollouts 15%.
 
 **Bottom line**
 * SmolVLM-256M (full fine-tuning, GRPO, **sparse success reward only**) learns the procedural mazes once the prompt
