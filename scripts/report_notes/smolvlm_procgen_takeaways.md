@@ -203,6 +203,8 @@
       steps take ~14 h.
       Step 5: rollouts 24%, invalid 55%, 60 groups with signal. Step-5 eval **13.0%** (training 12.5, held-out 11x11
       12.5, 15x15 14.1), 47% invalid (terminate twin at 5: 14.6%, 63% invalid; noop lr=1e-5 at 5: 28.6%, 0% invalid).
+      Steps 6-9: rollouts 24% -> **36%** (highest rollout success of any v2 run), invalid 52% -> 20%, grad norm 0.08-0.19,
+      mean logp -1.52 -> -0.81 (sharpening quickly).
     * 256M `simple` (lr=5e-6, 128 tokens, noop) started 07:13: step-0 eval **1.6%**, eval invalid 82%.
       Steps 1-3: 1-2 groups with signal, rollout invalid 93%, success ~0%: **dropped after step 3**. 256M cannot
       bootstrap the `<action>` JSON format from scratch (500M could: 9-16 groups at steps 1-4).
@@ -235,6 +237,8 @@
       (training 12.5, held-out 11x11 17.2, 15x15 12.5), 59% invalid (seed 0 at 15: 25.0%; at 10: 19.3%).
       Steps 16-20: groups 39 -> 54, rollout invalid 51% -> 44%, turns 3.1 -> 3.7, grad norm 0.11-0.16. Step-20 eval
       **25.0%** (training 31.2, held-out 11x11 23.4, 15x15 20.3), 33% invalid: matches seed 0 at step 15. Catching up.
+      Steps 21-25: groups 49-59, rollout invalid 42% -> 35%, rollouts 8% -> 14%, grad norm 0.09-0.12. Step-25 eval
+      **25.0%** (training 28.1, held-out 11x11 25.0, 15x15 21.9), eval invalid 13%.
     * 256M `compact` (absolute goal, lr=5e-6, noop) started 20:46: step-0 eval 0.5% (95% invalid). Steps 1-4: groups
       with signal 19 -> 38, rollout invalid 77% -> 66%, success 2% -> 6%. Step-5 eval **2.6%** (training 1.6, held-out
       11x11 0.0, 15x15 6.2), eval invalid **49%**. Same model, lr and step with `compact_rel`: **16.2%**, 12% invalid.
