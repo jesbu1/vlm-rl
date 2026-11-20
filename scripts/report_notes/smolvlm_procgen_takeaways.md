@@ -233,6 +233,8 @@
       Still ~5 steps behind seed 0, but on the same upward path.
       Steps 11-15: groups 34-38, rollout invalid 65% -> 56%, turns 2.2 -> 2.7, grad norm 0.19-0.24. Step-15 eval **14.1%**
       (training 12.5, held-out 11x11 17.2, 15x15 12.5), 59% invalid (seed 0 at 15: 25.0%; at 10: 19.3%).
+      Steps 16-20: groups 39 -> 54, rollout invalid 51% -> 44%, turns 3.1 -> 3.7, grad norm 0.11-0.16. Step-20 eval
+      **25.0%** (training 31.2, held-out 11x11 23.4, 15x15 20.3), 33% invalid: matches seed 0 at step 15. Catching up.
     * 256M `compact` (absolute goal, lr=5e-6, noop) started 20:46: step-0 eval 0.5% (95% invalid). Steps 1-4: groups
       with signal 19 -> 38, rollout invalid 77% -> 66%, success 2% -> 6%. Step-5 eval **2.6%** (training 1.6, held-out
       11x11 0.0, 15x15 6.2), eval invalid **49%**. Same model, lr and step with `compact_rel`: **16.2%**, 12% invalid.
