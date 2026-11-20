@@ -231,6 +231,8 @@
       Steps 6-10: groups with signal 22 -> 32, rollout invalid 75% -> 67%, turns 1.7 -> 2.0, grad norm 0.27-0.36.
       Step-10 eval **10.9%** (training 12.5, held-out 11x11 12.5, 15x15 7.8), 72% invalid (seed 0 at step 10: 19.3%).
       Still ~5 steps behind seed 0, but on the same upward path.
+      Steps 11-15: groups 34-38, rollout invalid 65% -> 56%, turns 2.2 -> 2.7, grad norm 0.19-0.24. Step-15 eval **14.1%**
+      (training 12.5, held-out 11x11 17.2, 15x15 12.5), 59% invalid (seed 0 at 15: 25.0%; at 10: 19.3%).
     * 256M `compact` (absolute goal, lr=5e-6, noop) started 20:46: step-0 eval 0.5% (95% invalid). Steps 1-4: groups
       with signal 19 -> 38, rollout invalid 77% -> 66%, success 2% -> 6%. Step-5 eval **2.6%** (training 1.6, held-out
       11x11 0.0, 15x15 6.2), eval invalid **49%**. Same model, lr and step with `compact_rel`: **16.2%**, 12% invalid.
