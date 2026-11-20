@@ -147,6 +147,12 @@
       Steps 11-14: rollouts 6-8%, invalid 12-14%, 42-53 groups with signal, grad norm 0.12-0.15 (very stable).
       Step 15: eval **2.1%** (training 1.6, held-out 11x11 1.6, 15x15 3.1), 0% invalid; rollout success 10%. Learning
       slowly in sampling, not yet in greedy eval.
+      Steps 16-18: rollouts 12-15% (up from 7%), invalid 10%, 55-58 groups with signal, grad norm 0.14-0.2.
+    * 256M `compact` (absolute goal, lr=5e-6, noop) started 20:46: step-0 eval 0.5% (95% invalid). Steps 1-4: groups
+      with signal 19 -> 38, rollout invalid 77% -> 66%, success 2% -> 6%. Step-5 eval **2.6%** (training 1.6, held-out
+      11x11 0.0, 15x15 6.2), eval invalid **49%**. Same model, lr and step with `compact_rel`: **16.2%**, 12% invalid.
+      So compact_rel's edge survives the mask fix: giving the goal relative to the ball is most of the early learning.
+      Greedy replies are stuck repeats (`x=0.88, y=-2.23.` 20 times) or number runs (`3.81, 2.24, 2.24, 2.24, ...`).
 
 **Bottom line**
 * SmolVLM-256M (full fine-tuning, GRPO, **sparse success reward only**) learns the procedural mazes once the prompt
