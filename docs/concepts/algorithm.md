@@ -105,9 +105,12 @@ re-tokenizing the reply text with the masks above.
 !!! warning "Why not re-tokenize the text"
     Sampling at T=1 can produce a valid but non-canonical split of a string (e.g. `{` + `"` instead of `{"`).
     Re-tokenizing the reply text gives the canonical split, which the policy rates as unlikely once it has learned
-    to produce the other one, so the trainer pushes on tokens the engine never sampled. On procedural mazes this
-    showed as `train/tok_ratio` falling below 1 (0.99 → 0.93) while `train/logp_gap` opened (−0.02 → −0.37) and
-    the run collapsed. `rollout/retok_mismatch` reports how often the text path would have differed.
+    to produce the other one, so the trainer pushes on tokens the engine never sampled. Exact ids rule this out by
+    construction. A text-path run on procedural mazes (Qwen3-VL-2B, `micro_batch_size=2`) showed the symptom:
+    `train/tok_ratio` fell below 1 (0.99 → 0.93) while `train/logp_gap` opened (−0.02 → −0.37) and the run
+    collapsed. The same config on exact ids stayed matched (gap ≤ 0.002) and kept learning. That rerun's
+    `rollout/retok_mismatch` was only ~0.001, so non-canonical splits alone are not shown to explain the earlier
+    7% token deficit; the text path stays the fallback for full-history samples only.
 
 Tests check that the masked tokens decode to exactly the replies, that exact ids are trained as generated (a
 non-canonical split stays split; a reply cut off at `max_new_tokens` gets no end-of-turn token), and that log-probs
