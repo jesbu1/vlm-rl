@@ -156,7 +156,14 @@ def mw_final_score(t: Trajectory) -> float:
     Far from the object Metaworld's reward is small but still ordered (push: 0.026 at 26 cm from the puck, 0.072 at
     13 cm, 2.0 at 6 cm). The log makes differences relative, so a tie margin means "within x%" at every distance; an
     absolute margin turned every early push comparison into a tie. log(1e-3 + r) spans < 10, so +10 for success
-    always wins."""
+    always wins.
+
+    An episode that ended on an invalid reply ranks below every valid one (ties among themselves). Scored by its
+    final state, it would often *beat* the valid episodes: early on, moving the hand usually lowers Metaworld's reward,
+    so stopping at the start wins, and the policy learned to answer invalidly (Qwen3.5: 14% -> 99% invalid in 3
+    updates)."""
+    if t.end_reason == "invalid":
+        return -20.0
     return 10.0 * t.success + float(np.log(1e-3 + _final_extra(t, "mw_progress")))
 
 

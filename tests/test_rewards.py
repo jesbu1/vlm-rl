@@ -123,3 +123,13 @@ def test_pref_mw_orders_small_rewards_far_from_the_object():
     """Push far from the puck: 0.026 (26 cm), 0.033 (24 cm), 0.072 (13 cm) must still be ranked, not tied."""
     s = build_reward("pref_mw")([[_mw(0.033), _mw(0.072), _mw(0.026)]])[0]
     assert list(np.argsort(s)) == [2, 0, 1] and np.std(s) > 0.1
+
+
+def test_pref_mw_ranks_invalid_endings_last():
+    """Stopping early on an invalid reply must not beat moving: early on, moving usually lowers the reward."""
+    stopped = _mw(0.05)
+    stopped.end_reason = "invalid"
+    moved_away = _mw(0.026)
+    moved_away.end_reason = "max_turns"
+    s = build_reward("pref_mw")([[stopped, moved_away, _mw(0.07)]])[0]
+    assert s[0] < s[1] < s[2]
