@@ -166,8 +166,12 @@
     * 500M `pear` (full PEAR protocol, fenced json, 384 tokens, lr=5e-6, noop) started 06:18. Step-0 eval **0%**,
       **100% invalid**: the model never writes the fenced json action. It restates the task (`The task is to move the
       ball into the GREEN circle. The circle is centred at x=-0.82, y=3.82.`), every turn, so the ball never moves.
-      With no valid replies there is no success and no GRPO signal; the queue drops it after step 3 if < 6 groups
-      carry signal.
+      Steps 1-3: rollout invalid 99%, 0 of 64 groups with signal, updates skipped; ~20 min/step of pure rollout.
+      **Dropped after step 3** by the queue. The full PEAR protocol is out of reach for 500M from scratch without SFT
+      or a laxer parser (e.g. accepting a bare `{"ball": ...}` without the fence).
+    * 500M compact_rel **terminate at lr=5e-6** (192 tokens + parse_last; started 07:30 on the free GPU1): the lr=1e-5
+      terminate run peaked at 28.6% and collapsed at steps 29-30; does halving the lr delay that, as it did for 256M?
+    * 256M `simple` (lr=5e-6, 128 tokens, noop) started 07:13: step-0 eval **1.6%**, eval invalid 82%.
     * 256M `compact` (absolute goal, lr=5e-6, noop) started 20:46: step-0 eval 0.5% (95% invalid). Steps 1-4: groups
       with signal 19 -> 38, rollout invalid 77% -> 66%, success 2% -> 6%. Step-5 eval **2.6%** (training 1.6, held-out
       11x11 0.0, 15x15 6.2), eval invalid **49%**. Same model, lr and step with `compact_rel`: **16.2%**, 12% invalid.
