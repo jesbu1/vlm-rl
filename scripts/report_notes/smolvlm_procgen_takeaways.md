@@ -148,6 +148,9 @@
       Step 15: eval **2.1%** (training 1.6, held-out 11x11 1.6, 15x15 3.1), 0% invalid; rollout success 10%. Learning
       slowly in sampling, not yet in greedy eval.
       Steps 16-18: rollouts 12-15% (up from 7%), invalid 10%, 55-58 groups with signal, grad norm 0.14-0.2.
+      Step 20: eval **5.2%** (training 7.8, held-out 11x11 3.1, 15x15 4.7), 0.3% invalid; rollouts 15%, grad norm 0.15.
+      Rising steadily (1.0 -> 0.5 -> 2.6 -> 2.1 -> 5.2%) and the most stable run so far (no drift by step 20, unlike
+      every compact/compact_rel run), but far below 500M compact_rel at step 20 (22.4% noop, 26.0% terminate).
     * 256M `compact` (absolute goal, lr=5e-6, noop) started 20:46: step-0 eval 0.5% (95% invalid). Steps 1-4: groups
       with signal 19 -> 38, rollout invalid 77% -> 66%, success 2% -> 6%. Step-5 eval **2.6%** (training 1.6, held-out
       11x11 0.0, 15x15 6.2), eval invalid **49%**. Same model, lr and step with `compact_rel`: **16.2%**, 12% invalid.
