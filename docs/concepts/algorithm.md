@@ -23,7 +23,9 @@ What one call of `Trainer.collect()` + `Trainer.update()` computes. The paper-si
     L = -\frac{1}{N_{tok}} \sum_{\text{tokens}} A \,\big(\log \pi_\theta(y_t \mid c_t) - C_t\big)
     \]
 
-    where \(C_t\) is the score-centering surrogate (below). With `policy_loss=ppo_clip`, the
+    where \(C_t\) is the score-centering surrogate (below). `loss_agg=traj_mean` instead weights every trajectory
+    equally (a token mean within each trajectory, then a mean over trajectories). With the token mean, long failures
+    (all turns used) outweigh short successes, so balanced per-trajectory advantages are net-negative per token. With `policy_loss=ppo_clip`, the
     REINFORCE term is replaced by \(\min(rA, \operatorname{clip}(r, 1-\epsilon_{lo}, 1+\epsilon_{hi})A)\) with
     \(\epsilon_{lo}=0.2\) and \(\epsilon_{hi}=0.28\) (DAPO clip-higher).
     With `kl_coef` \(\beta > 0\) the loss adds \(\frac{\beta}{N_{tok}}\sum_{\text{tokens}} (e^{r_t} - r_t - 1)\),

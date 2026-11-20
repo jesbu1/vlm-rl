@@ -73,6 +73,7 @@ class TrainConfig:
     weight_decay: float = 0.0
     grad_clip: float = 1.0
     lr_warmup_steps: int = 0                            # linear lr warmup over the first N optimizer steps (0 = off)
+    loss_agg: str = "token_mean"                        # token_mean (PEAR: one mean over all tokens) | traj_mean
     micro_batch_size: int = 1                           # sequences per forward/backward
     # generation
     max_new_tokens: int = 256
@@ -269,6 +270,32 @@ class Trainer:
                 nxt = ex.submit(self.policy.build_batch, chunks[i + 1]) if i + 1 < len(chunks) else None
                 yield b
 
+    def _weight_by_trajectory(self, samples):
+        """loss_agg=traj_mean: every trajectory carries the same total weight, its tokens averaged within it.
+        With the token mean, a trajectory's weight grows with its token count; failures run all their turns while
+        successes stop early, so z-scored advantages that balance per trajectory are net-negative per token. That
+        pushes down whatever was sampled and moves mass to what was not (SmolVLM2-2.2B: replies shrank to minimal
+        JSON, then to bare words). Implemented by rescaling advantages: the global token mean below then gives
+        sum_tokens A * logp / (n_traj * T_traj)."""
+        if self.cfg.loss_agg not in ("token_mean", "traj_mean"):
+            raise ValueError(f"unknown loss_agg {self.cfg.loss_agg!r}")
+        tok = getattr(self.policy, "tokenizer", None)
+
+        def n_tokens(s):
+            if s.gen_ids:
+                return len(s.gen_ids)
+            text = "".join(c.get("text", "") for k in s.train_msg_idx for c in s.messages[k]["content"]
+                           if isinstance(c, dict))
+            return max(1, len(tok(text, add_special_tokens=False)["input_ids"]) + len(s.train_msg_idx)
+                       if tok is not None else len(text.split()) + 1)
+        nt = [n_tokens(s) for s in samples]
+        per_traj: dict = {}
+        for s, n in zip(samples, nt):
+            per_traj[s.meta.get("traj")] = per_traj.get(s.meta.get("traj"), 0) + n
+        total, n_traj = sum(nt), len(per_traj)
+        for s in samples:
+            s.advantage *= total / (n_traj * per_traj[s.meta.get("traj")])
+
     def _opt_steps(self) -> int:
         """Optimizer steps taken so far, from AdamW's own state (saved with resume checkpoints)."""
         for st in self.opt.state.values():
@@ -292,6 +319,10 @@ class Trainer:
             return {"train/skipped": 1.0}
         samples = to_samples(trajs, c.max_images, c.max_frames)
         samples.sort(key=lambda s: len(s.messages))  # length-bucketing -> less padding per micro-batch
+        if c.loss_agg not in ("token_mean", "traj_mean"):
+            raise ValueError(f"unknown loss_agg {c.loss_agg!r}")
+        if c.loss_agg == "traj_mean":
+            self._weight_by_trajectory(samples)
         # snapshot of the rollout policy mu (needed only when updating more than once per batch)
         sc = c.score_centering and c.policy_loss == "reinforce" and c.ppo_epochs > 1
         old = None
@@ -516,7 +547,8 @@ class Trainer:
             print(f"[resume] re-sent {len(missing)} metrics rows to wandb (steps {missing[0]['step']}..)", flush=True)
 
     def log(self, step, metrics):
-        line = {"step": step, **{k: (round(v, 4) if isinstance(v, float) else v) for k, v in metrics.items()}}
+        # 6 significant digits, not 4 decimals: learning rates (1e-6) and small gaps must survive
+        line = {"step": step, **{k: (float(f"{v:.6g}") if isinstance(v, float) else v) for k, v in metrics.items()}}
         print(json.dumps(line), flush=True)
         with open(f"{self.cfg.out_dir}/metrics.jsonl", "a") as f:
             f.write(json.dumps(line) + "\n")

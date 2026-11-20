@@ -469,3 +469,18 @@ def test_lr_warmup_is_linear_in_optimizer_steps(tmp_path):
     for i, t in enumerate(kept[0]):
         t.advantage = 1.0 if i < 2 else -1.0
     assert tr2.update([kept[0]])["train/lr"] == pytest.approx(0.1)        # off by default
+
+
+def test_traj_mean_gives_every_trajectory_equal_total_weight(tmp_path):
+    """loss_agg=traj_mean: sum over a trajectory's tokens of its rescaled advantage = A / n_traj * total tokens,
+    whatever its length, so a long failure no longer outweighs a short success."""
+    from vlmrl.policy import Sample
+    tr = _trainer(tmp_path, random_generate(0), loss_agg="traj_mean")
+    long_fail = [Sample([], [0], -1.0, {"traj": 0}, gen_ids=[1] * 30) for _ in range(4)]   # 4 turns x 30 tokens
+    short_win = [Sample([], [0], 1.0, {"traj": 1}, gen_ids=[1] * 10)]                       # 1 turn x 10 tokens
+    samples = long_fail + short_win
+    tr._weight_by_trajectory(samples)
+    w = {t: sum(s.advantage * len(s.gen_ids) for s in samples if s.meta["traj"] == t) for t in (0, 1)}
+    assert w[0] == pytest.approx(-w[1]) and w[1] == pytest.approx(130 / 2)                  # balanced, token-mean scale
+    with pytest.raises(ValueError):
+        _trainer(tmp_path / "b", random_generate(0), loss_agg="nope")._weight_by_trajectory(samples)

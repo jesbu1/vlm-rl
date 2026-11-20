@@ -180,13 +180,13 @@ def to_samples(trajs: Sequence[Trajectory], max_images: int | None, max_frames: 
     """Full context -> one sequence per episode with every assistant turn in the loss (PEAR-style).
     Truncated image/frame history -> one sequence per turn, each with exactly the context that turn saw."""
     samples = []
-    for tr in trajs:
+    for ti, tr in enumerate(trajs):
         a_idx = [i for i, m in enumerate(tr.messages) if m["role"] == "assistant"]
         if max_images is None and max_frames is None:
-            samples.append(Sample(tr.messages, a_idx, tr.advantage, {"group": tr.group_id}))
+            samples.append(Sample(tr.messages, a_idx, tr.advantage, {"group": tr.group_id, "traj": ti}))
         else:
             for j, i in enumerate(a_idx):        # the j-th assistant message is the j-th turn's reply
                 view = context_view(tr.messages[:i], max_images, max_frames) + [tr.messages[i]]
                 gen = tr.turns[j].gen_ids if j < len(tr.turns) else None
-                samples.append(Sample(view, [len(view) - 1], tr.advantage, {"group": tr.group_id}, gen_ids=gen))
+                samples.append(Sample(view, [len(view) - 1], tr.advantage, {"group": tr.group_id, "traj": ti}, gen_ids=gen))
     return samples
