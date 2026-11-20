@@ -202,7 +202,7 @@
       Step 4: rollouts 18%, invalid 65%. ~21 min/step (episodes run ~19 turns vs 1.4 under terminate early on), so 40
       steps take ~14 h.
       Step 5: rollouts 24%, invalid 55%, 60 groups with signal. Step-5 eval **13.0%** (training 12.5, held-out 11x11
-      12.5, 15x15 14.1), 47% invalid (terminate twin at 5: 14.6%, 63% invalid; noop lr=1e-5 at 5: higher).
+      12.5, 15x15 14.1), 47% invalid (terminate twin at 5: 14.6%, 63% invalid; noop lr=1e-5 at 5: 28.6%, 0% invalid).
     * 256M `simple` (lr=5e-6, 128 tokens, noop) started 07:13: step-0 eval **1.6%**, eval invalid 82%.
       Steps 1-3: 1-2 groups with signal, rollout invalid 93%, success ~0%: **dropped after step 3**. 256M cannot
       bootstrap the `<action>` JSON format from scratch (500M could: 9-16 groups at steps 1-4).
