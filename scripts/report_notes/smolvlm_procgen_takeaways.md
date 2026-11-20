@@ -191,7 +191,12 @@
       Steps 31-35: rollouts 20-28% (rollout success at step 35: 28%), invalid 24% -> 22%, turns 6.9 -> 7.7, grad norm
       0.07-0.09. Step-35 eval **28.6%** (training 35.9, held-out 11x11 26.6, 15x15 23.4), eval invalid 2%.
       Steps 36-39: rollouts 24% -> 29% (highest training success of any v2 run), invalid 20% -> 17%, grad norm
-      0.07, mean logp -0.95 (steady). Final step-40 eval pending.
+      0.07, mean logp -0.95 (steady). Final step-40 eval **31.2%** (training 39.1, held-out 11x11 29.7, 15x15 25.0),
+      eval invalid 0.6%; rollouts 25%. **Finished without collapse**: best 32.3% (step 20), 28.6-32.3% from step 20 on.
+      This is the best v2 recipe so far.
+    * 500M compact_rel **noop at lr=5e-6** (192 tokens + parse_last; started 11:52 on GPU1): the noop twin of the run
+      above. Isolates on_invalid: is the stability from terminate or from the lower lr? (Distinct from the AWS run,
+      which uses 64 tokens and no parse_last.)
     * 256M `simple` (lr=5e-6, 128 tokens, noop) started 07:13: step-0 eval **1.6%**, eval invalid 82%.
       Steps 1-3: 1-2 groups with signal, rollout invalid 93%, success ~0%: **dropped after step 3**. 256M cannot
       bootstrap the `<action>` JSON format from scratch (500M could: 9-16 groups at steps 1-4).

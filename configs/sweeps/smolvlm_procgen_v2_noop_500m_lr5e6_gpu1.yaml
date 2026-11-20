@@ -1,0 +1,32 @@
+# smolvlm-procgen-v2, GPU 1: noop twin of smolvlm_procgen_v2_terminate_500m_lr5e6_gpu1.yaml (SmolVLM2-500M compact_rel,
+# 192 tokens + parse_last, lr=5e-6), which reached 32.3% at step 20 and finished at 31.2% without collapsing. This run
+# isolates on_invalid: is the stability from terminate or from the lower lr? Distinct from the AWS procgen-fft-v2 run
+# (500M compact_rel, 64 tokens, no parse_last).
+group: smolvlm-procgen-v2
+project: vlm-rl-pointmaze
+train_gpu: 1
+vllm_gpu: 1
+vllm_port: 8012
+vllm_gpu_util: 0.35
+overrides:
+  - experiment=pointmaze_procgen
+  - eval_on_invalid=noop
+  - reward=success
+  - steps=40
+  - groups_per_step=64
+  - group_size=16
+  - max_resample_rounds=3
+  - micro_batch_size=16
+  - eval_every=5
+  - eval_episodes=64
+  - wandb_entity=tri
+  - "wandb_tags='pointmaze,procgen,smolvlm2-500m,fft,sweep'"
+grid:
+  on_invalid: [noop]   # in the grid so the run name differs from the noop lr=1e-5 run
+  policy: [smolvlm2_500m]   # in the grid so the run name (and out_dir) differ from the 256M runs in this group
+  env_kwargs.prompt_style: [compact_rel]
+  lr: [5.0e-6]
+  max_new_tokens: [192]
+  env_kwargs.parse_last: [true]
+vllm_args:
+  HuggingFaceTB/SmolVLM2-500M-Video-Instruct: [--max-model-len, "8192", --mm-processor-kwargs, '{"do_image_splitting": false}', --api-server-count, "4", --max-num-seqs, "1024", --mm-processor-cache-gb, "0"]
