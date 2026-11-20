@@ -161,7 +161,8 @@
       Step 35: eval **6.2%** again (rollouts 13-19%, invalid 10-13%, grad norm 0.11-0.14): flat since step 25.
       Steps 36-39: **drift starts**: rollout invalid 10% -> 44%, log-prob -0.75 -> -1.29, grad norm 0.14 -> 1.9,
       success 22% -> 12%. So the simple prompt delays the drift (~step 37 vs ~26 for 500M compact_rel) but does not
-      prevent it. Left to finish (step 40 is the last).
+      prevent it. Finished at step 40: final eval **7.3%** (training 9.4, held-out 11x11 4.7, 15x15 7.8), eval invalid
+      6.5%; rollouts 6.6%. Verdict: stable for ~35 steps but plateaued at ~6-7% greedy, a third of compact_rel's peak.
     * 256M `compact` (absolute goal, lr=5e-6, noop) started 20:46: step-0 eval 0.5% (95% invalid). Steps 1-4: groups
       with signal 19 -> 38, rollout invalid 77% -> 66%, success 2% -> 6%. Step-5 eval **2.6%** (training 1.6, held-out
       11x11 0.0, 15x15 6.2), eval invalid **49%**. Same model, lr and step with `compact_rel`: **16.2%**, 12% invalid.
@@ -180,6 +181,7 @@
       11-16%, grad norm ~0.45. Slowly rising, stable at step 30 -- the first 256M run in v2 to pass step 20 intact.
       Step 35: eval **8.8%** (training 12.5, held-out 11x11 7.8, 15x15 6.2); rollouts 14-25%, invalid 6-7%, grad norm
       0.55-0.79 (rising a little).
+      Step 36: rollouts 23%, invalid 9%, grad norm 0.61.
 
 **Bottom line**
 * SmolVLM-256M (full fine-tuning, GRPO, **sparse success reward only**) learns the procedural mazes once the prompt
