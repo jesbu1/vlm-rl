@@ -72,6 +72,7 @@ class TrainConfig:
     lr: float = 1e-6                                    # PEAR (27B full FT); LoRA on small models wants ~1e-5..1e-4
     weight_decay: float = 0.0
     grad_clip: float = 1.0
+    lr_warmup_steps: int = 0                            # linear lr warmup over the first N optimizer steps (0 = off)
     micro_batch_size: int = 1                           # sequences per forward/backward
     # generation
     max_new_tokens: int = 256
@@ -268,6 +269,22 @@ class Trainer:
                 nxt = ex.submit(self.policy.build_batch, chunks[i + 1]) if i + 1 < len(chunks) else None
                 yield b
 
+    def _opt_steps(self) -> int:
+        """Optimizer steps taken so far, from AdamW's own state (saved with resume checkpoints)."""
+        for st in self.opt.state.values():
+            if "step" in st:
+                return int(st["step"])
+        return 0
+
+    def _set_lr(self):
+        """Linear warmup: the n-th optimizer step uses lr * min(1, n / lr_warmup_steps). Adam's first steps move every
+        parameter by about lr whatever the gradient, which flipped SmolVLM2-2.2B from JSON moves to bare direction
+        words in one update; warmup shrinks those steps. Stateless, so resumes need nothing extra."""
+        w = self.cfg.lr_warmup_steps
+        f = min(1.0, (self._opt_steps() + 1) / w) if w > 0 else 1.0
+        for g in self.opt.param_groups:
+            g["lr"] = self.cfg.lr * f
+
     def update(self, groups):
         c, pol = self.cfg, self.policy
         trajs = [t for g in groups for t in g if abs(t.advantage) > 1e-8]  # zero-adv => zero gradient
@@ -323,6 +340,7 @@ class Trainer:
             stats["loss"] += loss_sum_total / max(n_tok, 1.0)
             gn = torch.nn.utils.clip_grad_norm_(self.params, c.grad_clip)
             if torch.isfinite(gn):
+                self._set_lr()
                 self.opt.step()
             else:
                 print("[warn] non-finite grad norm, skipping step")
@@ -342,7 +360,8 @@ class Trainer:
         with_ids = [s for s in samples if s.gen_ids and s.train_msg_idx == [len(s.messages) - 1]]
         if with_ids and hasattr(pol, "retok_differs"):
             diag["rollout/retok_mismatch"] = float(np.mean([pol.retok_differs(s) for s in with_ids]))
-        return {**diag, "train/loss": stats["loss"] / c.ppo_epochs, "train/grad_norm": float(gn),
+        return {**diag, "train/lr": float(self.opt.param_groups[0]["lr"]),
+                "train/loss": stats["loss"] / c.ppo_epochs, "train/grad_norm": float(gn),
                 "train/tokens": n_tok, "train/sequences": len(samples),
                 "train/mean_logp": stats["logp_sum"] / max(n_tok, 1) / c.ppo_epochs,
                 **({"train/clipfrac": stats["clipfrac_sum"] / n_tok / c.ppo_epochs}

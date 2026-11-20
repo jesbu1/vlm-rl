@@ -32,7 +32,8 @@ What one call of `Trainer.collect()` + `Trainer.update()` computes. The paper-si
     pretrained model (adapters disabled for LoRA; a frozen copy of the checkpoint for full fine-tuning, loaded on
     first use). Off by default, as in PEAR. It is the guard against the drift seen with SmolVLM-256M full FT at
     lr=3e-5: mean sampled log-prob fell from -2.3 to -8.3 and replies degenerated into gibberish.
-5. **Update.** AdamW step with grad-norm clip 1.0, skipping non-finite losses or gradients.
+5. **Update.** AdamW step with grad-norm clip 1.0, skipping non-finite losses or gradients. `lr_warmup_steps=N`
+   ramps the lr linearly over the first N optimizer steps (off by default; logged as `train/lr`).
    Then push the weights to the rollout engine (vLLM backend).
 
 `ppo_epochs` (default 1, as in PEAR) repeats step 4–5 on the same batch.

@@ -452,3 +452,20 @@ def test_update_compares_rollout_engine_and_trainer_logprobs(tmp_path):
     assert m["rollout/vllm_logp"] == pytest.approx(-0.5)
     assert m["train/logp_gap"] == pytest.approx(m["train/mean_logp"] + 0.5)
     assert m["train/tok_ratio"] == pytest.approx(m["train/tokens"] / n_gen)
+
+
+def test_lr_warmup_is_linear_in_optimizer_steps(tmp_path):
+    tr = _trainer(tmp_path, random_generate(0), filter_groups=False, lr_warmup_steps=4)
+    lrs = []
+    for _ in range(6):
+        kept, _, _ = tr.collect()
+        g = kept[0]
+        for i, t in enumerate(g):
+            t.advantage = 1.0 if i < 2 else -1.0
+        lrs.append(tr.update([g])["train/lr"])
+    assert lrs == pytest.approx([0.025, 0.05, 0.075, 0.1, 0.1, 0.1])     # lr 0.1 reached at the 4th step
+    tr2 = _trainer(tmp_path / "b", random_generate(0), filter_groups=False)
+    kept, _, _ = tr2.collect()
+    for i, t in enumerate(kept[0]):
+        t.advantage = 1.0 if i < 2 else -1.0
+    assert tr2.update([kept[0]])["train/lr"] == pytest.approx(0.1)        # off by default
