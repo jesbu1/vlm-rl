@@ -68,6 +68,7 @@ Every field of `vlmrl.trainer.TrainConfig`, the Hydra schema. Set any of them on
 | `lr` | `float` | `2e-05` | PEAR (27B full FT); LoRA on small models wants ~1e-5..1e-4 |
 | `weight_decay` | `float` | `0.0` |  |
 | `grad_clip` | `float` | `1.0` |  |
+| `lr_warmup_steps` | `int` | `0` | linear lr warmup over the first N optimizer steps (0 = off) |
 | `micro_batch_size` | `int` | `1` | sequences per forward/backward |
 
 ## generation
