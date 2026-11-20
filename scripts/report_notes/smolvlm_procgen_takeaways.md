@@ -173,6 +173,8 @@
       step 20 (both compact_rel runs at this lr had collapsed by step 18-20). Slower learning, slower drift.
       Steps 21-25: rollouts 15-22%, invalid 7% -> 13% (slight rise), grad norm ~0.4. Step-25 eval **7.8%** (training
       9.4, held-out 11x11 7.8, 15x15 6.2), 0% invalid. Still no collapse; plateau at 7-8%.
+      Step 30: eval **8.3%** (training 10.9, held-out 11x11 7.8, 15x15 6.2), 0.4% invalid; rollouts 16-21%, invalid
+      11-16%, grad norm ~0.45. Slowly rising, stable at step 30 -- the first 256M run in v2 to pass step 20 intact.
 
 **Bottom line**
 * SmolVLM-256M (full fine-tuning, GRPO, **sparse success reward only**) learns the procedural mazes once the prompt
