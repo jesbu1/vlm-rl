@@ -171,7 +171,11 @@
       or a laxer parser (e.g. accepting a bare `{"ball": ...}` without the fence).
     * 500M compact_rel **terminate at lr=5e-6** (192 tokens + parse_last; started 07:30 on the free GPU1): the lr=1e-5
       terminate run peaked at 28.6% and collapsed at steps 29-30; does halving the lr delay that, as it did for 256M?
+      Step 0: eval 7.8% (54% invalid). Steps 1-4: groups with signal 6 -> 14 of 64 (lr=1e-5 twin: 7 -> 53), rollout
+      invalid 86% -> 82%, turns/episode 1.3-1.5: most episodes end on the first, invalid, reply. Step-5 eval **14.6%**
+      (63% invalid; twin 26.0%, 0% invalid). Half the lr learns the format far more slowly under terminate.
     * 256M `simple` (lr=5e-6, 128 tokens, noop) started 07:13: step-0 eval **1.6%**, eval invalid 82%.
+      Steps 1-2: 1-2 groups with signal, rollout invalid 93%, success ~0%: likely dropped at step 3.
     * 256M `compact` (absolute goal, lr=5e-6, noop) started 20:46: step-0 eval 0.5% (95% invalid). Steps 1-4: groups
       with signal 19 -> 38, rollout invalid 77% -> 66%, success 2% -> 6%. Step-5 eval **2.6%** (training 1.6, held-out
       11x11 0.0, 15x15 6.2), eval invalid **49%**. Same model, lr and step with `compact_rel`: **16.2%**, 12% invalid.
