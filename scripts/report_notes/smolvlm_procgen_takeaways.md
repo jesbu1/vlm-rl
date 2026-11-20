@@ -28,6 +28,8 @@
       2.1% (eval invalid 77%; max_frames=1 at step 0: 1.6%, 94% invalid): seeing the previous turn already helps format.
       Step 5: eval **14.6%** (training 17.2, held-out 11x11 14.1, 15x15 12.5), eval invalid **2.6%** (max_frames=1 at
       step 5: 16.2%, 11.6% invalid); rollouts 21%, invalid 73% -> 23%, log-prob -0.25 (very confident early).
+      Steps 6-8: rollouts 18% -> 26%, invalid 22% -> 10%, 54-58 of 64 groups with signal (max_frames=1 at the same
+      steps: ~28-30%). About 28 min/step (2x the image tokens), so 40 steps take ~19 h.
     * lr=5e-6 step 5: eval **16.2%** (training 23.4, held-out 11x11 12.5, 15x15 12.5), eval invalid 12%; rollouts 28%,
       invalid 79% -> 34%, grad norm ~0.5. Slower than lr=1e-5 (22.4% at step 5), as expected; the question is step 20+.
     * lr=5e-6 step 10: eval **24.0%** (training 29.7, held-out 11x11 20.3, 15x15 21.9), 0.1% invalid; rollouts 30-34%,
@@ -118,7 +120,11 @@
     * GPU1, SmolVLM2-500M back to the richer prompts: `simple` (think, then `<action>`; 256 tokens), then `pear`
       (full PEAR protocol, fenced json; 384 tokens).
     * GPU0, SmolVLM-256M after `max_frames=2`: `compact` (absolute goal; does `compact_rel`'s edge survive the fix?),
-      then `simple` (128 tokens); both at lr=1e-5.
+      then `simple` (128 tokens); both at lr=5e-6.
+    * 500M `simple` (lr=5e-6, 256 tokens, noop): step-0 eval **1.0%**, eval invalid 50% (500M compact_rel at step 0:
+      11.5%). Steps 1-4: 9-16 of 64 groups with signal (passed the step-3 check), rollout success ~1%, invalid 75% ->
+      68%. Step-5 eval **0.5%** with eval invalid 0.3%: the `<action>` format is learned, but the moves don't reach
+      the goal yet.
 
 **Bottom line**
 * SmolVLM-256M (full fine-tuning, GRPO, **sparse success reward only**) learns the procedural mazes once the prompt
