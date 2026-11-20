@@ -40,6 +40,10 @@
       model sees its own previous reply and copies it, with a tail: `x=+1.60, y=+0.54. No change. Move: x=+1.60,
       y=+0.54. No change. ...` repeated to the token limit, or a run of alternating pairs (`x=4.40, y=-4.40,
       x=-3.51, y=+2.16, x=3.87, ...`). Valid-looking junk again, now fed by the extra context.
+      Step 16: **collapsing**: rollouts 30% -> 16%, invalid 6% -> 38%, grad norm 1.44. Stopped at step 16.
+      Verdict: max_frames=2 matched max_frames=1 through step 10 (24.0% both) at 2x the cost per step, and collapsed at
+      the same point (~step 16-18). Seeing the previous turn does not stop the drift; it gives the model its own
+      text to copy.
     * lr=5e-6 step 5: eval **16.2%** (training 23.4, held-out 11x11 12.5, 15x15 12.5), eval invalid 12%; rollouts 28%,
       invalid 79% -> 34%, grad norm ~0.5. Slower than lr=1e-5 (22.4% at step 5), as expected; the question is step 20+.
     * lr=5e-6 step 10: eval **24.0%** (training 29.7, held-out 11x11 20.3, 15x15 21.9), 0.1% invalid; rollouts 30-34%,
@@ -140,7 +144,9 @@
       just the tag, mostly valid (`<action>{"dx": 1.5, "dy": 1.5}</action>`) with some junk keys
       (`<action>{"velocity": -0.14, "direction": ""]</action>`). Absolute coordinates, no reasoning: the same task
       as `compact` with a harder format, so it should trail compact_rel (500M compact_rel at step 10: 21.3%).
-      Steps 11-12: rollouts 6-8%, invalid 14%, 42-50 groups with signal, grad norm 0.13-0.15 (very stable).
+      Steps 11-14: rollouts 6-8%, invalid 12-14%, 42-53 groups with signal, grad norm 0.12-0.15 (very stable).
+      Step 15: eval **2.1%** (training 1.6, held-out 11x11 1.6, 15x15 3.1), 0% invalid; rollout success 10%. Learning
+      slowly in sampling, not yet in greedy eval.
 
 **Bottom line**
 * SmolVLM-256M (full fine-tuning, GRPO, **sparse success reward only**) learns the procedural mazes once the prompt
