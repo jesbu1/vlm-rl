@@ -236,7 +236,10 @@
       lower lr (noop at 1e-5 drifted from step 26 and did not recover); terminate adds a smoother run and a few points.
       (vLLM EngineDeadError in the log is from shutdown after the run ended.)
     * 500M compact_rel terminate lr=5e-6 with **64 tokens, no parse_last** (GPU1, started 23:24): does the 192-token
-      reasoning budget matter? Step-0 eval **4.2%** (192 tokens + parse_last, seed 0: 7.8%).
+      reasoning budget matter? Step-0 eval **4.2%** (192 tokens + parse_last, seed 0: 7.8%). Eval invalid 62%.
+      Steps 1-5: groups 7 -> 15, rollout invalid 87% -> 78%, grad norm 1.1-1.9 (higher than 192 tokens' 0.1-0.4 at this
+      stage). Step-5 eval **15.6%** (training 17.2, held-out 11x11 20.3, 15x15 9.4), 60% invalid (192-token seeds at 5:
+      14.6 / 5.7 / 6.8%). ~75 s/step of rollout vs ~100-125 s for 192 tokens.
     * 256M `simple` (lr=5e-6, 128 tokens, noop) started 07:13: step-0 eval **1.6%**, eval invalid 82%.
       Steps 1-3: 1-2 groups with signal, rollout invalid 93%, success ~0%: **dropped after step 3**. 256M cannot
       bootstrap the `<action>` JSON format from scratch (500M could: 9-16 groups at steps 1-4).
