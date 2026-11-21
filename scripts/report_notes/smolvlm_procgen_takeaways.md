@@ -210,6 +210,9 @@
       Steps 11-13: rollouts 38-42%, invalid 11% -> 7%, grad norm 0.08, mean logp -0.74 -> -0.65.
       Step-15 eval **25.5%** (eval invalid 0%), rollouts 37.5%: eval flat vs step 10 (24.5%) while rollouts stay at ~40%.
       Steps 16-17: rollouts 37-39%, invalid 4% -> 3%, grad norm 0.08-0.10.
+      Steps 18-20: rollouts 40-45%, invalid 3%, grad norm 0.09-0.14. Step-20 eval **26.0%** (training 32.8, held-out
+      11x11 20.3, 15x15 25.0), 0% invalid. Greedy eval has plateaued at 24.5-26.0% since step 10 while sampled rollouts
+      climb to ~45% (terminate seed 0 at 20: 32.3%).
     * 256M `simple` (lr=5e-6, 128 tokens, noop) started 07:13: step-0 eval **1.6%**, eval invalid 82%.
       Steps 1-3: 1-2 groups with signal, rollout invalid 93%, success ~0%: **dropped after step 3**. 256M cannot
       bootstrap the `<action>` JSON format from scratch (500M could: 9-16 groups at steps 1-4).
