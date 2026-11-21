@@ -284,6 +284,9 @@
       Steps 11-15: rollout invalid 57% -> 49%, rollouts 4% -> 7%, 90 of 128 groups with signal, grad norm ~0.10, ~505
       s/step. Step-15 eval **26.6%** (training 26.6, held-out 11x11 23.4, 15x15 29.7), 26% invalid (64 x 16 seeds at
       15: 25.0 / 14.1 / 26.0%). Ahead of or level with the best 64-group seed per step so far, at ~2x the wall-clock.
+      Steps 16-20: rollout invalid 47% -> 34%, rollouts 8% -> 15%, 115 of 128 groups with signal, grad norm 0.07-0.11.
+      Step-20 eval **31.8%** (training 39.1, held-out 11x11 26.6, 15x15 29.7), 6% invalid (64 x 16 seeds at 20: 32.3 /
+      25.0 / 27.1%). Still climbing, with a third of rollouts still invalid: room to pass the ~30% plateau.
     * 500M **`compact` (absolute goal) + terminate** (GPU0, started 07:32): step-0 eval **1.0%**, **78% invalid**
       (compact_rel at step 0: 7.8-11.5%, ~52% invalid). The absolute-coordinate prompt starts with far fewer valid
       replies; the queue's step-3 signal check decides whether terminate can learn from it.
