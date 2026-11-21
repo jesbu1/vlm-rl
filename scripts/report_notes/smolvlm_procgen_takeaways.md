@@ -207,6 +207,7 @@
       mean logp -1.52 -> -0.81 (sharpening quickly).
       Step 10: rollouts **37.5%**, invalid 15%. Step-10 eval **24.5%** (training 29.7, held-out 11x11 18.8, 15x15 25.0),
       eval invalid **0%** (terminate twin at 10: 19.3%; noop lr=1e-5 at 10: 21.3%).
+      Steps 11-13: rollouts 38-42%, invalid 11% -> 7%, grad norm 0.08, mean logp -0.74 -> -0.65.
     * 256M `simple` (lr=5e-6, 128 tokens, noop) started 07:13: step-0 eval **1.6%**, eval invalid 82%.
       Steps 1-3: 1-2 groups with signal, rollout invalid 93%, success ~0%: **dropped after step 3**. 256M cannot
       bootstrap the `<action>` JSON format from scratch (500M could: 9-16 groups at steps 1-4).
@@ -243,6 +244,9 @@
       **25.0%** (training 28.1, held-out 11x11 25.0, 15x15 21.9), eval invalid 13%.
       Steps 26-30: rollouts 12% -> 19%, invalid 34% -> 28%, grad norm 0.08-0.09. Step-30 eval **26.6%** (training 28.1,
       held-out 11x11 23.4, 15x15 28.1), eval invalid 4%. Past step 30 with no drift: the stability replicates.
+      Steps 31-35: rollouts 19% -> 25%, invalid 27% -> 20%, grad norm 0.07. Step-35 eval **30.2%** (training 35.9,
+      held-out 11x11 26.6, 15x15 28.1), eval invalid 2% (seed 0 at 35: 28.6%).
+    * Queued next on GPU0: same recipe, **seed 2, 80 steps** (does it keep improving past ~30% or eventually collapse?).
     * 256M `compact` (absolute goal, lr=5e-6, noop) started 20:46: step-0 eval 0.5% (95% invalid). Steps 1-4: groups
       with signal 19 -> 38, rollout invalid 77% -> 66%, success 2% -> 6%. Step-5 eval **2.6%** (training 1.6, held-out
       11x11 0.0, 15x15 6.2), eval invalid **49%**. Same model, lr and step with `compact_rel`: **16.2%**, 12% invalid.
