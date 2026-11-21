@@ -246,6 +246,8 @@
       Steps 11-14: rollouts 21% -> 37%, invalid 20% -> 5%, grad norm 0.29 -> 0.16.
       Step-15 eval **25.0%** (training 29.7, held-out 11x11 20.3, 15x15 25.0), 0% invalid; rollouts 34%, invalid 3%.
       Note the episodes are now long (step time 800 s vs 75 s at step 5), like noop: few invalid replies end episodes.
+      Steps 16-20: rollouts 34-44%, invalid 2% -> 1%, grad norm 0.13-0.16, mean logp -0.43 -> -0.33 (sharpening).
+      Step-20 eval **25.0%** again (training 29.7, held-out 11x11 20.3, 15x15 25.0): greedy eval flat at 25% since step 10.
     * 256M `simple` (lr=5e-6, 128 tokens, noop) started 07:13: step-0 eval **1.6%**, eval invalid 82%.
       Steps 1-3: 1-2 groups with signal, rollout invalid 93%, success ~0%: **dropped after step 3**. 256M cannot
       bootstrap the `<action>` JSON format from scratch (500M could: 9-16 groups at steps 1-4).
