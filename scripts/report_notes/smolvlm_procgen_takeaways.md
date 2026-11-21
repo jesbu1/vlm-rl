@@ -294,6 +294,8 @@
       Steps 26-30: rollout invalid 21% -> 16%, rollouts 25-26%, grad norm ~0.057, ~1380 s/step. Step-30 eval **30.2%**
       (training 32.8, held-out 11x11 28.1, 15x15 29.7), 0.3% invalid (64 x 16 seeds at 30: 31.8 / 26.6 / 31.8%). Back in
       the ~30% band; one eval is +-3 points, so steps 35-40 decide whether the batch lifts the plateau.
+      Steps 31-35: rollout invalid 14% -> 9%, rollouts 27-33%, grad norm ~0.05, ~1700 s/step. Step-35 eval **31.8%**
+      (training 34.4, held-out 11x11 25.0, 15x15 35.9), 0.3% invalid (64 x 16 seeds at 35: 29.7 / 30.2 / 29.7%).
     * 500M **`compact` (absolute goal) + terminate** (GPU0, started 07:32): step-0 eval **1.0%**, **78% invalid**
       (compact_rel at step 0: 7.8-11.5%, ~52% invalid). The absolute-coordinate prompt starts with far fewer valid
       replies; the queue's step-3 signal check decides whether terminate can learn from it.
