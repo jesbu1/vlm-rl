@@ -225,6 +225,9 @@
       logp -0.81 -> -0.64. A wobble rather than a collapse so far (the lr=1e-5 noop run did not recover).
       Step 30: rollouts 43%, invalid 6%. Step-30 eval **26.6%** (training 32.8, held-out 11x11 21.9, 15x15 25.0), 0%
       invalid: greedy eval flat at 24.5-26.6% since step 10 (terminate 3 seeds at 30: 29.2 / 26.6 / 31.8%).
+      Steps 31-35: rollouts 45% -> 36%, invalid 3-4%, grad norm 0.16-0.29, mean logp -0.55 -> -0.30 (sharpening fast).
+      Step-35 eval **27.1%** (training 35.9, held-out 11x11 20.3, 15x15 25.0), 0% invalid.
+    * Queued next on GPU1: best recipe with **64 tokens, no parse_last** (does the 192-token reasoning budget matter?).
     * 256M `simple` (lr=5e-6, 128 tokens, noop) started 07:13: step-0 eval **1.6%**, eval invalid 82%.
       Steps 1-3: 1-2 groups with signal, rollout invalid 93%, success ~0%: **dropped after step 3**. 256M cannot
       bootstrap the `<action>` JSON format from scratch (500M could: 9-16 groups at steps 1-4).
@@ -282,6 +285,7 @@
       Steps 36-40: rollouts 19-24%, invalid 25% -> 20%, grad norm 0.06. Step-40 eval **30.2%** (training 32.8, held-out
       11x11 32.8, 15x15 25.0), 0.3% invalid. **Three seeds at step 40: 31.2 / 30.2 / 30.2%**, all without collapse.
       Continuing to step 80.
+      Steps 41-43: rollouts 24-28%, invalid 20% -> 17%, grad norm 0.06.
     * 256M `compact` (absolute goal, lr=5e-6, noop) started 20:46: step-0 eval 0.5% (95% invalid). Steps 1-4: groups
       with signal 19 -> 38, rollout invalid 77% -> 66%, success 2% -> 6%. Step-5 eval **2.6%** (training 1.6, held-out
       11x11 0.0, 15x15 6.2), eval invalid **49%**. Same model, lr and step with `compact_rel`: **16.2%**, 12% invalid.

@@ -1,0 +1,32 @@
+# smolvlm-procgen-v2, GPU 1: best v2 recipe (SmolVLM2-500M compact_rel, on_invalid=terminate, lr=5e-6; 3 seeds at
+# step 40: 31.2 / 30.2 / 30.2%) with max_new_tokens=64 and no parse_last instead of 192 + parse_last. Does the longer
+# reasoning budget matter, or does a short, single-move reply do as well (and run faster)? Differs from the AWS
+# procgen-fft-v2 run (same 64 tokens but on_invalid=noop).
+group: smolvlm-procgen-v2
+project: vlm-rl-pointmaze
+train_gpu: 1
+vllm_gpu: 1
+vllm_port: 8012
+vllm_gpu_util: 0.35
+overrides:
+  - experiment=pointmaze_procgen
+  - eval_on_invalid=noop
+  - reward=success
+  - steps=40
+  - groups_per_step=64
+  - group_size=16
+  - max_resample_rounds=3
+  - micro_batch_size=16
+  - eval_every=5
+  - eval_episodes=64
+  - wandb_entity=tri
+  - "wandb_tags='pointmaze,procgen,smolvlm2-500m,fft,sweep'"
+grid:
+  on_invalid: [terminate]   # in the grid so the run name (and out_dir) differ from the noop run
+  policy: [smolvlm2_500m]   # in the grid so the run name (and out_dir) differ from the 256M runs in this group
+  env_kwargs.prompt_style: [compact_rel]
+  lr: [5.0e-6]
+  max_new_tokens: [64]
+  env_kwargs.parse_last: [false]
+vllm_args:
+  HuggingFaceTB/SmolVLM2-500M-Video-Instruct: [--max-model-len, "8192", --mm-processor-kwargs, '{"do_image_splitting": false}', --api-server-count, "4", --max-num-seqs, "1024", --mm-processor-cache-gb, "0"]
