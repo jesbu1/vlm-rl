@@ -253,6 +253,8 @@
       Transcripts show why it plateaus: with 64 tokens the model writes **no reasoning**, just a JSON move
       (`{"x": -0.00, "y": -1.83}`); often it repeats the pair until the cap (64 of 142 eval replies at step 25, 0 at
       step 20, 72 at step 10) and the parser takes the first one. It learns quickly but has no way to plan.
+      Steps 26-30: rollouts 35-39%, invalid <1%, grad norm 0.13-0.20, logp -0.53 -> -0.54. Step-30 eval **24.5%**
+      (training 28.1, held-out 11x11 20.3, 15x15 25.0), 0% invalid (192-token seeds at 30: 29.2 / 26.6 / 31.8%).
     * 256M `simple` (lr=5e-6, 128 tokens, noop) started 07:13: step-0 eval **1.6%**, eval invalid 82%.
       Steps 1-3: 1-2 groups with signal, rollout invalid 93%, success ~0%: **dropped after step 3**. 256M cannot
       bootstrap the `<action>` JSON format from scratch (500M could: 9-16 groups at steps 1-4).
