@@ -267,6 +267,12 @@
     * 500M `simple` + terminate (GPU1, started 06:52): step-0 eval **1.0%**, 51% invalid (same as the noop simple run).
       Step 1: rollout invalid 95%, success 0%, no update. With terminate, the first bad reply ends the episode, so
       the queue's step-3 signal check (>= 6 groups) decides whether it continues.
+      Steps 1-5: rollout invalid 95-96%, success 0%, **0 groups with signal, no updates**; step-5 eval 1.0% (51%
+      invalid). **Aborted by the queue at 06:59.** With terminate, the reasoning-first prompt never produces a valid
+      `<action>` often enough to learn from: noop's extra turns per episode were what let simple get off the ground.
+      Terminate needs a starting format hit rate like compact_rel's (~46% valid at step 0), or an SFT warm start.
+    * Replacement on GPU1: best recipe with a **2x batch** (128 groups x 16 = 2048 episodes/step): does a less noisy
+      gradient lift the ~30% plateau?
     * 256M `simple` (lr=5e-6, 128 tokens, noop) started 07:13: step-0 eval **1.6%**, eval invalid 82%.
       Steps 1-3: 1-2 groups with signal, rollout invalid 93%, success ~0%: **dropped after step 3**. 256M cannot
       bootstrap the `<action>` JSON format from scratch (500M could: 9-16 groups at steps 1-4).
