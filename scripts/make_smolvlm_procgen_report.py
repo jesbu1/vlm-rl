@@ -52,6 +52,15 @@ RELATED_GROUPS = "pointmaze-small-fft-batch-v1,pointmaze-small-fft-batch-v2,poin
 RELATED_PROCGEN_GROUPS = "procgen-fft-larger-v1,procgen-fft-larger-v1-lr1e-6"   # before the loss-mask fix
 FIXED_PROCGEN_GROUPS = "procgen-fft-v2,procgen-fft-larger-v2-maskfix"           # after it (commit 2e2b7d2)
 MASK_NOTE = "scripts/report_notes/mask_bug.md"
+METAWORLD = "scripts/report_notes/metaworld.md"
+METAWORLD_PROJECT = "vlm-rl-metaworld"
+# (runset label, wandb group, optional run-ID filter): the runs that learned from 0 (corrected camera, compact_rel,
+# pref_mw) and the live v3 runs (reach + ML10)
+METAWORLD_RUNSETS = [("Qwen3.5-4B reach (lr 2e-5)", "metaworld-ml1-q35-mlp-v2-lr2e-5", None),
+                     ("Qwen3-VL-2B reach (pref_mw)", "metaworld-ml1-v3", None),
+                     ("Qwen3.5-4B v3 + KL (reach, ML10; live)", "metaworld-q35-v3-kl", None),
+                     ("Qwen3.5-4B v3 lr 1e-5 (reach, ML10; live)", "metaworld-q35-v3-lr1e-5", None)]
+METAWORLD_BEST_RUN = "3737934e"     # Qwen3.5-4B reach: 0 -> 0.42 mean eval
 # Restarts that crashed or failed within a few steps and were rerun under the same name (infrastructure: vLLM reload
 # errors, port collisions); hidden so every panel shows one line per configuration.
 HIDDEN_RUNS = ["0dcb561c", "101b2806", "f4c4f00a", "07e34721", "3539515a", "9a558a4c", "f7aa5df3", "da16b80f",
@@ -191,6 +200,39 @@ def related_blocks(a, wr) -> list:
     ]
 
 
+def metaworld_blocks(a, wr) -> list:
+    """Metaworld runs (another wandb project): notes, eval / training curves, and episode videos of the best run."""
+    if not a.metaworld or not os.path.exists(METAWORLD):
+        return []
+
+    def rs(label, group, run_id=None):
+        f = f"Group == '{group}'" + (f" and ID == '{run_id}'" if run_id else "")
+        return wr.Runset(entity=a.entity, project=METAWORLD_PROJECT, name=label, filters=f)
+    reach = [("eval/heldout_positions/success", "Reach: eval on held-out goal positions"),
+             ("eval/train_positions/success", "Reach: eval on training positions"),
+             ("rollout/success", "Training rollout success (T=1.2)"), ("rollout/invalid_frac", "Invalid replies"),
+             ("train/mean_logp", "Mean log-prob of trained tokens (sharpening)"),
+             ("train/logp_gap", "Trainer - vLLM log-prob (on-policy check)"),
+             ("eval/train_tasks/success", "ML10: eval on its 10 training tasks"),
+             ("eval/heldout_tasks/success", "ML10: eval on its 5 held-out tasks")]
+    best = rs("best run: Qwen3.5-4B reach", "metaworld-ml1-q35-mlp-v2-lr2e-5", METAWORLD_BEST_RUN)
+    return [
+        wr.H1("Metaworld: ML1 reach and ML10 (Sawyer arm)"),
+        wr.MarkdownBlock(open(METAWORLD).read()),
+        wr.H2("Curves (live)"),
+        wr.PanelGrid(runsets=[rs(*x) for x in METAWORLD_RUNSETS],
+                     panels=tile([wr.LinePlot(title=t, x="Step", y=[k], max_runs_to_show=30) for k, t in reach])),
+        wr.H2("Episodes of the best reach run: video (step slider) and transcript"),
+        wr.PanelGrid(runsets=[best], panels=[
+            wr.MediaBrowser(title="held-out positions: video", media_keys=["eval/heldout_positions/episode"],
+                            num_columns=1, layout=wr.Layout(x=0, y=0, w=8, h=11)),
+            wr.MediaBrowser(title="held-out positions: transcript", media_keys=["eval/heldout_positions/transcript"],
+                            num_columns=1, layout=wr.Layout(x=8, y=0, w=8, h=11)),
+            wr.MediaBrowser(title="training positions: video", media_keys=["eval/train_positions/episode"],
+                            num_columns=1, layout=wr.Layout(x=16, y=0, w=8, h=11))]),
+    ]
+
+
 def bullets(*items) -> "object":
     import wandb_workspaces.reports.v2 as wr
     return wr.MarkdownBlock("\n".join(f"* {x}" for x in items))
@@ -234,6 +276,7 @@ def build(a) -> str:
                          + takeaways),
         *prompt_blocks(a, wr),
         *related_blocks(a, wr),
+        *metaworld_blocks(a, wr),
         wr.H1("Headline: greedy eval success"),
         bullets("One line per run; run names give prompt and lr (runs named only `lr=...` use `compact`).",
                 "Eval = greedy, mean of 3 sets; rollout = T=1 training episodes."),
@@ -311,6 +354,7 @@ def main():
                     help="save as a new unpublished draft (never over the live report unless --url is given)")
     ap.add_argument("--related", default=RELATED, help="markdown for the related-runs section ('' = omit)")
     ap.add_argument("--no_prompts", dest="prompts", action="store_false", help="omit the prompts section")
+    ap.add_argument("--no_metaworld", dest="metaworld", action="store_false", help="omit the Metaworld section")
     ap.add_argument("--related_groups", default=RELATED_GROUPS, help="comma-separated wandb groups for its panels")
     ap.add_argument("--related_procgen_groups", default=RELATED_PROCGEN_GROUPS,
                     help="related wandb groups on the procedural setup (per-eval-set panels)")
