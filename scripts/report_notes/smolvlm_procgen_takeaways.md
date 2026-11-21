@@ -264,6 +264,9 @@
     * **Queued next** (each starts when its GPU's current run ends): GPU1: 500M **`simple` + terminate** (lr=5e-6,
       256 tokens): does terminate rescue the reasoning-first prompt (noop simple plateaued at 6-7%)? GPU0: 500M
       **`compact` (absolute goal) + terminate** (best recipe otherwise): is the relative goal what makes compact_rel work?
+    * 500M `simple` + terminate (GPU1, started 06:52): step-0 eval **1.0%**, 51% invalid (same as the noop simple run).
+      Step 1: rollout invalid 95%, success 0%, no update. With terminate, the first bad reply ends the episode, so
+      the queue's step-3 signal check (>= 6 groups) decides whether it continues.
     * 256M `simple` (lr=5e-6, 128 tokens, noop) started 07:13: step-0 eval **1.6%**, eval invalid 82%.
       Steps 1-3: 1-2 groups with signal, rollout invalid 93%, success ~0%: **dropped after step 3**. 256M cannot
       bootstrap the `<action>` JSON format from scratch (500M could: 9-16 groups at steps 1-4).
