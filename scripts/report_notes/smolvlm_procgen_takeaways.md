@@ -215,6 +215,11 @@
       climb to ~45% (terminate seed 0 at 20: 32.3%).
       Steps 21-23: rollouts 38-47%, but rollout invalid ticks up 3% -> 4% -> 5% -> 7% (grad norm 0.08-0.12). Small, but
       the lr=1e-5 noop run started drifting at step 26; watching.
+      Steps 24-25: **drift begins**: rollout invalid 11% -> 31%, rollouts 39% -> 33%, grad norm 0.27/0.22, mean logp
+      -0.51 -> -0.80. Step-25 eval still **26.6%** (2% invalid). Eval replies show the format eroding: bare numbers
+      without labels (`-7.79.`, `-0.01, 7.79.`), JSON creeping back (`{ "x": 4.77, "y": 8.33}.`), and one move repeated
+      every turn (`x=+0.00, y=-1.83.` x22). Same onset step as the lr=1e-5 noop run (26), so halving the lr did not delay
+      the noop drift, while terminate at 5e-6 (3 seeds) shows none.
     * 256M `simple` (lr=5e-6, 128 tokens, noop) started 07:13: step-0 eval **1.6%**, eval invalid 82%.
       Steps 1-3: 1-2 groups with signal, rollout invalid 93%, success ~0%: **dropped after step 3**. 256M cannot
       bootstrap the `<action>` JSON format from scratch (500M could: 9-16 groups at steps 1-4).
@@ -265,6 +270,7 @@
       held-out 11x11 32.8, 15x15 20.3), 17% invalid (seed 0 at 20: 32.3%; seed 1: 25.0%).
       Steps 21-25: groups 52-57, rollout invalid 41% -> 39%, grad norm 0.09-0.10. Step-25 eval **29.2%** (training
       26.6, held-out 11x11 40.6, 15x15 20.3), 5% invalid.
+      Steps 26-27: rollout invalid 36%, grad norm 0.09: steady.
     * 256M `compact` (absolute goal, lr=5e-6, noop) started 20:46: step-0 eval 0.5% (95% invalid). Steps 1-4: groups
       with signal 19 -> 38, rollout invalid 77% -> 66%, success 2% -> 6%. Step-5 eval **2.6%** (training 1.6, held-out
       11x11 0.0, 15x15 6.2), eval invalid **49%**. Same model, lr and step with `compact_rel`: **16.2%**, 12% invalid.
