@@ -223,6 +223,8 @@
       Step 26: rollout invalid 30%, grad norm 0.32, mean logp -0.90 (still falling).
       Steps 27-29: **recovers**: rollout invalid 23% -> 17% -> 11%, rollouts back to 36-44%, grad norm 0.17-0.27, mean
       logp -0.81 -> -0.64. A wobble rather than a collapse so far (the lr=1e-5 noop run did not recover).
+      Step 30: rollouts 43%, invalid 6%. Step-30 eval **26.6%** (training 32.8, held-out 11x11 21.9, 15x15 25.0), 0%
+      invalid: greedy eval flat at 24.5-26.6% since step 10 (terminate 3 seeds at 30: 29.2 / 26.6 / 31.8%).
     * 256M `simple` (lr=5e-6, 128 tokens, noop) started 07:13: step-0 eval **1.6%**, eval invalid 82%.
       Steps 1-3: 1-2 groups with signal, rollout invalid 93%, success ~0%: **dropped after step 3**. 256M cannot
       bootstrap the `<action>` JSON format from scratch (500M could: 9-16 groups at steps 1-4).
