@@ -56,8 +56,8 @@ METAWORLD = "scripts/report_notes/metaworld.md"
 METAWORLD_PROJECT = "vlm-rl-metaworld"
 # (runset label, wandb group, optional run-ID filter): the runs that learned from 0 (corrected camera, compact_rel,
 # pref_mw) and the live v3 runs (reach + ML10)
-METAWORLD_RUNSETS = [("Qwen3.5-4B reach (lr 2e-5)", "metaworld-ml1-q35-mlp-v2-lr2e-5", None),
-                     ("Qwen3-VL-2B reach (pref_mw)", "metaworld-ml1-v3", None),
+METAWORLD_RUNSETS = [("Qwen3.5-4B reach (lr 2e-5)", "metaworld-ml1-q35-mlp-v2-lr2e-5", ["3737934e"]),
+                     ("Qwen3-VL-2B reach (pref_mw; T=1.2, T=1.0)", "metaworld-ml1-v3", ["76099ceb", "90edea52"]),
                      ("Qwen3.5-4B v3 + KL (reach, ML10; live)", "metaworld-q35-v3-kl", None),
                      ("Qwen3.5-4B v3 lr 1e-5 (reach, ML10; live)", "metaworld-q35-v3-lr1e-5", None)]
 METAWORLD_BEST_RUN = "3737934e"     # Qwen3.5-4B reach: 0 -> 0.42 mean eval
@@ -205,8 +205,8 @@ def metaworld_blocks(a, wr) -> list:
     if not a.metaworld or not os.path.exists(METAWORLD):
         return []
 
-    def rs(label, group, run_id=None):
-        f = f"Group == '{group}'" + (f" and ID == '{run_id}'" if run_id else "")
+    def rs(label, group, run_ids=None):
+        f = f"Group == '{group}'" + (" and ID in [" + ", ".join(f"'{i}'" for i in run_ids) + "]" if run_ids else "")
         return wr.Runset(entity=a.entity, project=METAWORLD_PROJECT, name=label, filters=f)
     reach = [("eval/heldout_positions/success", "Reach: eval on held-out goal positions"),
              ("eval/train_positions/success", "Reach: eval on training positions"),
@@ -215,7 +215,7 @@ def metaworld_blocks(a, wr) -> list:
              ("train/logp_gap", "Trainer - vLLM log-prob (on-policy check)"),
              ("eval/train_tasks/success", "ML10: eval on its 10 training tasks"),
              ("eval/heldout_tasks/success", "ML10: eval on its 5 held-out tasks")]
-    best = rs("best run: Qwen3.5-4B reach", "metaworld-ml1-q35-mlp-v2-lr2e-5", METAWORLD_BEST_RUN)
+    best = rs("best run: Qwen3.5-4B reach", "metaworld-ml1-q35-mlp-v2-lr2e-5", [METAWORLD_BEST_RUN])
     return [
         wr.H1("Metaworld: ML1 reach and ML10 (Sawyer arm)"),
         wr.MarkdownBlock(open(METAWORLD).read()),
