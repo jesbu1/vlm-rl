@@ -278,12 +278,16 @@
       evals with a ~3-point error bar).
       Steps 1-5: rollout invalid 85% -> 74%, grad norm 1.07 -> 0.34, ~214 s/step (64 groups: ~100-125 s). Step-5 eval
       **11.5%** (training 17.2, held-out 11x11 6.2, 15x15 10.9), 52% invalid (64-group seeds at 5: 14.6 / 5.7 / 6.8%).
+      Steps 6-10: rollout invalid 72% -> 59%, groups with signal ~81 of 128, grad norm 0.27 -> 0.12, ~420 s/step.
+      Step-10 eval **21.4%** (training 25.0, held-out 11x11 21.9, 15x15 17.2), 47% invalid (64-group seeds at 10:
+      19.3 / 10.9 / 18.2%).
     * 500M **`compact` (absolute goal) + terminate** (GPU0, started 07:32): step-0 eval **1.0%**, **78% invalid**
       (compact_rel at step 0: 7.8-11.5%, ~52% invalid). The absolute-coordinate prompt starts with far fewer valid
       replies; the queue's step-3 signal check decides whether terminate can learn from it.
       Steps 1-5: rollout invalid flat at 85-86%, success ~0.1%, only ~3 groups with signal per step, grad norm
       **1.9-3.8** (noisy updates from a handful of groups). Step-5 eval **0.5%**, eval invalid up to **90%**. Getting
-      worse, not better; the queue's >85%-invalid rule should stop it at step 6-7.
+      worse, not better. Steps 6-9: rollout invalid 85% -> 82% (just under the queue's 85% stop rule), success
+      0-0.2%, grad norm 1.1-2.9. Will stop it if the step-10 eval shows no gain.
     * 256M `simple` (lr=5e-6, 128 tokens, noop) started 07:13: step-0 eval **1.6%**, eval invalid 82%.
       Steps 1-3: 1-2 groups with signal, rollout invalid 93%, success ~0%: **dropped after step 3**. 256M cannot
       bootstrap the `<action>` JSON format from scratch (500M could: 9-16 groups at steps 1-4).
