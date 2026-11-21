@@ -349,6 +349,10 @@
       11x11 39.1, 15x15 20.3), 0% invalid.
       Steps 71-75: rollouts 30-38%, invalid 5%, grad norm 0.04-0.05, logp flat at -0.79. Step-75 eval **30.2%**
       (training 34.4, held-out 11x11 37.5, 15x15 18.8), 0% invalid.
+      Finished at step 80: final eval **28.1%** (training 31.2, held-out 11x11 34.4, 15x15 18.8), 0% invalid; rollouts
+      30%, invalid 7%, grad norm 0.05. **Verdict:** no late collapse in 80 steps, but no further gain either: mean eval
+      29.6% over steps 20-40 vs 28.9% over 45-80 (peak 31.8% at step 30). The recipe is stable at lr=5e-6 and the
+      ~30% plateau is not a matter of training longer. 15x15 held-out stays weakest (~19-25%).
     * 256M `compact` (absolute goal, lr=5e-6, noop) started 20:46: step-0 eval 0.5% (95% invalid). Steps 1-4: groups
       with signal 19 -> 38, rollout invalid 77% -> 66%, success 2% -> 6%. Step-5 eval **2.6%** (training 1.6, held-out
       11x11 0.0, 15x15 6.2), eval invalid **49%**. Same model, lr and step with `compact_rel`: **16.2%**, 12% invalid.
