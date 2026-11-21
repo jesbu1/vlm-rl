@@ -248,6 +248,11 @@
       Note the episodes are now long (step time 800 s vs 75 s at step 5), like noop: few invalid replies end episodes.
       Steps 16-20: rollouts 34-44%, invalid 2% -> 1%, grad norm 0.13-0.16, mean logp -0.43 -> -0.33 (sharpening).
       Step-20 eval **25.0%** again (training 29.7, held-out 11x11 20.3, 15x15 25.0): greedy eval flat at 25% since step 10.
+      Steps 21-25: rollouts 31-42%, invalid <1%, grad norm 0.11-0.18, logp -0.37 -> -0.50. Step-25 eval **25.0%**, same
+      per-split numbers as steps 15 and 20 (29.7 / 20.3 / 25.0), though transcripts differ, so weights are updating.
+      Transcripts show why it plateaus: with 64 tokens the model writes **no reasoning**, just a JSON move
+      (`{"x": -0.00, "y": -1.83}`); often it repeats the pair until the cap (64 of 142 eval replies at step 25, 0 at
+      step 20, 72 at step 10) and the parser takes the first one. It learns quickly but has no way to plan.
     * 256M `simple` (lr=5e-6, 128 tokens, noop) started 07:13: step-0 eval **1.6%**, eval invalid 82%.
       Steps 1-3: 1-2 groups with signal, rollout invalid 93%, success ~0%: **dropped after step 3**. 256M cannot
       bootstrap the `<action>` JSON format from scratch (500M could: 9-16 groups at steps 1-4).
