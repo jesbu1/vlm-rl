@@ -257,6 +257,10 @@
       (training 28.1, held-out 11x11 20.3, 15x15 25.0), 0% invalid (192-token seeds at 30: 29.2 / 26.6 / 31.8%).
       Steps 31-35: rollouts 35-46%, invalid <1%, grad norm 0.09-0.23 (one spike at 31, then back). Step-35 eval
       **26.0%** (training 32.8, held-out 11x11 20.3, 15x15 25.0), 0% invalid.
+      Finished at step 40: final eval **26.6%** (training 32.8, held-out 11x11 20.3, 15x15 26.6), 0% invalid; rollouts
+      37-46%, invalid <1%, grad norm ~0.1, no drift. **Verdict:** 64 tokens learns the format fastest (26.6% by step 10)
+      and is stable, but plateaus at 24.5-26.6% vs ~30% for 192 tokens + parse_last (3 seeds): the model drops reasoning
+      and answers reflexively, which costs ~4 points. The 192-token reasoning budget is worth keeping.
     * **Queued next** (each starts when its GPU's current run ends): GPU1: 500M **`simple` + terminate** (lr=5e-6,
       256 tokens): does terminate rescue the reasoning-first prompt (noop simple plateaued at 6-7%)? GPU0: 500M
       **`compact` (absolute goal) + terminate** (best recipe otherwise): is the relative goal what makes compact_rel work?
