@@ -310,6 +310,9 @@
       Steps 46-49: rollouts 28% -> 33%, invalid 16% -> 12%, grad norm 0.05.
       Step-50 eval **28.6%**; rollouts 34%. Past step 50, still flat at ~30% greedy.
       Steps 51-55: rollouts 28-41%, invalid 11% -> 9%, grad norm 0.05. Step-55 eval **29.2%**, 0% invalid.
+      Steps 56-60: rollouts 29-37%, invalid 9% -> 7%, grad norm 0.04-0.05, logp flat (-0.88 -> -0.84). Step-60 eval
+      **25.5%** (training 23.4, held-out 11x11 31.2, 15x15 21.9), 0% invalid. A dip, but no drift signs (invalid, grad
+      norm, logp all steady); one eval is 192 episodes (SE ~3 pts), so watch 65-80 before calling it a decline.
     * 256M `compact` (absolute goal, lr=5e-6, noop) started 20:46: step-0 eval 0.5% (95% invalid). Steps 1-4: groups
       with signal 19 -> 38, rollout invalid 77% -> 66%, success 2% -> 6%. Step-5 eval **2.6%** (training 1.6, held-out
       11x11 0.0, 15x15 6.2), eval invalid **49%**. Same model, lr and step with `compact_rel`: **16.2%**, 12% invalid.
