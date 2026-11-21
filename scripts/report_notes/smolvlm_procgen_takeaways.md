@@ -293,6 +293,9 @@
       and almost none succeed, so terminate leaves nothing to learn from (same failure as simple + terminate).
     * Replacement on GPU0: best recipe with **group_size 32** (64 x 32 = 2048 episodes/step), the same budget as the
       128 x 16 run: more samples per start state vs more start states per update.
+      Started 07:51. Step-0 eval 11.5% (54% invalid). Steps 1-5: rollout invalid 85% -> 72%, grad norm 0.99 -> 0.27,
+      28 of 64 groups with signal at step 5, ~229 s/step (same as 128 x 16). Step-5 eval **9.9%** (training 14.1,
+      held-out 11x11 10.9, 15x15 4.7), 77% invalid (128 x 16 at 5: 11.5%; 64 x 16 seeds: 14.6 / 5.7 / 6.8%).
     * 256M `simple` (lr=5e-6, 128 tokens, noop) started 07:13: step-0 eval **1.6%**, eval invalid 82%.
       Steps 1-3: 1-2 groups with signal, rollout invalid 93%, success ~0%: **dropped after step 3**. 256M cannot
       bootstrap the `<action>` JSON format from scratch (500M could: 9-16 groups at steps 1-4).
