@@ -288,6 +288,11 @@
       **1.9-3.8** (noisy updates from a handful of groups). Step-5 eval **0.5%**, eval invalid up to **90%**. Getting
       worse, not better. Steps 6-9: rollout invalid 85% -> 82% (just under the queue's 85% stop rule), success
       0-0.2%, grad norm 1.1-2.9. Will stop it if the step-10 eval shows no gain.
+      Step-10 eval **1.0%**, 88% invalid; rollouts 0.2%, 2 groups with signal. **Stopped by hand at step 10.**
+      **Verdict:** the relative goal is what lets 500M start: with absolute coordinates only ~15% of replies are valid
+      and almost none succeed, so terminate leaves nothing to learn from (same failure as simple + terminate).
+    * Replacement on GPU0: best recipe with **group_size 32** (64 x 32 = 2048 episodes/step), the same budget as the
+      128 x 16 run: more samples per start state vs more start states per update.
     * 256M `simple` (lr=5e-6, 128 tokens, noop) started 07:13: step-0 eval **1.6%**, eval invalid 82%.
       Steps 1-3: 1-2 groups with signal, rollout invalid 93%, success ~0%: **dropped after step 3**. 256M cannot
       bootstrap the `<action>` JSON format from scratch (500M could: 9-16 groups at steps 1-4).
