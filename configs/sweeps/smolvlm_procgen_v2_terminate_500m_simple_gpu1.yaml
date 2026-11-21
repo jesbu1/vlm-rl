@@ -1,0 +1,31 @@
+# smolvlm-procgen-v2, GPU 1 (queued after the 64-token run): back to the richer `simple` prompt (think briefly, then
+# <action>{dx,dy}</action>; 256 tokens) with the best recipe's training rule, on_invalid=terminate at lr=5e-6.
+# 500M simple with noop plateaued at ~6-7% greedy and drifted at ~step 37; terminate made compact_rel smoother and
+# a few points better. Does terminate also rescue the reasoning-first prompt?
+group: smolvlm-procgen-v2
+project: vlm-rl-pointmaze
+train_gpu: 1
+vllm_gpu: 1
+vllm_port: 8012
+vllm_gpu_util: 0.35
+overrides:
+  - experiment=pointmaze_procgen
+  - eval_on_invalid=noop
+  - reward=success
+  - steps=40
+  - groups_per_step=64
+  - group_size=16
+  - max_resample_rounds=3
+  - micro_batch_size=8
+  - eval_every=5
+  - eval_episodes=64
+  - wandb_entity=tri
+  - "wandb_tags='pointmaze,procgen,smolvlm2-500m,fft,sweep'"
+grid:
+  on_invalid: [terminate]   # in the grid so the run name (and out_dir) differ from the noop simple run
+  policy: [smolvlm2_500m]
+  env_kwargs.prompt_style: [simple]
+  lr: [5.0e-6]
+  max_new_tokens: [256]
+vllm_args:
+  HuggingFaceTB/SmolVLM2-500M-Video-Instruct: [--max-model-len, "8192", --mm-processor-kwargs, '{"do_image_splitting": false}', --api-server-count, "4", --max-num-seqs, "1024", --mm-processor-cache-gb, "0"]

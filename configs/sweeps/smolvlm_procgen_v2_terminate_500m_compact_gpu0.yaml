@@ -1,0 +1,32 @@
+# smolvlm-procgen-v2, GPU 0 (queued after the seed-2 80-step run): the best recipe (SmolVLM2-500M, 192 tokens +
+# parse_last, on_invalid=terminate, lr=5e-6) with the `compact` prompt, which gives the goal in absolute coordinates
+# instead of relative to the ball. 256M compact (noop) was weak (2.6% at step 5); is the relative goal what makes
+# compact_rel work for 500M, or does terminate + lr=5e-6 carry it?
+group: smolvlm-procgen-v2
+project: vlm-rl-pointmaze
+train_gpu: 0
+vllm_gpu: 0
+vllm_port: 8011
+vllm_gpu_util: 0.35
+overrides:
+  - experiment=pointmaze_procgen
+  - eval_on_invalid=noop
+  - reward=success
+  - steps=40
+  - groups_per_step=64
+  - group_size=16
+  - max_resample_rounds=3
+  - micro_batch_size=16
+  - eval_every=5
+  - eval_episodes=64
+  - wandb_entity=tri
+  - "wandb_tags='pointmaze,procgen,smolvlm2-500m,fft,sweep'"
+grid:
+  on_invalid: [terminate]   # in the grid so the run name (and out_dir) differ from the noop run
+  policy: [smolvlm2_500m]   # in the grid so the run name (and out_dir) differ from the 256M runs in this group
+  env_kwargs.prompt_style: [compact]
+  lr: [5.0e-6]
+  max_new_tokens: [192]
+  env_kwargs.parse_last: [true]
+vllm_args:
+  HuggingFaceTB/SmolVLM2-500M-Video-Instruct: [--max-model-len, "8192", --mm-processor-kwargs, '{"do_image_splitting": false}', --api-server-count, "4", --max-num-seqs, "1024", --mm-processor-cache-gb, "0"]
