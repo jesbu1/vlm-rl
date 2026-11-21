@@ -285,7 +285,8 @@
       Steps 36-40: rollouts 19-24%, invalid 25% -> 20%, grad norm 0.06. Step-40 eval **30.2%** (training 32.8, held-out
       11x11 32.8, 15x15 25.0), 0.3% invalid. **Three seeds at step 40: 31.2 / 30.2 / 30.2%**, all without collapse.
       Continuing to step 80.
-      Steps 41-43: rollouts 24-28%, invalid 20% -> 17%, grad norm 0.06.
+      Steps 41-45: rollouts 22-28%, invalid 20% -> 15%, grad norm 0.05-0.06. Step-45 eval **29.7%** (training 31.2,
+      held-out 11x11 40.6, 15x15 17.2), 0.1% invalid. Holding at ~30%.
     * 256M `compact` (absolute goal, lr=5e-6, noop) started 20:46: step-0 eval 0.5% (95% invalid). Steps 1-4: groups
       with signal 19 -> 38, rollout invalid 77% -> 66%, success 2% -> 6%. Step-5 eval **2.6%** (training 1.6, held-out
       11x11 0.0, 15x15 6.2), eval invalid **49%**. Same model, lr and step with `compact_rel`: **16.2%**, 12% invalid.
