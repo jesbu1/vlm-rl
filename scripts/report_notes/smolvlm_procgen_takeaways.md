@@ -325,6 +325,8 @@
       norm, logp all steady); one eval is 192 episodes (SE ~3 pts), so watch 65-80 before calling it a decline.
       Steps 61-65: rollouts 32-42%, invalid 7% -> 5%, grad norm 0.04-0.05. Step-65 eval **29.2%** (training 34.4,
       held-out 11x11 32.8, 15x15 20.3), 0% invalid: back on the ~29-30% plateau, so step 60 was noise.
+      Steps 66-70: rollouts 34-44%, invalid 5%, grad norm 0.04-0.05. Step-70 eval **30.7%** (training 32.8, held-out
+      11x11 39.1, 15x15 20.3), 0% invalid.
     * 256M `compact` (absolute goal, lr=5e-6, noop) started 20:46: step-0 eval 0.5% (95% invalid). Steps 1-4: groups
       with signal 19 -> 38, rollout invalid 77% -> 66%, success 2% -> 6%. Step-5 eval **2.6%** (training 1.6, held-out
       11x11 0.0, 15x15 6.2), eval invalid **49%**. Same model, lr and step with `compact_rel`: **16.2%**, 12% invalid.
