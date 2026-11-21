@@ -247,6 +247,9 @@
       held-out 11x11 23.4, 15x15 28.1), eval invalid 4%. Past step 30 with no drift: the stability replicates.
       Steps 31-35: rollouts 19% -> 25%, invalid 27% -> 20%, grad norm 0.07. Step-35 eval **30.2%** (training 35.9,
       held-out 11x11 26.6, 15x15 28.1), eval invalid 2% (seed 0 at 35: 28.6%).
+      Steps 36-40: rollouts 22-32%, invalid 20% -> 16%, grad norm 0.06. Final step-40 eval **30.2%** (training 26.6,
+      held-out 11x11 29.7, 15x15 34.4), eval invalid 0.8%. **Finished without collapse.** Two seeds: final 31.2% / 30.2%,
+      both stable to step 40; seed 1 learned the format ~5-10 steps later, then caught up.
     * Queued next on GPU0: same recipe, **seed 2, 80 steps** (does it keep improving past ~30% or eventually collapse?).
     * 256M `compact` (absolute goal, lr=5e-6, noop) started 20:46: step-0 eval 0.5% (95% invalid). Steps 1-4: groups
       with signal 19 -> 38, rollout invalid 77% -> 66%, success 2% -> 6%. Step-5 eval **2.6%** (training 1.6, held-out
