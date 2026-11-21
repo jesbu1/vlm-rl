@@ -287,6 +287,10 @@
       Steps 16-20: rollout invalid 47% -> 34%, rollouts 8% -> 15%, 115 of 128 groups with signal, grad norm 0.07-0.11.
       Step-20 eval **31.8%** (training 39.1, held-out 11x11 26.6, 15x15 29.7), 6% invalid (64 x 16 seeds at 20: 32.3 /
       25.0 / 27.1%). Still climbing, with a third of rollouts still invalid: room to pass the ~30% plateau.
+      Steps 21-25: rollout invalid 31% -> 22%, rollouts 16% -> 25%, 120 of 128 groups with signal, grad norm ~0.06.
+      Step-25 eval **32.8%** (training 37.5, held-out 11x11 23.4, 15x15 37.5), **0.8% invalid**: the best v2 eval so far
+      (previous peak 32.3%, 64 x 16 seed 0 at step 20). Steps now ~1165 s as episodes lengthen. RAM steady
+      (trainer RSS ~30 GB, ~108 GB available).
     * 500M **`compact` (absolute goal) + terminate** (GPU0, started 07:32): step-0 eval **1.0%**, **78% invalid**
       (compact_rel at step 0: 7.8-11.5%, ~52% invalid). The absolute-coordinate prompt starts with far fewer valid
       replies; the queue's step-3 signal check decides whether terminate can learn from it.
