@@ -1,0 +1,21 @@
+# @package _global_
+# RL on Metaworld ML10: train on its 10 training tasks (each episode draws a task, then one of its 50 variations),
+# evaluate greedy on those tasks and on ML10's 5 held-out tasks. A wider distribution than ML1: several of these
+# tasks (drawer-close, button-press-topdown, window-open, reach) give partial progress far more easily than push.
+# Standalone rather than built on metaworld_ml1: Hydra would merge ML1's eval sets into these.
+defaults:
+  - pointmaze_q3vl4b_vllm
+  - override /task: metaworld
+env_kwargs:
+  benchmark: ML10
+groups_per_step: 16
+group_size: 8
+max_resample_rounds: 3
+max_new_tokens: 256
+steps: 40
+eval_every: 5
+eval_episodes: 48
+eval_sets:
+  train_tasks: {eval_split: train}
+  heldout_tasks: {eval_split: test}
+out_dir: runs/metaworld_ml10
