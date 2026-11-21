@@ -149,6 +149,24 @@ class HFPolicy:
             ids.add(int(self.tokenizer.eos_token_id))
         return ids
 
+    def load_adapter_weights(self, path: str):
+        """Start from a saved LoRA adapter (a PEFT dir with adapter_model.safetensors, e.g. an earlier run's
+        ckpt_stepN). The adapter must match this policy's LoRA config (rank, targets): every saved tensor must land on
+        a LoRA parameter, and every LoRA parameter must be covered."""
+        import os
+        from peft import set_peft_model_state_dict
+        from safetensors.torch import load_file
+        if not hasattr(self.model, "peft_config"):
+            raise ValueError("init_adapter needs a LoRA policy (lora_rank > 0)")
+        sd = load_file(os.path.join(path, "adapter_model.safetensors"))
+        res = set_peft_model_state_dict(self.model, sd)
+        unexpected = list(getattr(res, "unexpected_keys", []) or [])
+        missing = [k for k in (getattr(res, "missing_keys", []) or []) if "lora_" in k]
+        if unexpected or missing:
+            raise ValueError(f"adapter {path} does not match the policy's LoRA config: "
+                             f"{len(unexpected)} unexpected (e.g. {unexpected[:2]}), {len(missing)} missing (e.g. {missing[:2]})")
+        print(f"[policy] initialized LoRA from {path} ({len(sd)} tensors)", flush=True)
+
     def _cut_at_stop(self, ids: list[int]) -> list[int]:
         """Generated ids up to and including the first stop token (generate() pads after it); all of them if the
         reply hit max_new_tokens."""

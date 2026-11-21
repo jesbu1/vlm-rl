@@ -281,3 +281,24 @@ def test_fp32_frozen_keeps_frozen_params_fp32():
         frozen = {p.dtype for n, p in pol.model.named_parameters() if not p.requires_grad}
         trained = {p.dtype for n, p in pol.model.named_parameters() if p.requires_grad}
         assert frozen == {frozen_dtype} and trained == {torch.float32}
+
+
+@pytest.mark.slow
+def test_init_adapter_round_trip_and_mismatch(tmp_path):
+    """init_adapter: a saved LoRA adapter loads into a fresh policy exactly; a different rank is rejected."""
+    from conftest import TINY_VLM
+    from vlmrl.policy import HFPolicy
+    kw = dict(device="cpu", processor_kwargs={"do_image_splitting": False}, gradient_checkpointing=False)
+    a = HFPolicy(TINY_VLM, lora_rank=4, **kw)
+    with torch.no_grad():
+        for n, p in a.model.named_parameters():
+            if "lora_B" in n:
+                p.add_(0.01)                                  # make the adapter non-trivial (B starts at 0)
+    a.save(str(tmp_path / "ad"), processor=False)
+    b = HFPolicy(TINY_VLM, lora_rank=4, **kw)
+    b.load_adapter_weights(str(tmp_path / "ad"))
+    pa = {n: p for n, p in a.model.named_parameters() if "lora_" in n}
+    pb = {n: p for n, p in b.model.named_parameters() if "lora_" in n}
+    assert pa.keys() == pb.keys() and all(torch.equal(pa[n], pb[n]) for n in pa)
+    with pytest.raises(Exception):
+        HFPolicy(TINY_VLM, lora_rank=8, **kw).load_adapter_weights(str(tmp_path / "ad"))

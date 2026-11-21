@@ -1,6 +1,8 @@
 # Qwen3.5-4B (MLP-only LoRA, no thinking, compact_rel, pref_mw with invalid endings ranked last, exact token ids,
 # traj_mean) on ML1 reach and on ML10's 10 training tasks, 60 steps. Reach rose to 0.50 / 0.34 at step 25 and then
 # degraded after one update sharpened the policy (mean log-prob -0.39 -> -0.07); these test two stabilizers.
+# Warm start from a trained adapter (same LoRA preset): --set init_adapter=s3://.../ckpt_stepN
+# Other models: --set policy=<preset> (e.g. qwen3vl4b_lora, qwen3vl2b_full, gemma4_e2b_full_48gb) and a matching lr.
 # Submit per stabilizer (2 GPUs per run: trainer + vLLM):
 #   --set kl_coef=0.05 --set lr=2e-5     (KL to the base model; cheap with LoRA: adapters disabled)
 #   --set lr=1e-5                        (lower lr, no KL)
@@ -23,3 +25,6 @@ grid:
   experiment: [metaworld_ml1, metaworld_ml10]
 vllm_args:
   Qwen/Qwen3.5-4B: [--mm-processor-cache-gb, "0"]
+  Qwen/Qwen3-VL-4B-Instruct: [--mm-processor-cache-gb, "0"]
+  Qwen/Qwen3-VL-2B-Instruct: [--mm-processor-cache-gb, "0"]
+  google/gemma-4-E2B-it: [--mm-processor-cache-gb, "0"]

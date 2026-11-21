@@ -71,6 +71,7 @@ Every field of `vlmrl.trainer.TrainConfig`, the Hydra schema. Set any of them on
 | `grad_clip` | `float` | `1.0` |  |
 | `lr_warmup_steps` | `int` | `0` | linear lr warmup over the first N optimizer steps (0 = off) |
 | `loss_agg` | `str` | `'token_mean'` | token_mean (PEAR: one mean over all tokens) \| traj_mean |
+| `init_adapter` | `str` | `''` | start from a saved LoRA adapter (dir or s3:// URI); a resume wins |
 | `micro_batch_size` | `int` | `1` | sequences per forward/backward |
 
 ## generation

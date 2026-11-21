@@ -75,6 +75,7 @@ class TrainConfig:
     grad_clip: float = 1.0
     lr_warmup_steps: int = 0                            # linear lr warmup over the first N optimizer steps (0 = off)
     loss_agg: str = "token_mean"                        # token_mean (PEAR: one mean over all tokens) | traj_mean
+    init_adapter: str = ""                              # start from a saved LoRA adapter (dir or s3:// URI); a resume wins
     micro_batch_size: int = 1                           # sequences per forward/backward
     # generation
     max_new_tokens: int = 256
@@ -189,6 +190,8 @@ class Trainer:
         self.params = params
         self.eval_starts = self.bundle.eval_sampler.sample(cfg.eval_episodes, np.random.default_rng(10_000 + cfg.seed))
         self.eval_sets = self.build_eval_sets()
+        if cfg.init_adapter:
+            self.policy.load_adapter_weights(self._fetch(cfg.init_adapter))
         self.start_step, pending = self.load_resume() if cfg.resume else (0, None)
         if cfg.rollout_backend == "vllm":
             from vlmrl.vllm_client import VLLMServerGenerator
@@ -297,6 +300,15 @@ class Trainer:
         total, n_traj = sum(nt), len(per_traj)
         for s in samples:
             s.advantage *= total / (n_traj * per_traj[s.meta.get("traj")])
+
+    def _fetch(self, uri: str) -> str:
+        """A local dir for ``uri``: s3:// prefixes are copied to out_dir/init_adapter with the AWS CLI."""
+        if not uri.startswith("s3://"):
+            return uri
+        import subprocess
+        dst = os.path.join(self.cfg.out_dir, "init_adapter")
+        subprocess.run(["aws", "s3", "cp", "--recursive", "--only-show-errors", uri.rstrip("/") + "/", dst], check=True)
+        return dst
 
     def _opt_steps(self) -> int:
         """Optimizer steps taken so far, from AdamW's own state (saved with resume checkpoints)."""
