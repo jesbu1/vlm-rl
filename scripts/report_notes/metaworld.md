@@ -18,9 +18,9 @@ _Metaworld (Farama, Sawyer arm) through the same text protocol and trainer, AWS 
 
 | model | eval success, held-out / train positions | notes |
 |---|---|---|
-| **Qwen3.5-4B, LoRA on MLPs, lr 1e-5, `traj_mean`** (live) | 0 (steps 0-15) → **0.38 / 0.28** (step 20) → 0.31 / 0.41 → **0.41 / 0.34** (step 30) | holding: mean log-prob flat at −0.29 … −0.34, gradient norms ~0.2, 0% invalid |
+| **Qwen3.5-4B, LoRA on MLPs, lr 1e-5, `traj_mean`** | 0 (steps 0-15) → 0.38 / 0.28 (20) → 0.41 / 0.62 (40) → 0.44 / 0.50 (50) → **0.47 / 0.78 (60)** | stable: mean log-prob −0.27 … −0.34, gradient norms ~0.2, 0% invalid. One greedy-eval dip at step 45 (0.09 / 0.19) while training rollouts held at 0.33. Extended to 100 steps (live) |
 | Qwen3.5-4B, LoRA on MLPs, lr 2e-5 | 0 → **0.34 / 0.50** (step 25) → 0.03 / 0.12 (step 40) | one update at step 24 sharpened the policy (mean log-prob −0.39 → −0.07), then it degraded |
-| Qwen3.5-4B, lr 2e-5 + KL 0.05 (live) | 0 through step 30 | samples successes (rollouts 0.06-0.21) but greedy eval stays 0 |
+| Qwen3.5-4B, lr 2e-5 + KL 0.05 | 0 through step 60 | samples successes (rollouts 0.06-0.21) but greedy eval stays 0: the KL holds it too close to the base model |
 | Qwen3-VL-2B, full FT, lr 5e-6, T=1.2 | 0 → **0.31 / 0.25** (step 10), 0.28 / 0.31 to step 40 | froze once the policy became deterministic (every group tied) |
 | same, sparse success reward | 0 throughout | success starts at 0, so no group ever has a signal |
 
@@ -29,8 +29,9 @@ _Metaworld (Farama, Sawyer arm) through the same text protocol and trainer, AWS 
 * **Push has not learned yet** with any model or reward: the hand never gets near the puck, where the dense reward
   starts to vary.
 
-**ML10** (train on its 10 tasks; eval on them and on 5 held-out tasks): flat so far at 0.02-0.03 on the
-training tasks and 0 held out (steps 0-30, both stabilizers). With 16 groups over 10 tasks each task gets 1-2 groups
+**ML10** (train on its 10 tasks; eval on them and on 5 held-out tasks): 0.04 → 0.10 on the training tasks at
+steps 50-55 (lr 1e-5; 0.06 at step 60) and 0 on held-out tasks throughout; the KL run stays at 0.04-0.06. The lr 1e-5
+run is extended to 100 steps. With 16 groups over 10 tasks each task gets 1-2 groups
 per step; a 32-group run at lr 1e-5 is live. All runs here: Qwen3.5-4B, per-trajectory loss weighting
 (`loss_agg=traj_mean`).
 
