@@ -240,6 +240,9 @@
       Steps 1-5: groups 7 -> 15, rollout invalid 87% -> 78%, grad norm 1.1-1.9 (higher than 192 tokens' 0.1-0.4 at this
       stage). Step-5 eval **15.6%** (training 17.2, held-out 11x11 20.3, 15x15 9.4), 60% invalid (192-token seeds at 5:
       14.6 / 5.7 / 6.8%). ~75 s/step of rollout vs ~100-125 s for 192 tokens.
+      Steps 6-10: format clicks in fast: rollout invalid 74% -> 29%, groups 25 -> 56, rollouts 1% -> 15%, grad norm
+      1.2 -> 0.33. Step-10 eval **26.6%** (training 31.2, held-out 11x11 21.9, 15x15 26.6), eval invalid **0%** (192-token
+      seeds at 10: 19.3 / 10.9 / 18.2%). Fastest terminate start so far.
     * 256M `simple` (lr=5e-6, 128 tokens, noop) started 07:13: step-0 eval **1.6%**, eval invalid 82%.
       Steps 1-3: 1-2 groups with signal, rollout invalid 93%, success ~0%: **dropped after step 3**. 256M cannot
       bootstrap the `<action>` JSON format from scratch (500M could: 9-16 groups at steps 1-4).
