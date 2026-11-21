@@ -314,6 +314,9 @@
       Steps 16-20: rollout invalid 46% -> 37%, rollouts 7-11%, 58 of 64 groups with signal, grad norm 0.07-0.09.
       Step-20 eval **29.7%** (training 32.8, held-out 11x11 26.6, 15x15 29.7), 25% invalid (128 x 16 at 20: 31.8%;
       64 x 16: 32.3 / 25.0 / 27.1%).
+      Steps 21-25: rollout invalid 36% -> 29%, rollouts 13-17%, grad norm ~0.065. Step-25 eval **27.1%** (training
+      29.7, held-out 11x11 23.4, 15x15 28.1), 14% invalid (128 x 16 at 25: 32.8%; 64 x 16: 31.8 / 25.0 / 29.2%).
+      With the same episode budget, it trails 128 x 16 on rollout success (13% vs 22%) and format (29% vs 22% invalid).
     * 256M `simple` (lr=5e-6, 128 tokens, noop) started 07:13: step-0 eval **1.6%**, eval invalid 82%.
       Steps 1-3: 1-2 groups with signal, rollout invalid 93%, success ~0%: **dropped after step 3**. 256M cannot
       bootstrap the `<action>` JSON format from scratch (500M could: 9-16 groups at steps 1-4).
