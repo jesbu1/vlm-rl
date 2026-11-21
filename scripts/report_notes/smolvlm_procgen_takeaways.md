@@ -259,6 +259,8 @@
       86% -> 73%, grad norm 1.2 -> 0.37. Step-5 eval **6.8%**, 78% invalid: a slow start like seed 1 (5.7% at step 5).
       Steps 6-10: groups 24 -> 43, rollout invalid 71% -> 59%, grad norm 0.31 -> 0.16. Step-10 eval **18.2%** (training
       21.9, held-out 11x11 21.9, 15x15 10.9), 54% invalid (seed 0 at 10: 19.3%; seed 1: 10.9%).
+      Steps 11-20: groups 38-53, rollout invalid 57% -> 46%, grad norm 0.11-0.16. Step-20 eval **27.1%** (training 28.1,
+      held-out 11x11 32.8, 15x15 20.3), 17% invalid (seed 0 at 20: 32.3%; seed 1: 25.0%).
     * 256M `compact` (absolute goal, lr=5e-6, noop) started 20:46: step-0 eval 0.5% (95% invalid). Steps 1-4: groups
       with signal 19 -> 38, rollout invalid 77% -> 66%, success 2% -> 6%. Step-5 eval **2.6%** (training 1.6, held-out
       11x11 0.0, 15x15 6.2), eval invalid **49%**. Same model, lr and step with `compact_rel`: **16.2%**, 12% invalid.
