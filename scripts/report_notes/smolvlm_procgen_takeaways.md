@@ -255,6 +255,8 @@
       step 20, 72 at step 10) and the parser takes the first one. It learns quickly but has no way to plan.
       Steps 26-30: rollouts 35-39%, invalid <1%, grad norm 0.13-0.20, logp -0.53 -> -0.54. Step-30 eval **24.5%**
       (training 28.1, held-out 11x11 20.3, 15x15 25.0), 0% invalid (192-token seeds at 30: 29.2 / 26.6 / 31.8%).
+      Steps 31-35: rollouts 35-46%, invalid <1%, grad norm 0.09-0.23 (one spike at 31, then back). Step-35 eval
+      **26.0%** (training 32.8, held-out 11x11 20.3, 15x15 25.0), 0% invalid.
     * **Queued next** (each starts when its GPU's current run ends): GPU1: 500M **`simple` + terminate** (lr=5e-6,
       256 tokens): does terminate rescue the reasoning-first prompt (noop simple plateaued at 6-7%)? GPU0: 500M
       **`compact` (absolute goal) + terminate** (best recipe otherwise): is the relative goal what makes compact_rel work?
