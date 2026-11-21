@@ -276,6 +276,8 @@
       Started 07:01. Step-0 eval **10.9%** (seed 0, same eval set as the 64-group seed-0 run, which read 7.8% at step
       0: greedy vLLM evals of the same weights vary by a few points with batching, another reason to read single
       evals with a ~3-point error bar).
+      Steps 1-5: rollout invalid 85% -> 74%, grad norm 1.07 -> 0.34, ~214 s/step (64 groups: ~100-125 s). Step-5 eval
+      **11.5%** (training 17.2, held-out 11x11 6.2, 15x15 10.9), 52% invalid (64-group seeds at 5: 14.6 / 5.7 / 6.8%).
     * 256M `simple` (lr=5e-6, 128 tokens, noop) started 07:13: step-0 eval **1.6%**, eval invalid 82%.
       Steps 1-3: 1-2 groups with signal, rollout invalid 93%, success ~0%: **dropped after step 3**. 256M cannot
       bootstrap the `<action>` JSON format from scratch (500M could: 9-16 groups at steps 1-4).
