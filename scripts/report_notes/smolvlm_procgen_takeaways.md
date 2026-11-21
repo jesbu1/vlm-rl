@@ -243,6 +243,7 @@
       Steps 6-10: format clicks in fast: rollout invalid 74% -> 29%, groups 25 -> 56, rollouts 1% -> 15%, grad norm
       1.2 -> 0.33. Step-10 eval **26.6%** (training 31.2, held-out 11x11 21.9, 15x15 26.6), eval invalid **0%** (192-token
       seeds at 10: 19.3 / 10.9 / 18.2%). Fastest terminate start so far.
+      Steps 11-14: rollouts 21% -> 37%, invalid 20% -> 5%, grad norm 0.29 -> 0.16.
     * 256M `simple` (lr=5e-6, 128 tokens, noop) started 07:13: step-0 eval **1.6%**, eval invalid 82%.
       Steps 1-3: 1-2 groups with signal, rollout invalid 93%, success ~0%: **dropped after step 3**. 256M cannot
       bootstrap the `<action>` JSON format from scratch (500M could: 9-16 groups at steps 1-4).
@@ -304,6 +305,7 @@
       held-out 11x11 40.6, 15x15 17.2), 0.1% invalid. Holding at ~30%.
       Steps 46-49: rollouts 28% -> 33%, invalid 16% -> 12%, grad norm 0.05.
       Step-50 eval **28.6%**; rollouts 34%. Past step 50, still flat at ~30% greedy.
+      Steps 51-55: rollouts 28-41%, invalid 11% -> 9%, grad norm 0.05. Step-55 eval **29.2%**, 0% invalid.
     * 256M `compact` (absolute goal, lr=5e-6, noop) started 20:46: step-0 eval 0.5% (95% invalid). Steps 1-4: groups
       with signal 19 -> 38, rollout invalid 77% -> 66%, success 2% -> 6%. Step-5 eval **2.6%** (training 1.6, held-out
       11x11 0.0, 15x15 6.2), eval invalid **49%**. Same model, lr and step with `compact_rel`: **16.2%**, 12% invalid.
