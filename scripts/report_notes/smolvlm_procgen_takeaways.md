@@ -278,6 +278,9 @@
       evals with a ~3-point error bar).
       Steps 1-5: rollout invalid 85% -> 74%, grad norm 1.07 -> 0.34, ~214 s/step (64 groups: ~100-125 s). Step-5 eval
       **11.5%** (training 17.2, held-out 11x11 6.2, 15x15 10.9), 52% invalid (64-group seeds at 5: 14.6 / 5.7 / 6.8%).
+    * 500M **`compact` (absolute goal) + terminate** (GPU0, started 07:32): step-0 eval **1.0%**, **78% invalid**
+      (compact_rel at step 0: 7.8-11.5%, ~52% invalid). The absolute-coordinate prompt starts with far fewer valid
+      replies; the queue's step-3 signal check decides whether terminate can learn from it.
     * 256M `simple` (lr=5e-6, 128 tokens, noop) started 07:13: step-0 eval **1.6%**, eval invalid 82%.
       Steps 1-3: 1-2 groups with signal, rollout invalid 93%, success ~0%: **dropped after step 3**. 256M cannot
       bootstrap the `<action>` JSON format from scratch (500M could: 9-16 groups at steps 1-4).
