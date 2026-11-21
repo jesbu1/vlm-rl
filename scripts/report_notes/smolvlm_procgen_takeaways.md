@@ -323,6 +323,10 @@
       Steps 26-30: rollout invalid 27% -> 23%, rollouts 16-22%, grad norm ~0.06. Step-30 eval **32.3%** (training 34.4,
       held-out 11x11 31.2, 15x15 31.2), 5% invalid (128 x 16 at 30: 30.2%). Evals of the two 2048-episode runs
       cross back and forth within noise; neither is clearly above the 64 x 16 seeds at the same step.
+      Steps 31-35: rollout invalid 22% -> 16%, rollouts 19% -> 30%, grad norm 0.05-0.07. Step-35 eval **32.8%**
+      (training 37.5, held-out 11x11 26.6, 15x15 34.4), 0.3% invalid (64 x 16 seeds at 35: 29.7 / 30.2 / 29.7%).
+      RAM: trainer RSS grows with episode length in the 2048-episode runs (42 and 36 GB now, from ~30); ~88 GB
+      available, guard at 30 GB.
     * 256M `simple` (lr=5e-6, 128 tokens, noop) started 07:13: step-0 eval **1.6%**, eval invalid 82%.
       Steps 1-3: 1-2 groups with signal, rollout invalid 93%, success ~0%: **dropped after step 3**. 256M cannot
       bootstrap the `<action>` JSON format from scratch (500M could: 9-16 groups at steps 1-4).
