@@ -235,7 +235,8 @@
       40 (31.2 / 30.2 / 30.2%), with grad norm ~3-4x higher and a mid-run wobble. Most of the stability comes from the
       lower lr (noop at 1e-5 drifted from step 26 and did not recover); terminate adds a smoother run and a few points.
       (vLLM EngineDeadError in the log is from shutdown after the run ended.)
-    * Queued next on GPU1: best recipe with **64 tokens, no parse_last** (does the 192-token reasoning budget matter?).
+    * 500M compact_rel terminate lr=5e-6 with **64 tokens, no parse_last** (GPU1, started 23:24): does the 192-token
+      reasoning budget matter? Step-0 eval **4.2%** (192 tokens + parse_last, seed 0: 7.8%).
     * 256M `simple` (lr=5e-6, 128 tokens, noop) started 07:13: step-0 eval **1.6%**, eval invalid 82%.
       Steps 1-3: 1-2 groups with signal, rollout invalid 93%, success ~0%: **dropped after step 3**. 256M cannot
       bootstrap the `<action>` JSON format from scratch (500M could: 9-16 groups at steps 1-4).
@@ -296,6 +297,7 @@
       Steps 41-45: rollouts 22-28%, invalid 20% -> 15%, grad norm 0.05-0.06. Step-45 eval **29.7%** (training 31.2,
       held-out 11x11 40.6, 15x15 17.2), 0.1% invalid. Holding at ~30%.
       Steps 46-49: rollouts 28% -> 33%, invalid 16% -> 12%, grad norm 0.05.
+      Step-50 eval **28.6%**; rollouts 34%. Past step 50, still flat at ~30% greedy.
     * 256M `compact` (absolute goal, lr=5e-6, noop) started 20:46: step-0 eval 0.5% (95% invalid). Steps 1-4: groups
       with signal 19 -> 38, rollout invalid 77% -> 66%, success 2% -> 6%. Step-5 eval **2.6%** (training 1.6, held-out
       11x11 0.0, 15x15 6.2), eval invalid **49%**. Same model, lr and step with `compact_rel`: **16.2%**, 12% invalid.
