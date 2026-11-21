@@ -1,43 +1,47 @@
-_Metaworld (Farama, Sawyer arm) through the same text protocol and trainer, AWS Batch; wandb project
-`tri/vlm-rl-metaworld`. Numbers as of 2026-11-20._
+Metaworld (Farama, Sawyer arm), same trainer and text protocol; wandb project `tri/vlm-rl-metaworld`.
 
-**Setup**
-* **Observation each turn:** one 224×224 frame, a center crop of a 640×480 render from the `corner` camera,
-  plus `Gripper: open|closed. Last move: dx=…, dy=…, dz=… (cm). Move:`.
-  * No absolute coordinates are given, and the goal is visible only in the image.
-  * Only the current turn is in context (`max_frames=1`): earlier frames and replies are dropped.
-* **Reply:** `{"dx", "dy", "dz", "grip"}` (`compact_rel`). The env moves the hand there (at most 10 cm per turn) and
-  holds the grip. 15 turns per episode.
-* **Reward `pref_mw`:** within each GRPO group, rollouts are compared on Metaworld's own ground truth.
-  * Success beats failure; otherwise the higher dense reward at the final state wins (log scale, 2% tie margin).
-  * An episode that ended on an invalid reply ranks last.
-  * Win rates become the scores, so a group has a signal even when nothing succeeds.
-* **Training:** 16 groups × 8 per step, 40-60 steps; per-turn samples trained on the exact sampled token ids.
+**What the model sees and does** (one turn = one image, no history)
+* **Input:** the task instruction, a 224×224 corner-camera frame, and `Gripper: open. Last move: dx=+2.0, dy=…, dz=…`.
+  No coordinates are given; the goal is visible only in the image.
+* **Reply:** `{"dx": 3.0, "dy": -2.0, "dz": -1.0, "grip": "open"}`, a hand move in cm (at most 10 per turn).
+* **Episode:** 15 turns, ending early on Metaworld's `success`.
 
-**ML1 reach** (50 goal positions to train on; eval = 32 greedy episodes on held-out positions and on train positions)
+**Reward: preferences from Metaworld's ground truth (`reward=pref_mw`)**
 
-| model | eval success, held-out / train positions | notes |
+Each GRPO group is 8 rollouts from the same start (same goal position and seed).
+1. **Score every rollout** by its final state: `s = 10·success + log(0.001 + r_final)`. Here `r_final` is Metaworld's
+   dense reward (0–10) at the last step. An episode ended by an invalid reply gets `s = −20` (ranked last).
+2. **Compare every pair:** `P(i beats j) = sigmoid((s_i − s_j) / 0.1)`, a tie (0.5) if `|s_i − s_j| < 0.02`.
+   On the log scale that means "within 2%", so 0.026 vs 0.033 (hand 26 vs 24 cm from the puck) still counts.
+3. **Win rate:** each rollout's reward is its mean `P(i beats j)` over the other 7, in [0, 1].
+4. **GRPO:** advantages are z-scored within the group; a group with no spread (all tied) is dropped.
+
+*Example (4 rollouts):*
+
+| rollout | r_final | s | reward | advantage |
+|---|---|---|---|---|
+| invalid reply | — | −20 | 0 | −1.34 |
+| no success | 0.03 | −3.5 | 1/3 | −0.45 |
+| no success | 0.07 | −2.6 | 2/3 | +0.45 |
+| success | 9.8 | 12.3 | 1 | +1.34 |
+
+* **Why this works:** with temperature 0.1 on log rewards this is essentially a *ranking* by final progress (success
+  first), soft only between near-equal outcomes. Every group has a signal even when nothing succeeds. A sparse success
+  reward gave none (Metaworld success starts at 0%).
+* **Loss:** each trajectory weighs the same (`loss_agg=traj_mean`), its turns trained on the exact sampled tokens.
+
+**Results, ML1 reach** (eval = 32 greedy episodes on held-out / training goal positions)
+
+| run | eval, held-out / train | notes |
 |---|---|---|
-| **Qwen3.5-4B, LoRA on MLPs, lr 1e-5, `traj_mean`** (100 steps) | 0 (steps 0-15) → 0.38 / 0.28 (20) → 0.41 / 0.62 (40) → 0.47 / 0.78 (60) → 0.62 / 0.97 (85) → **0.94 / 0.91 (95)** → 0.56 / 0.81 (100) | training rollouts 0.77 at step 100, 0% invalid, trainer−vLLM gap −0.006. Greedy eval (32 episodes) is jumpy: one dip to 0.09 / 0.19 at step 45 while rollouts held at 0.33 |
-| Qwen3.5-4B, LoRA on MLPs, lr 2e-5 | 0 → **0.34 / 0.50** (step 25) → 0.03 / 0.12 (step 40) | one update at step 24 sharpened the policy (mean log-prob −0.39 → −0.07), then it degraded |
-| Qwen3.5-4B, lr 2e-5 + KL 0.05 | 0 through step 60 | samples successes (rollouts 0.06-0.21) but greedy eval stays 0: the KL holds it too close to the base model |
-| Qwen3-VL-2B, full FT, lr 5e-6, T=1.2 | 0 → **0.31 / 0.25** (step 10), 0.28 / 0.31 to step 40 | froze once the policy became deterministic (every group tied) |
-| same, sparse success reward | 0 throughout | success starts at 0, so no group ever has a signal |
+| **Qwen3.5-4B LoRA (MLPs), lr 1e-5** | 0 (steps 0–15) → 0.47 / 0.78 (60) → **0.94 / 0.91 (95)** → 0.56 / 0.81 (100) | rollouts 0.77 at step 100; greedy eval is jumpy (32 episodes). Live: extended to 200 steps |
+| same, lr 2e-5 | 0 → 0.34 / 0.50 (25) → 0.03 / 0.12 (40) | one update sharpened the policy, then it degraded |
+| same, lr 2e-5 + KL 0.05 | 0 throughout | KL too strong: held near the base model |
+| Qwen3-VL-2B full FT, lr 5e-6 | 0 → 0.31 / 0.25 (10), flat after | became deterministic: every group tied |
 
-* Zero-shot, every model scores ~0 on ML1 push, ML10 and ML45 (Qwen3-VL-2B/4B, Gemma 4 E2B; `pear` and
-  `compact` prompts). Before `compact_rel`, models copied the hand's absolute position as the "move".
-* **Push has not learned yet** with any model or reward: the hand never gets near the puck, where the dense reward
-  starts to vary.
-
-**ML10** (train on its 10 tasks; eval on them and on 5 held-out tasks): slow. lr 1e-5 reaches 0.08-0.12 on the
-training tasks (steps 50-95) and 0 on the held-out tasks throughout; the KL run stays at 0.04-0.06; 32 groups per step
-is flat at 0.04 through step 30. With 16 groups over 10 tasks each task gets 1-2 groups
-per step; a 32-group run at lr 1e-5 is live. All runs here: Qwen3.5-4B, per-trajectory loss weighting
-(`loss_agg=traj_mean`).
-
-**Bugs found on the way** (all fixed):
-* Mirrored frames: a 180°-rolled camera needs a rotation, not a row flip.
-* One GL context per simulator (out of GPU memory).
-* `pref_mw` rewarding invalid endings.
-* Re-tokenized replies: 90% of Qwen3.5's sampled replies use a non-canonical token split.
-* Slow linear-attention kernels for Qwen3.5 in the trainer.
+* **Zero-shot is ~0 for every model.** Push has not learned with any model or reward.
+* **ML10** (10 training tasks; eval on them and on 5 held-out tasks) reaches only 0.08–0.12 on its training tasks and 0
+  on held-out tasks.
+* **Live:**
+  * Push and ML10 started from the trained reach adapter.
+  * The reach recipe on Qwen3-VL-4B (LoRA), Qwen3-VL-2B and Gemma 4 E2B (full FT).

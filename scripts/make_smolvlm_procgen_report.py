@@ -52,6 +52,7 @@ RELATED_GROUPS = "pointmaze-small-fft-batch-v1,pointmaze-small-fft-batch-v2,poin
 RELATED_PROCGEN_GROUPS = "procgen-fft-larger-v1,procgen-fft-larger-v1-lr1e-6"   # before the loss-mask fix
 FIXED_PROCGEN_GROUPS = "procgen-fft-v2,procgen-fft-larger-v2-maskfix"           # after it (commit 2e2b7d2)
 MASK_NOTE = "scripts/report_notes/mask_bug.md"
+SUMMARY = "scripts/report_notes/summary.md"
 METAWORLD = "scripts/report_notes/metaworld.md"
 METAWORLD_PROJECT = "vlm-rl-metaworld"
 # (runset label, wandb group, optional run-ID filter): the runs that learned from 0 (corrected camera, compact_rel,
@@ -160,44 +161,42 @@ def prompt_blocks(a, wr) -> list:
     md = prompt_md()
     if os.path.exists(PROMPT_RESULTS):
         md += "\n\n" + open(PROMPT_RESULTS).read()
-    return [wr.H1("Prompts compared"), wr.MarkdownBlock(md)]
+    return [wr.H2("Prompts compared (exact text)"), wr.MarkdownBlock(md)]
+
+
+RELATED_PROCGEN = [("Qwen3-VL-2B, lr 5e-6", "procgen-fft-v2-diag", ["7273b286"]),
+                   ("MiniCPM-V 4.6, lr 1e-6", "procgen-fft-v3-exact", ["23055312"]),
+                   ("Gemma 4 E2B, lr 1e-6", "procgen-fft-v2", ["3e97482a"]),
+                   ("SmolVLM2-2.2B, lr 5e-6, traj_mean", "procgen-fft-v3-exact-trajmean", ["e320a919"])]
+RELATED_FIXED = [("SmolVLM2-500M (UMaze, medium)", "smolvlm2-fixed-maze-v1", ["da33c51b", "86e6b888"]),
+                 ("SmolVLM2-2.2B traj_mean (UMaze, medium)", "smolvlm2-fixed-maze-v1-trajmean", ["73150cd4", "1eb55355"]),
+                 ("SmolVLM2-2.2B traj_mean + KL (UMaze, medium)", "smolvlm2-fixed-maze-v1-trajmean-kl",
+                  ["f118986b", "077253d8"])]
+
+
+def pinned(a, wr, label, group, run_ids=None, project=None):
+    """A runset of one wandb group, optionally pinned to run IDs (groups can mix models / restarts)."""
+    f = f"Group == '{group}'" + (" and ID in [" + ", ".join(f"'{i}'" for i in run_ids) + "]" if run_ids else "")
+    return wr.Runset(entity=a.entity, project=project or a.project, name=label, filters=f)
 
 
 def related_blocks(a, wr) -> list:
-    """Companion experiments (other models, fixed mazes) with their own live panels, after the prompts."""
+    """Other models on mazes (after the loss-mask fix): short notes + one grid each for procedural and fixed mazes."""
     if not a.related or not os.path.exists(a.related):
         return []
-    groups = [g for g in a.related_groups.split(",") if g]
-
-    def rs(g, label=""):
-        return wr.Runset(entity=a.entity, project=a.project, name=g + label, filters=hide(f"Group == '{g}'"))
-    keys = [("eval/success", "Eval success (greedy, 32 episodes)"), ("rollout/invalid_frac", "Invalid replies"),
-            ("rollout/success", "Training rollout success (T=1)"), ("train/grad_norm", "Gradient norm")]
-    procgen = [g for g in a.related_procgen_groups.split(",") if g]
-    fixed = [g for g in a.fixed_procgen_groups.split(",") if g]
-    set_keys = [("eval/success", "Eval success (mean of 3 sets)"), ("eval/id_layouts/success", "id_layouts"),
-                ("eval/ood_layouts/success", "ood_layouts (held-out 11x11)"),
-                ("eval/ood_larger/success", "ood_larger (held-out 15x15)"),
-                ("rollout/invalid_frac", "Invalid replies"), ("rollout/groups_kept", "Groups with signal")]
-    def procgen_panels():
-        return tile([wr.LinePlot(title=t, x="Step", y=[k], max_runs_to_show=30) for k, t in set_keys]
-                    + [wr.LinePlot(title="Mean log-prob of trained tokens", x="Step", y=["train/mean_logp"],
-                                   max_runs_to_show=30),
-                       wr.BarPlot(title="Latest eval success per set", metrics=[k for k, _ in set_keys[1:4]],
-                                  orientation="h", max_runs_to_show=30)])
-
+    set_keys = [("eval/success", "Eval success (mean of 3 sets)"), ("eval/id_layouts/success", "training layouts"),
+                ("eval/ood_layouts/success", "held-out 11x11"), ("eval/ood_larger/success", "held-out 15x15"),
+                ("rollout/invalid_frac", "Invalid replies"), ("train/mean_logp", "Mean log-prob of trained tokens")]
+    fixed_keys = [("eval/success", "Eval success (fixed maze)"), ("rollout/success", "Training rollout success"),
+                  ("rollout/invalid_frac", "Invalid replies"), ("train/mean_logp", "Mean log-prob of trained tokens")]
+    line = lambda k, t: wr.LinePlot(title=t, x="Step", y=[k], max_runs_to_show=30)
     return [
-        wr.H1("Related runs: other models and fixed mazes (AWS Batch)"),
+        wr.H1("Other models on mazes (AWS Batch)"),
         wr.MarkdownBlock(open(a.related).read()),
-        *([wr.H2("Larger models on the procedural setup, after the mask fix (live)"),
-           wr.PanelGrid(runsets=[rs(g) for g in fixed], panels=procgen_panels())] if fixed else []),
-        *([wr.H2("Larger models on the procedural setup, before the mask fix (live; full-FT runs carry the bug)"),
-           wr.PanelGrid(runsets=[rs(g, " (mask bug)") for g in procgen], panels=procgen_panels())] if procgen else []),
-        wr.H2("Fixed mazes (live; full-FT runs before the mask fix)"),
-        wr.PanelGrid(runsets=[rs(g, " (mask bug)") for g in groups],
-                     panels=tile([wr.LinePlot(title=t, x="Step", y=[k], max_runs_to_show=30) for k, t in keys]
-                                 + [wr.BarPlot(title="Latest eval success", metrics=["eval/success"], orientation="h",
-                                               max_runs_to_show=30)], per_row=5)),
+        wr.H2("Procedural mazes"),
+        wr.PanelGrid(runsets=[pinned(a, wr, *x) for x in RELATED_PROCGEN], panels=tile([line(*x) for x in set_keys], 3)),
+        wr.H2("Single fixed mazes, 100 steps"),
+        wr.PanelGrid(runsets=[pinned(a, wr, *x) for x in RELATED_FIXED], panels=tile([line(*x) for x in fixed_keys])),
     ]
 
 
@@ -207,8 +206,7 @@ def metaworld_blocks(a, wr) -> list:
         return []
 
     def rs(label, group, run_ids=None):
-        f = f"Group == '{group}'" + (" and ID in [" + ", ".join(f"'{i}'" for i in run_ids) + "]" if run_ids else "")
-        return wr.Runset(entity=a.entity, project=METAWORLD_PROJECT, name=label, filters=f)
+        return pinned(a, wr, label, group, run_ids, project=METAWORLD_PROJECT)
     reach = [("eval/heldout_positions/success", "Reach: eval on held-out goal positions"),
              ("eval/train_positions/success", "Reach: eval on training positions"),
              ("rollout/success", "Training rollout success (T=1.2)"), ("rollout/invalid_frac", "Invalid replies"),
@@ -218,7 +216,7 @@ def metaworld_blocks(a, wr) -> list:
              ("eval/heldout_tasks/success", "ML10: eval on its 5 held-out tasks")]
     best = rs("best run: Qwen3.5-4B reach (lr 1e-5)", METAWORLD_BEST_RUN[0], [METAWORLD_BEST_RUN[1]])
     return [
-        wr.H1("Metaworld: ML1 reach and ML10 (Sawyer arm)"),
+        wr.H1("Metaworld: reach learns; push and ML10 not yet"),
         wr.MarkdownBlock(open(METAWORLD).read()),
         wr.H2("Curves (live)"),
         wr.PanelGrid(runsets=[rs(*x) for x in METAWORLD_RUNSETS],
@@ -256,7 +254,7 @@ def build(a) -> str:
     def episode_blocks(split, title):
         tag = split.replace("/", " ")
         return [
-            wr.H2(title),
+            wr.H3(title),
             grid([wr.MediaBrowser(title=f"{tag} video", media_keys=[f"{split}/episode"], num_columns=1,
                                   layout=wr.Layout(x=0, y=0, w=10, h=10)),
                   wr.MediaBrowser(title=f"{tag} transcript", media_keys=[f"{split}/transcript"], num_columns=1,
@@ -271,62 +269,47 @@ def build(a) -> str:
 
     blocks = [
         wr.TableOfContents(),
-        *([wr.MarkdownBlock(open(MASK_NOTE).read())] if os.path.exists(MASK_NOTE) else []),
-        wr.H1("Takeaways"),
+        *([wr.H1("Summary"), wr.MarkdownBlock(open(SUMMARY).read())] if os.path.exists(SUMMARY) else []),
+        *metaworld_blocks(a, wr),
+        wr.H1("Procedural mazes: SmolVLM-256M (main study)"),
         wr.MarkdownBlock(f"_Text written {stamp}; the panels below are live and may have moved on since._\n\n"
                          + takeaways),
-        *prompt_blocks(a, wr),
-        *related_blocks(a, wr),
-        *metaworld_blocks(a, wr),
-        wr.H1("Headline: greedy eval success"),
-        bullets("One line per run; run names give prompt and lr (runs named only `lr=...` use `compact`).",
-                "Eval = greedy, mean of 3 sets; rollout = T=1 training episodes."),
-        grid(lines(["eval/success", "rollout/success"],
-                   ["Eval success (greedy, mean of 3 sets)", "Training rollout success (T=1)"])),
-        wr.H1("By prompt: absolute vs relative goal"),
-        bullets("Runs grouped by `env_kwargs.prompt_style` and model (SmolVLM2-500M kept separate): line = mean over "
-                "runs, band = min/max.",
-                "`compact` echoes the absolute goal: eval stays < 7%. `compact_rel`: the echo is the straight-line "
-                "move, ~20-25% (the band's floor late on is the degenerated lr=3e-5 run)."),
+        wr.H2("Eval success and generalization"),
+        bullets("One line per run; run names give prompt and lr (runs named only `lr=...` use `compact`). Eval = "
+                "greedy, mean of 3 sets; rollout = T=1 training episodes.",
+                "Memorizing the training layouts would show as `id_layouts` >> the held-out sets; similar curves = the "
+                "skill transfers to unseen (and larger) mazes."),
+        grid(lines(["eval/success", "rollout/success"], ["Eval success (greedy, mean of 3 sets)",
+                                                         "Training rollout success (T=1)"])
+             + lines(set_keys, [f"{s}: {d}" for s, d in SETS.items()])
+             + [wr.BarPlot(title="Latest eval success per set", metrics=set_keys, orientation="h",
+                           max_runs_to_show=20)]),
+        wr.H2("By prompt: absolute vs relative goal"),
+        bullets("Grouped by `env_kwargs.prompt_style` and model: line = mean over runs, band = min/max. `compact` "
+                "echoes the absolute goal (< 7%); `compact_rel` turns the echo into the straight-line move (~20-25%)."),
         grid(lines(["eval/success", "rollout/success", "rollout/invalid_frac", "train/mean_logp"],
                    ["Eval success by prompt", "Rollout success by prompt", "Invalid replies by prompt",
                     "Mean log-prob of sampled tokens by prompt"],
                    groupby_aggfunc="mean", groupby_rangefunc="minmax"), by_prompt),
-        wr.H1("Generalization: in vs out of distribution"),
-        bullets("Memorizing the training layouts would show as `id_layouts` >> the held-out sets.",
-                "Similar curves = the skill transfers to unseen (and larger) mazes."),
-        grid(lines(set_keys, [f"{s}: {d}" for s, d in SETS.items()])
-             + [wr.BarPlot(title="Latest eval success per set", metrics=set_keys, orientation="h",
-                           max_runs_to_show=20)]),
-        wr.H1("Learning dynamics"),
-        bullets("`groups_kept`: groups (of 64) with mixed outcomes, the only ones with a GRPO signal.",
-                "`mean_logp` falling steadily = sampling ever-less-likely tokens; it preceded the lr=3e-5 collapse "
-                "(-2.3 -> -8.3) and is the early warning to watch.",
-                "`grad_norm` spikes = unstable updates (gradients are clipped at 1.0)."),
-        grid(lines(["rollout/groups_kept", "train/grad_norm", "train/mean_logp", "rollout/invalid_frac"])),
-        wr.H1("Behaviour"),
-        bullets("Turns per episode: lower = faster solves; 20 (30 on `ood_larger`) = timed out.",
-                "A policy stuck against a wall repeats the same move until max_turns.",
-                "Reply length jumps when replies degenerate into free text."),
-        grid(lines(["eval/turns", "rollout/turns", "rollout/end_success", "rollout/end_max_turns",
-                    "rollout/resp_chars"])),
-        wr.H1("Episodes: videos, transcripts and sampled actions"),
-        bullets("Per split: episode video (step slider; caption = success / turns / end reason) next to its "
-                "transcript (exact prompts and replies).",
-                "Below each: the samples table, one row per logged episode (4 per eval) across runs and steps; sort "
-                "by success to compare wins and failures.",
-                "Train = T=1 samples, eval = greedy. Look for: `compact` repeating the goal's absolute coordinates; "
-                "`compact_rel` copying the offset; lr=3e-5 gibberish from step 17."),
-        *[blk for name, title in [("train", "Training rollouts (T=1)")] + [(f"eval/{s}", f"Eval {s}: {d}")
-                                                                      for s, d in SETS.items()]
+        wr.H2("Training dynamics, behaviour and cost"),
+        bullets("`groups_kept`: groups with mixed outcomes (the only ones with a GRPO signal). `mean_logp` falling "
+                "steadily is the early warning of a collapse; `grad_norm` spikes = unstable updates (clipped at 1.0).",
+                "Turns: lower = faster solves, 20 (30 on `ood_larger`) = timed out. Reply length jumps when replies "
+                "degenerate into free text. Time: seconds per step for rollouts and the update."),
+        grid(lines(["rollout/groups_kept", "train/grad_norm", "train/mean_logp", "rollout/invalid_frac",
+                    "rollout/turns", "rollout/resp_chars", "time/rollout", "time/train"])),
+        wr.H2("Episodes: videos, transcripts and samples"),
+        bullets("Video (step slider; caption = success / turns / end reason) next to its transcript; the samples "
+                "table below has one row per logged episode across runs and steps (sort by success)."),
+        *[blk for name, title in [("train", "Training rollouts (T=1)"),
+                                  ("eval/ood_larger", f"Eval ood_larger: {SETS['ood_larger']}")]
           for blk in episode_blocks(name, title)],
-        wr.H1("Cost"),
-        bullets("Seconds per step for rollouts (incl. DAPO resampling) and the update; sequences trained and "
-                "resampling rounds per step."),
-        grid(lines(["time/rollout", "time/train", "train/sequences", "rollout/rounds"])),
-        wr.H1("Setup"),
+        *related_blocks(a, wr),
+        wr.H1("Reference"),
+        *prompt_blocks(a, wr),
+        wr.H2("Setup"),
         wr.MarkdownBlock(SETUP),
-        wr.H1("Runs"),
+        wr.H2("Runs"),
         grid([wr.RunComparer(diff_only=True)]),
     ]
     report = wr.Report(entity=a.entity, project=a.project, title=a.title, blocks=blocks, width="fluid",
@@ -347,7 +330,7 @@ def main():
     ap.add_argument("--group", default="smolvlm-procgen-v2")   # v1 predates the loss-mask fix
     ap.add_argument("--entity", default="tri")
     ap.add_argument("--project", default="vlm-rl-pointmaze")
-    ap.add_argument("--title", default="SmolVLM-256M learns procedural mazes from sparse reward")
+    ap.add_argument("--title", default="VLM RL on mazes and Metaworld: what learns, what doesn't, and why")
     ap.add_argument("--takeaways", default=TAKEAWAYS, help="markdown file for the takeaways section")
     ap.add_argument("--url", default=None,
                     help="report to update in place (default: REPORT_URL, or a new report with --draft; '' = new)")
