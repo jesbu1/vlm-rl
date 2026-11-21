@@ -57,11 +57,14 @@ METAWORLD = "scripts/report_notes/metaworld.md"
 METAWORLD_PROJECT = "vlm-rl-metaworld"
 # (runset label, wandb group, optional run-ID filter): the runs that learned from 0 (corrected camera, compact_rel,
 # pref_mw) and the live v3 runs (reach + ML10)
-METAWORLD_RUNSETS = [("Qwen3.5-4B reach (lr 2e-5)", "metaworld-ml1-q35-mlp-v2-lr2e-5", ["3737934e"]),
-                     ("Qwen3-VL-2B reach (pref_mw; T=1.2, T=1.0)", "metaworld-ml1-v3", ["76099ceb", "90edea52"]),
-                     ("Qwen3.5-4B v3 + KL (reach, ML10; live)", "metaworld-q35-v3-kl", None),
-                     ("Qwen3.5-4B v3 lr 1e-5 (reach, ML10; live)", "metaworld-q35-v3-lr1e-5", None),
-                     ("Qwen3.5-4B v3 ML10, 32 groups (live)", "metaworld-q35-v3-ml10-g32", None)]
+METAWORLD_RUNSETS = [("Qwen3.5-4B reach, lr 1e-5", "metaworld-q35-v3-lr1e-5", ["f1bc2e04"]),
+                     ("Qwen3.5-4B reach, lr 2e-5 (degrades)", "metaworld-ml1-q35-mlp-v2-lr2e-5", ["3737934e"]),
+                     ("Qwen3.5-4B ML10 from scratch", "metaworld-q35-v3-lr1e-5", ["147bb6b9"]),
+                     ("Qwen3.5-4B ML10 from the reach adapter", "metaworld-q35-v4-ml10-from-reach", None),
+                     ("Qwen3.5-4B push from the reach adapter (T=1.6)", "metaworld-q35-v4-push-from-reach-t16", None),
+                     ("Gemma 4 E2B reach (T=1.6)", "metaworld-reach-gemma4-t16", None),
+                     ("Qwen3-VL-2B reach (T=1.6)", "metaworld-reach-q3vl2b-t16", None),
+                     ("Qwen3-VL-4B reach (T=2.0, lr 5e-6)", "metaworld-reach-q3vl4b-t20", None)]
 METAWORLD_BEST_RUN = ("metaworld-q35-v3-lr1e-5", "f1bc2e04")   # Qwen3.5-4B reach, lr 1e-5: held-out 0.41 at step 30
 # Restarts that crashed or failed within a few steps and were rerun under the same name (infrastructure: vLLM reload
 # errors, port collisions); hidden so every panel shows one line per configuration.
