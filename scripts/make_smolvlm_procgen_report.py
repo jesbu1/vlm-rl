@@ -59,8 +59,9 @@ METAWORLD_PROJECT = "vlm-rl-metaworld"
 METAWORLD_RUNSETS = [("Qwen3.5-4B reach (lr 2e-5)", "metaworld-ml1-q35-mlp-v2-lr2e-5", ["3737934e"]),
                      ("Qwen3-VL-2B reach (pref_mw; T=1.2, T=1.0)", "metaworld-ml1-v3", ["76099ceb", "90edea52"]),
                      ("Qwen3.5-4B v3 + KL (reach, ML10; live)", "metaworld-q35-v3-kl", None),
-                     ("Qwen3.5-4B v3 lr 1e-5 (reach, ML10; live)", "metaworld-q35-v3-lr1e-5", None)]
-METAWORLD_BEST_RUN = "3737934e"     # Qwen3.5-4B reach: 0 -> 0.42 mean eval
+                     ("Qwen3.5-4B v3 lr 1e-5 (reach, ML10; live)", "metaworld-q35-v3-lr1e-5", None),
+                     ("Qwen3.5-4B v3 ML10, 32 groups (live)", "metaworld-q35-v3-ml10-g32", None)]
+METAWORLD_BEST_RUN = ("metaworld-q35-v3-lr1e-5", "f1bc2e04")   # Qwen3.5-4B reach, lr 1e-5: held-out 0.41 at step 30
 # Restarts that crashed or failed within a few steps and were rerun under the same name (infrastructure: vLLM reload
 # errors, port collisions); hidden so every panel shows one line per configuration.
 HIDDEN_RUNS = ["0dcb561c", "101b2806", "f4c4f00a", "07e34721", "3539515a", "9a558a4c", "f7aa5df3", "da16b80f",
@@ -215,7 +216,7 @@ def metaworld_blocks(a, wr) -> list:
              ("train/logp_gap", "Trainer - vLLM log-prob (on-policy check)"),
              ("eval/train_tasks/success", "ML10: eval on its 10 training tasks"),
              ("eval/heldout_tasks/success", "ML10: eval on its 5 held-out tasks")]
-    best = rs("best run: Qwen3.5-4B reach", "metaworld-ml1-q35-mlp-v2-lr2e-5", [METAWORLD_BEST_RUN])
+    best = rs("best run: Qwen3.5-4B reach (lr 1e-5)", METAWORLD_BEST_RUN[0], [METAWORLD_BEST_RUN[1]])
     return [
         wr.H1("Metaworld: ML1 reach and ML10 (Sawyer arm)"),
         wr.MarkdownBlock(open(METAWORLD).read()),
