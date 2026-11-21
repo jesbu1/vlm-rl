@@ -273,6 +273,9 @@
       Terminate needs a starting format hit rate like compact_rel's (~46% valid at step 0), or an SFT warm start.
     * Replacement on GPU1: best recipe with a **2x batch** (128 groups x 16 = 2048 episodes/step): does a less noisy
       gradient lift the ~30% plateau?
+      Started 07:01. Step-0 eval **10.9%** (seed 0, same eval set as the 64-group seed-0 run, which read 7.8% at step
+      0: greedy vLLM evals of the same weights vary by a few points with batching, another reason to read single
+      evals with a ~3-point error bar).
     * 256M `simple` (lr=5e-6, 128 tokens, noop) started 07:13: step-0 eval **1.6%**, eval invalid 82%.
       Steps 1-3: 1-2 groups with signal, rollout invalid 93%, success ~0%: **dropped after step 3**. 256M cannot
       bootstrap the `<action>` JSON format from scratch (500M could: 9-16 groups at steps 1-4).
