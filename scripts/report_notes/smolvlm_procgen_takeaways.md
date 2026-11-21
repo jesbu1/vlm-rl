@@ -227,6 +227,14 @@
       invalid: greedy eval flat at 24.5-26.6% since step 10 (terminate 3 seeds at 30: 29.2 / 26.6 / 31.8%).
       Steps 31-35: rollouts 45% -> 36%, invalid 3-4%, grad norm 0.16-0.29, mean logp -0.55 -> -0.30 (sharpening fast).
       Step-35 eval **27.1%** (training 35.9, held-out 11x11 20.3, 15x15 25.0), 0% invalid.
+      Steps 36-40: rollouts 41% -> **47.5%**, invalid 4% -> 2%, grad norm 0.20-0.24, mean logp back down to -0.93.
+      Final step-40 eval **28.6%** (training 31.2, held-out 11x11 25.0, 15x15 29.7), 0% invalid. Finished without
+      collapse (one wobble at steps 24-26 that recovered). Verdict, noop vs terminate at lr=5e-6 (192 tokens + parse_last):
+      noop learns the format faster (eval 24.5% at step 10 vs 19.3 / 10.9 / 18.2%) and reaches far higher sampled rollout
+      success (~45% vs ~25%), but its greedy eval plateaus at 25-29% from step 10, slightly below terminate's ~30% at step
+      40 (31.2 / 30.2 / 30.2%), with grad norm ~3-4x higher and a mid-run wobble. Most of the stability comes from the
+      lower lr (noop at 1e-5 drifted from step 26 and did not recover); terminate adds a smoother run and a few points.
+      (vLLM EngineDeadError in the log is from shutdown after the run ended.)
     * Queued next on GPU1: best recipe with **64 tokens, no parse_last** (does the 192-token reasoning budget matter?).
     * 256M `simple` (lr=5e-6, 128 tokens, noop) started 07:13: step-0 eval **1.6%**, eval invalid 82%.
       Steps 1-3: 1-2 groups with signal, rollout invalid 93%, success ~0%: **dropped after step 3**. 256M cannot
@@ -287,6 +295,7 @@
       Continuing to step 80.
       Steps 41-45: rollouts 22-28%, invalid 20% -> 15%, grad norm 0.05-0.06. Step-45 eval **29.7%** (training 31.2,
       held-out 11x11 40.6, 15x15 17.2), 0.1% invalid. Holding at ~30%.
+      Steps 46-49: rollouts 28% -> 33%, invalid 16% -> 12%, grad norm 0.05.
     * 256M `compact` (absolute goal, lr=5e-6, noop) started 20:46: step-0 eval 0.5% (95% invalid). Steps 1-4: groups
       with signal 19 -> 38, rollout invalid 77% -> 66%, success 2% -> 6%. Step-5 eval **2.6%** (training 1.6, held-out
       11x11 0.0, 15x15 6.2), eval invalid **49%**. Same model, lr and step with `compact_rel`: **16.2%**, 12% invalid.
