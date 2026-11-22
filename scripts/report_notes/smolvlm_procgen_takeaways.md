@@ -301,6 +301,8 @@
       29.7 / 29.0 / 30.6%). Both 2048-episode layouts end ~2 points above the 1024-episode seeds, and the held-out
       15x15 split gains most (31-36% vs 19-25%), at ~2x the wall-clock (~10 h for 40 steps vs ~5 h).
     * Next on GPU1: **seed 1 of group_size 32**, so each 2048-episode layout has two seeds.
+      Started 17:34. Step-0 eval 7.3% (59% invalid). Steps 1-5: rollout invalid 81% -> 73%, grad norm ~0.3-0.5,
+      28 groups with signal at step 5. Step-5 eval **11.5%**, 58% invalid (64 x 16 seed 1 at 5: 5.7%; 128 x 16 seed 1: 9.9%).
     * 500M **`compact` (absolute goal) + terminate** (GPU0, started 07:32): step-0 eval **1.0%**, **78% invalid**
       (compact_rel at step 0: 7.8-11.5%, ~52% invalid). The absolute-coordinate prompt starts with far fewer valid
       replies; the queue's step-3 signal check decides whether terminate can learn from it.
