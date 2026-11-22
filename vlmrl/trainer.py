@@ -81,6 +81,7 @@ class TrainConfig:
     bc_success_only: bool = True                        # clone only the expert episodes that succeed
     bc_lr: float = 0.0                                  # lr during behaviour cloning (0 = lr)
     bc_dagger_steps: int = 0                            # the last N of bc_steps run the current clone, labelled by the expert (DAgger)
+    bc_noise: float = 0.0                               # DART: noise (std, action units: cm on Metaworld) on the expert's executed moves
     micro_batch_size: int = 1                           # sequences per forward/backward
     # generation
     max_new_tokens: int = 256
@@ -597,7 +598,7 @@ class Trainer:
             trajs = expert_rollout(self.env, self.bundle.interface, self.bundle.expert, starts,
                                    list(range(len(starts))), self.bundle.max_turns,
                                    generate=self._gen(c.temperature) if dagger else None, max_images=c.max_images,
-                                   max_frames=c.max_frames, thinking=self._thinking)
+                                   max_frames=c.max_frames, thinking=self._thinking, noise=c.bc_noise, rng=rng)
             succ.append(float(np.mean([t.success for t in trajs])))
             if dagger:   # every turn has the expert's label for the state the clone reached, failed episodes included
                 keep = trajs

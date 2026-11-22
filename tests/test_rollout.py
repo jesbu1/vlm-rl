@@ -265,3 +265,13 @@ def test_expert_rollout_dagger_executes_the_policy_and_records_the_expert(umaze,
         if len(executed) > 1:
             assert np.allclose(executed[1], expert)                                           # invalid -> expert's
     assert calls[0] == 2
+
+
+def test_expert_rollout_dart_noise_perturbs_execution_not_labels(umaze, rng):
+    from vlmrl.rollout import expert_rollout
+    itf, expert = umaze.interface, np.array([0.3, -0.1])
+    trajs = expert_rollout(umaze.make_vec_env(), itf, lambda env, k: expert, umaze.train_sampler.sample(2, rng),
+                           [0, 1], 4, noise=0.2, rng=np.random.default_rng(1))
+    turns = [t for tr in trajs for t in tr.turns]
+    assert all(np.allclose(itf.parse_action(t.response), itf.parse_action(itf.format_action(expert))) for t in turns)
+    assert all(not np.allclose(t.action[:2], itf.parse_action(t.response)[:2]) for t in turns)   # executed: noisy

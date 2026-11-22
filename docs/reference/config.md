@@ -77,6 +77,7 @@ Every field of `vlmrl.trainer.TrainConfig`, the Hydra schema. Set any of them on
 | `bc_success_only` | `bool` | `True` | clone only the expert episodes that succeed |
 | `bc_lr` | `float` | `0.0` | lr during behaviour cloning (0 = lr) |
 | `bc_dagger_steps` | `int` | `0` | the last N of bc_steps run the current clone, labelled by the expert (DAgger) |
+| `bc_noise` | `float` | `0.0` | DART: noise (std, action units: cm on Metaworld) on the expert's executed moves |
 | `micro_batch_size` | `int` | `1` | sequences per forward/backward |
 
 ## generation

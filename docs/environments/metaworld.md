@@ -84,8 +84,14 @@ scratch gets no signal. The clone is saved as `ckpt_bc` (reusable with `init_ada
 
 **DAgger** (`bc_dagger_steps=K`): the last K of the `bc_steps` roll out the current clone instead of the expert; the
 expert labels every state the clone reaches, and those labels are trained on (failed episodes included). A pure clone
-of push succeeds 0.22 where its expert succeeds 0.61. One move off the expert's path leads to states the expert data
-never shows: the clone keeps pushing down after the hand has reached the puck.
+of push succeeds 0.22 where its expert succeeds 0.61: it keeps sending the drop move after the hand is already on the
+table, a state the expert never visits. **DAgger made it worse** (push 0.22 → 0.00, ML10 0.12 → 0.04 after 20
+steps; log-prob of the labels −0.09 → −0.50). The scripted experts are state machines with sharp thresholds on
+privileged state (push: more than 2 cm from the puck in x/y means "go back up 20 cm"), so in the clone's states nearly
+identical images get opposite labels.
+
+**DART** (`bc_noise=σ`): the expert drives, with Gaussian noise of σ cm added to each executed move; the transcript
+keeps the expert's clean reply. The states stay near the expert's path (consistent labels) but include small slips.
 
 The experts are tuned for closed-loop control at every simulator step. Through coarse waypoints, a binary gripper and 15
 turns, precise grasp-and-place tasks lose the most. Treat these as the ceiling of the protocol, not of a learned policy.

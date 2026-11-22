@@ -179,7 +179,8 @@ def rollout_pooled(generate: Generate, tasks: Sequence[RolloutTask], max_images:
 def expert_rollout(env: VecEnv, interface: TextInterface, expert: Callable, start_states: Sequence[dict],
                    group_ids: Sequence[int], max_turns: int, generate: Generate | None = None,
                    max_images: int | None = None, max_frames: int | None = None,
-                   thinking: bool = False) -> list[Trajectory]:
+                   thinking: bool = False, noise: float = 0.0,
+                   rng: np.random.Generator | None = None) -> list[Trajectory]:
     """Episodes driven by a scripted expert through the text protocol: each turn the expert's action is written as
     the reply the model would give (``interface.format_action``) and parsed back before it is executed, so the
     transcripts have exactly the structure of ``rollout``'s and can be trained on (behaviour cloning).
@@ -188,7 +189,14 @@ def expert_rollout(env: VecEnv, interface: TextInterface, expert: Callable, star
     transcript records the expert's reply for the state the policy reached. Training on it teaches the clone to
     recover from its own mistakes, which pure cloning never shows it. The next observation's "last move" is the
     policy's; with ``max_frames=1`` no earlier reply is in the context, so the recorded labels are never seen as
-    history."""
+    history.
+
+    With ``noise`` (DART): the executed move is the expert's plus Gaussian noise of that standard deviation on the
+    move components (the first three; Metaworld's fourth, the gripper, is left alone), while the transcript keeps
+    the expert's clean reply. The episodes stay near the expert's path, where its labels are consistent, but show
+    how to recover from small slips (with DAgger, the expert's labels in the states a weak clone reaches were
+    inconsistent, and cloning them made the policy worse)."""
+    rng = rng if rng is not None else np.random.default_rng(0)
     obs = env.reset(start_states)
     trajs = [Trajectory(group_id=g, start_state=s, messages=[
         {"role": "system", "content": [{"type": "text", "text": interface.system_prompt(s)}]},
@@ -207,6 +215,9 @@ def expert_rollout(env: VecEnv, interface: TextInterface, expert: Callable, star
                 a = interface.parse_action(ans) if ans is not None else None
                 if a is not None:
                     actions[j] = a
+        elif noise > 0:
+            actions = [np.r_[np.asarray(a[:3], dtype=float) + rng.normal(0.0, noise, min(3, len(a))),
+                             np.asarray(a[3:], dtype=float)] for a in actions]   # never the gripper (Metaworld a[3])
         results = env.step(active, actions)
         still = []
         for k, text, a, res in zip(active, texts, actions, results):
