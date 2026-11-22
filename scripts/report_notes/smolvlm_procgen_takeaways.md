@@ -367,6 +367,11 @@
       Steps 26-30: rollouts 24% -> 34% -> 27%, invalid 20% -> 9%, but grad norm **rose 0.055 -> 0.113**. Step-30 eval
       **27.1%** (training 25.0, held-out 11x11 25.0, 15x15 31.2), 0% invalid: a 7-point drop from step 25, more than the
       ~3-point eval noise (64 x 16 seed 1 at 30: 26.6%). Watching for the start of a collapse.
+      Steps 31-35: grad norm back to 0.06-0.09, rollout invalid 5% -> 2%, **rollouts 33-42%** (best of any run), but
+      step-35 greedy eval fell again to **25.0%** (training 25.0, held-out 11x11 23.4, 15x15 26.6), 0% invalid
+      (64 x 16 seed 1 at 35: 30.2%). Sampled training success and greedy eval are diverging (42% vs 25%); invalid
+      replies are not the cause. Unverified guess: greedy decoding gets stuck repeating a move that sampling escapes.
+      Letting it finish at step 40.
     * 256M `simple` (lr=5e-6, 128 tokens, noop) started 07:13: step-0 eval **1.6%**, eval invalid 82%.
       Steps 1-3: 1-2 groups with signal, rollout invalid 93%, success ~0%: **dropped after step 3**. 256M cannot
       bootstrap the `<action>` JSON format from scratch (500M could: 9-16 groups at steps 1-4).
