@@ -57,16 +57,19 @@ METAWORLD = "scripts/report_notes/metaworld.md"
 METAWORLD_PROJECT = "vlm-rl-metaworld"
 # (runset label, wandb group, optional run-ID filter): the runs that learned from 0 (corrected camera, compact_rel,
 # pref_mw) and the live v3 runs (reach + ML10)
-METAWORLD_RUNSETS = [("Qwen3.5-4B reach, lr 1e-5", "metaworld-q35-v3-lr1e-5", ["f1bc2e04"]),
-                     ("Qwen3.5-4B reach, lr 2e-5 (degrades)", "metaworld-ml1-q35-mlp-v2-lr2e-5", ["3737934e"]),
-                     ("Qwen3.5-4B ML10 from scratch", "metaworld-q35-v3-lr1e-5", ["147bb6b9"]),
-                     ("Qwen3.5-4B ML10 from the reach adapter", "metaworld-q35-v4-ml10-from-reach", None),
-                     ("Qwen3.5-4B push: BC then RL", "metaworld-bc2-q35-push", None),
-                     ("Qwen3.5-4B ML10: BC then RL", "metaworld-bc2-q35-ml10", None),
-                     ("Qwen3-VL-4B reach: BC then RL", "metaworld-bc2-q3vl4b-reach", None),
-                     ("Gemma 4 E2B reach: BC then RL", "metaworld-bc2-gemma4-reach", None),
-                     ("Gemma 4 E2B reach (T=1.6)", "metaworld-reach-gemma4-t16", None),
-                     ("Qwen3-VL-2B reach (T=1.6)", "metaworld-reach-q3vl2b-t16", None)]
+METAWORLD_REACH = [("Qwen3.5-4B, RL only (lr 1e-5)", "metaworld-q35-v3-lr1e-5", ["f1bc2e04"]),
+                   ("Qwen3.5-4B, RL only (lr 2e-5: degrades)", "metaworld-ml1-q35-mlp-v2-lr2e-5", ["3737934e"]),
+                   ("Qwen3-VL-4B, BC then RL", "metaworld-bc2-q3vl4b-reach", None),
+                   ("Gemma 4 E2B, BC then RL", "metaworld-bc2-gemma4-reach", None),
+                   ("Gemma 4 E2B, RL only (T=1.6)", "metaworld-reach-gemma4-t16", None),
+                   ("Qwen3-VL-2B, RL only (T=1.6)", "metaworld-reach-q3vl2b-t16", None)]
+METAWORLD_PUSH = [("Qwen3.5-4B, BC then RL, pref_mw (RL undoes BC)", "metaworld-bc2-q35-push", None),
+                  ("Qwen3.5-4B, BC then RL, pref_mw_obj", "metaworld-bc3-q35-push", None),
+                  ("Qwen3-VL-4B, BC then RL, pref_mw_obj", "metaworld-bc3-q3vl4b-push", None)]
+METAWORLD_ML10 = [("Qwen3.5-4B, RL only", "metaworld-q35-v3-lr1e-5", ["147bb6b9"]),
+                  ("Qwen3.5-4B, RL from the reach adapter", "metaworld-q35-v4-ml10-from-reach", None),
+                  ("Qwen3.5-4B, BC then RL, pref_mw", "metaworld-bc2-q35-ml10", None),
+                  ("Qwen3.5-4B, BC then RL, pref_mw_obj", "metaworld-bc3-q35-ml10", None)]
 METAWORLD_BEST_RUN = ("metaworld-q35-v3-lr1e-5", "f1bc2e04")   # Qwen3.5-4B reach, lr 1e-5: held-out 0.41 at step 30
 # Restarts that crashed or failed within a few steps and were rerun under the same name (infrastructure: vLLM reload
 # errors, port collisions); hidden so every panel shows one line per configuration.
@@ -212,20 +215,24 @@ def metaworld_blocks(a, wr) -> list:
 
     def rs(label, group, run_ids=None):
         return pinned(a, wr, label, group, run_ids, project=METAWORLD_PROJECT)
-    reach = [("eval/heldout_positions/success", "Reach: eval on held-out goal positions"),
-             ("eval/train_positions/success", "Reach: eval on training positions"),
-             ("rollout/success", "Training rollout success (T=1.2)"), ("rollout/invalid_frac", "Invalid replies"),
-             ("train/mean_logp", "Mean log-prob of trained tokens (sharpening)"),
-             ("train/logp_gap", "Trainer - vLLM log-prob (on-policy check)"),
-             ("eval/train_tasks/success", "ML10: eval on its 10 training tasks"),
-             ("eval/heldout_tasks/success", "ML10: eval on its 5 held-out tasks")]
+    line = lambda k, t: wr.LinePlot(title=t, x="Step", y=[k], max_runs_to_show=30)
+    ml1 = [("eval/heldout_positions/success", "Eval: held-out goal positions"),
+           ("eval/train_positions/success", "Eval: training positions"),
+           ("rollout/success", "Training rollout success (sampled)"),
+           ("train/mean_logp", "Mean log-prob of trained tokens (sharpening)")]
+    ml10 = [("eval/train_tasks/success", "Eval: its 10 training tasks"),
+            ("eval/heldout_tasks/success", "Eval: its 5 held-out tasks"),
+            ("rollout/success", "Training rollout success (sampled)")]
     best = rs("best run: Qwen3.5-4B reach (lr 1e-5)", METAWORLD_BEST_RUN[0], [METAWORLD_BEST_RUN[1]])
     return [
-        wr.H1("Metaworld: reach learns; push and ML10 not yet"),
+        wr.H1("Metaworld: reach learns, push and ML10 start with behaviour cloning"),
         wr.MarkdownBlock(open(METAWORLD).read()),
-        wr.H2("Curves (live)"),
-        wr.PanelGrid(runsets=[rs(*x) for x in METAWORLD_RUNSETS],
-                     panels=tile([wr.LinePlot(title=t, x="Step", y=[k], max_runs_to_show=30) for k, t in reach])),
+        wr.H2("Reach, by model (live; BC runs start at their clone's score)"),
+        wr.PanelGrid(runsets=[rs(*x) for x in METAWORLD_REACH], panels=tile([line(*x) for x in ml1])),
+        wr.H2("Push: behaviour cloning, then RL with each preference reward"),
+        wr.PanelGrid(runsets=[rs(*x) for x in METAWORLD_PUSH], panels=tile([line(*x) for x in ml1])),
+        wr.H2("ML10 (10 training tasks, 5 held-out tasks)"),
+        wr.PanelGrid(runsets=[rs(*x) for x in METAWORLD_ML10], panels=tile([line(*x) for x in ml10], 3)),
         wr.H2("Episodes of the best reach run: video (step slider) and transcript"),
         wr.PanelGrid(runsets=[best], panels=[
             wr.MediaBrowser(title="held-out positions: video", media_keys=["eval/heldout_positions/episode"],

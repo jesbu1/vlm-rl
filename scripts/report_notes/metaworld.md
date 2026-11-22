@@ -29,42 +29,33 @@ Each GRPO group is 8 rollouts from the same start (same goal position and seed).
   first), soft only between near-equal outcomes. Every group has a signal even when nothing succeeds. A sparse success
   reward gave none (Metaworld success starts at 0%).
 * **Loss:** each trajectory weighs the same (`loss_agg=traj_mean`), its turns trained on the exact sampled tokens.
+* **Object-first variant (`reward=pref_mw_obj`), for tasks with an object.** Rollout *a* beats *b* at the first rule
+  that separates them: (1) valid reply vs invalid; (2) success; (3) the object ended **≥ 1 cm closer to its goal**
+  (Metaworld's `obj_to_target`); (4) `pref_mw`'s dense-reward rule. Rule 3 is needed on push: there the dense reward
+  at the final state is highest for *gripping the puck and holding still* (≈ 5.5), while pushing it partway and
+  losing contact scores < 2. Under `pref_mw`, RL taught exactly that (below).
 
-**Results, ML1 reach** (eval = 32 greedy episodes on held-out / training goal positions)
+**Reach** (eval = 32 greedy episodes on held-out / training goal positions; zero-shot is 0 for every model)
 
-| run | eval, held-out / train | notes |
+| model | eval, held-out / train | how |
 |---|---|---|
-| **Qwen3.5-4B LoRA (MLPs), lr 1e-5** | 0 (steps 0–15) → 0.47 / 0.78 (60) → **0.94 / 0.91 (95)** → 0.75 / 0.91 (130) → 0.53–0.72 / 0.81–0.97 (135–185) | plateau on held-out positions while training positions keep rising; rollouts ~0.78. Greedy eval is jumpy (32 episodes) |
-| Qwen3-VL-2B full FT, lr 2e-6, T=1.6 | 0 → 0.22 / 0.22 (40) → 0.19 / 0.34 (60) | slowly learning; rollouts 0.35 |
-| Gemma 4 E2B full FT, lr 1e-6, T=1.6 | 0 → 0.19 / 0.22 (30) → 0.09–0.16 (35–50) | learned some, then slipped |
-| Qwen3-VL-4B LoRA, T=2.0, lr 5e-6 | 0 | always answers dx = dy = 0 (never moves sideways), so every rollout ties |
-| same, lr 2e-5 | 0 → 0.34 / 0.50 (25) → 0.03 / 0.12 (40) | one update sharpened the policy, then it degraded |
-| same, lr 2e-5 + KL 0.05 | 0 throughout | KL too strong: held near the base model |
-| Qwen3-VL-2B full FT, lr 5e-6 | 0 → 0.31 / 0.25 (10), flat after | became deterministic: every group tied |
+| **Qwen3.5-4B** (LoRA on MLPs, lr 1e-5) | 0 (step 15) → **0.94 / 0.91** (95) → 0.78 / 0.88 (200) | RL only. Held-out plateaus at 0.5–0.78 after step 95 while training positions reach 0.97 |
+| **Qwen3-VL-4B** (LoRA) | 0.28 / 0.28 after BC → **0.66 / 0.81** (30) | BC then RL. RL alone: 0 (always dx = dy = 0) |
+| Qwen3-VL-2B (full FT, lr 2e-6) | 0 → 0.22 / 0.22 (40) → 0.38 / 0.53 (100) | RL only, T = 1.6 (stuck at T = 1.2) |
+| Gemma 4 E2B (full FT, lr 1e-6) | 0.09 / 0.09 after BC → 0.16–0.22 / 0.19–0.25 (15–25) | BC then RL. RL only at T = 1.6: 0.1–0.2 |
 
-* **Exploration decides whether a model can learn.** The preference reward needs rollouts in a group to differ. At
-  T=1.2 the mean log-prob of sampled tokens at step 1 was −0.6 for Qwen3.5-4B but only −0.04 to −0.07 for
-  Qwen3-VL-4B, Qwen3-VL-2B and Gemma 4 E2B: near-deterministic, so groups tie. At T=1.6, Gemma's rollouts went from 0
-  to 0.25 and Qwen3-VL-2B's from 0.11 to 0.23 (eval 0.16). Qwen3-VL-4B still sharpened to −0.009 with no success, and
-  is retried at T=2.0 with lr 5e-6.
-* **Warm starts from the reach adapter:**
-  * ML10: eval on its training tasks rises to 0.17 (step 70; from scratch at most 0.12), and the 5 held-out tasks
-    reach 0.02 (steps 65–80), the first nonzero held-out-task score.
-  * Push: 0 through step 50 even at T=1.6. The policy repeats one fixed move every turn
-    (`{"dx": 0, "dy": 1.5, "dz": -1.5, "grip": "close"}`) whatever the image shows.
-* **What blocked push and the weaker models was discovery, not the reward.** They almost never sampled the needed
-  motion (move sideways, go to the puck first).
-* **Behaviour cloning, then RL** (`bc_steps=30`, 64 expert episodes per step, successful ones only):
-  * **How it works:** Metaworld's scripted experts are driven through the same text protocol and their moves written
-    as the model's replies. The model is fine-tuned on them, then RL runs from the clone.
-  * **After BC alone** (step-0 eval, held-out / train):
+* **Exploration decides whether RL alone can start.** The preference reward needs rollouts in a group to differ. At
+  T = 1.2 the mean log-prob of sampled tokens at step 1 was −0.6 for Qwen3.5-4B but −0.04 to −0.07 for the other
+  three: near-deterministic, so groups tie. Higher temperature helped Qwen3-VL-2B and Gemma; Qwen3-VL-4B never moved
+  sideways.
+* **Behaviour cloning fixes the start.** Metaworld's scripted experts are run through the same text protocol, their
+  moves written as the model's replies; the model is fine-tuned on the successful episodes (`bc_steps=30`, 64 episodes
+  per step), then RL runs from the clone. RL then improves on it: Qwen3-VL-4B 0.28 → 0.66 in 30 steps.
 
-    | run | after BC alone | before BC |
-    |---|---|---|
-    | Qwen3-VL-4B reach | **0.28 / 0.28** | 0 |
-    | Qwen3.5-4B push | **0.09 / 0.19** | 0 everywhere, the first push successes |
-    | Gemma 4 E2B reach | 0.09 / 0.09 | 0 |
-    | Qwen3.5-4B ML10 | 0.12 on training tasks, 0.02 held-out | — |
-
-  * RL is running from these clones (live).
-* **Zero-shot is ~0 for every model**, and push has not learned from scratch either.
+**Push and ML10**
+* **Push, RL only: 0** in every run, also from the reach adapter (the policy repeats one fixed move).
+* **Push, BC:** the clone succeeds 0.09 / 0.19, the first push successes. **RL with `pref_mw` undid it**
+  (rollouts 0.12 → 0.01 in 15 steps): the policy learned to go straight down, close the gripper on the puck and hold
+  it, the dense reward's local optimum. Rerunning with `pref_mw_obj` (Qwen3.5-4B and Qwen3-VL-4B; live).
+* **ML10, Qwen3.5-4B:** RL only reaches 0.12 on its training tasks; from the reach adapter 0.17, and 0.02 on the
+  held-out tasks. BC then RL (`pref_mw`) stays at 0.06–0.12; with `pref_mw_obj` live.
