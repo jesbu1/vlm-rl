@@ -24,12 +24,14 @@ judgments (preferences) are the same kind of object.
 | `pref_oracle_dist` | preference pipeline with a privileged oracle judge (success first, then lower final distance) |
 | `pref_mw` | Metaworld: preferences from ground truth (success first, then Metaworld's dense reward at the final state, `mw_progress`, compared on a log scale; within 2% is a tie; an episode that ended on an invalid reply ranks below every valid one), win rates as scores |
 | `mw_progress` | Metaworld's dense reward (0-10) at the final state, as a scalar |
+| `pref_mw_obj` | Metaworld, object first: a valid ending beats an invalid one, then success wins, then the rollout whose task object ended at least 1 cm closer to its goal (`info["obj_to_target"]`, `mw_obj_dist`; for reach, the hand), then `pref_mw`'s dense-reward rule. On push the dense reward alone is highest for gripping the puck and holding still, and `pref_mw` taught exactly that |
+| `mw_obj_dist` | −the task object's final distance to its goal (m), as a scalar |
 | `success+0.5*neg_dist` | weighted sum (quote on the CLI: `reward='success+0.5*neg_dist'`) |
 | `examples.toy_wam:make_reward` | a custom factory |
 
 Building blocks in `vlmrl.rewards`: `per_traj(fn)`, `success_reward()`, `return_reward()`,
 `info_reward(key, reduce, scale)`, `format_penalty(coef)`, `efficiency_bonus(coef, max_turns)`,
-`combine((fn, w), ...)`, `preference_reward(model, mode, max_pairs)`.
+`combine((fn, w), ...)`, `preference_reward(model, mode, max_pairs)`; preference models `ScoreFnPreference(score, tau, margin)` and `LexPreference([(key, margin), ...])` (the first key that differs by at least its margin decides).
 
 ## Preferences
 

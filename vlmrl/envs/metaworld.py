@@ -153,6 +153,7 @@ class MetaWorldVecEnv:
         self._obs: list[np.ndarray] = []
         self._grip: list[float] = []
         self._progress: list[float] = []   # Metaworld's dense reward (0-10) at each simulator's current state
+        self._obj_dist: list[float] = []   # info["obj_to_target"] (m): the task object's distance to its goal (reach: hand)
 
     def _make(self, split: str, env_name: str):
         b = benchmark(self.bench_name, self.bench_seed)
@@ -207,12 +208,12 @@ class MetaWorldVecEnv:
         state = np.r_[o[:3] * 100.0, o[3]]       # hand xyz in cm, gripper opening in [0, 1]
         return Obs(image=np.ascontiguousarray(img), state=state,
                    extras={"env_name": self._keys[k][1], "path": int(env.curr_path_length),
-                           "mw_progress": self._progress[k], **(extras or {})})
+                           "mw_progress": self._progress[k], "mw_obj_dist": self._obj_dist[k], **(extras or {})})
 
     def reset(self, start_states):
         for env, key in zip(self._envs, self._keys):
             self._pool.setdefault(key, []).append(env)
-        self._envs, self._keys, self._obs, self._grip, self._progress = [], [], [], [], []
+        self._envs, self._keys, self._obs, self._grip, self._progress, self._obj_dist = [], [], [], [], [], []
         b = benchmark(self.bench_name, self.bench_seed)
         for s in start_states:
             key = (s["split"], s["env_name"])
@@ -224,7 +225,9 @@ class MetaWorldVecEnv:
             self._keys.append(key)
             self._obs.append(o)
             self._grip.append(-1.0)               # start with the gripper commanded open
-            self._progress.append(float(env.evaluate_state(o, np.array([0, 0, 0, -1.0], dtype=np.float32))[0]))
+            r, info = env.evaluate_state(o, np.array([0, 0, 0, -1.0], dtype=np.float32))
+            self._progress.append(float(r))
+            self._obj_dist.append(float(info["obj_to_target"]))
         return [self._view(k) for k in range(len(start_states))]
 
     def step(self, ids, actions):
@@ -253,6 +256,7 @@ class MetaWorldVecEnv:
                 o, r, _, _, info = env.step(u.astype(np.float32))
                 self._obs[k] = o
                 self._progress[k] = float(r)
+                self._obj_dist[k] = float(info["obj_to_target"])
                 reward_sum += float(r)
                 low.append(u)
                 hist.append(o[:3] * 100.0)

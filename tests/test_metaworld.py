@@ -92,7 +92,8 @@ def test_scripted_expert_solves_push_through_the_text_protocol(renderable):
     env, itf = b.make_vec_env(), b.interface
     wins = 0
     for task in range(3):
-        env.reset([_state("ML1:push-v3", "test", "push-v3", task=task, seed=task)])
+        d0 = env.reset([_state("ML1:push-v3", "test", "push-v3", task=task, seed=task)])[0].extras["mw_obj_dist"]
+        assert 0.05 < d0 < 0.5                      # the puck starts away from the goal (m)
         for _ in range(15):
             r = env.step([0], [itf.parse_action(itf.format_action(M.oracle_action(env, 0)))])[0]
             if r.terminated or r.truncated:
@@ -100,6 +101,7 @@ def test_scripted_expert_solves_push_through_the_text_protocol(renderable):
         wins += int(r.info["success"])
         if r.info["success"]:                       # Metaworld's dense reward at the final state, for pref_mw
             assert r.obs.extras["mw_progress"] > 5.0
+            assert r.obs.extras["mw_obj_dist"] <= 0.05    # puck within push's TARGET_RADIUS, for pref_mw_obj
     assert wins >= 2
     env.close()
 

@@ -133,3 +133,34 @@ def test_pref_mw_ranks_invalid_endings_last():
     moved_away.end_reason = "max_turns"
     s = build_reward("pref_mw")([[stopped, moved_away, _mw(0.07)]])[0]
     assert s[0] < s[1] < s[2]
+
+
+def _mwo(progress, obj_cm, success=False, end="max_turns"):
+    t = _mw(progress, success)
+    t.turns[-1].result.obs.extras["mw_obj_dist"] = obj_cm / 100.0
+    t.end_reason = end
+    return t
+
+
+def test_pref_mw_obj_ranks_object_progress_above_the_dense_reward():
+    """Push: holding the puck where it is (dense 5.5, puck 15 cm from the goal) must lose to pushing it 4 cm closer
+    and letting go (dense 0.8); pref_mw ranks them the other way."""
+    hold, pushed = _mwo(5.5, 15.0), _mwo(0.8, 11.0)
+    far = _mwo(0.03, 15.2)                            # hand away, puck untouched (within 1 cm of hold: dense decides)
+    win, bad = _mwo(10.0, 4.0, success=True), _mwo(9.0, 1.0, end="invalid")
+    s = build_reward("pref_mw_obj")([[hold, pushed, far, win, bad]])[0]
+    assert list(np.argsort(s)) == [4, 2, 0, 1, 3]
+    old = build_reward("pref_mw")([[hold, pushed]])[0]
+    assert old[0] > old[1]
+
+
+def test_pref_mw_obj_ties_have_no_spread():
+    s = build_reward("pref_mw_obj")([[_mwo(0.053, 15.0), _mwo(0.0531, 15.4), _mwo(0.0535, 14.6)]])[0]
+    assert np.std(s) == 0
+
+
+def test_lex_preference_first_differing_key_decides():
+    from vlmrl.rewards import LexPreference
+    a, b = make_traj(dist=1), make_traj(dist=3)
+    pm = LexPreference([(lambda t: 0.0, 0.5), (lambda t: -t.turns[-1].result.info["dist"], 1.0)])
+    assert list(pm.compare([(a, b), (b, a), (a, a)])) == [1.0, 0.0, 0.5]

@@ -493,6 +493,7 @@ def test_behaviour_clone_trains_on_expert_transcripts(tmp_path):
                       save_every=0, lr=0.1, bc_steps=2, bc_episodes=3, bc_success_only=False, filter_groups=False)
     tr = Trainer(cfg, policy=FakePolicy(random_generate(0)), bundle=b)
     m = tr.behaviour_clone()
+    assert tr.policy.saved == [f"{tmp_path}/ckpt_bc"]                       # the clone is kept for init_adapter
     assert tr.opt.param_groups[0]["lr"] == pytest.approx(0.1) and tr._lr_base is None   # bc_lr unset: lr
     tr2 = Trainer(dataclasses.replace(cfg, out_dir=str(tmp_path / "c"), bc_lr=0.5), policy=FakePolicy(random_generate(0)),
                   bundle=b)

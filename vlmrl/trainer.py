@@ -598,6 +598,7 @@ class Trainer:
             print(f"[bc] step {i + 1}/{c.bc_steps}: expert success {succ[-1]:.2f}, {len(keep)} episodes, "
                   f"mean log-prob {last.get('train/mean_logp', float('nan')):.3f}", flush=True)
         self._lr_base = None
+        self.policy.save(f"{c.out_dir}/ckpt_bc")   # the clone alone, reusable via init_adapter (LoRA)
         if self.generator is not self.policy:
             self.generator.sync(self.policy, 0)
         return {"bc/expert_success": float(np.mean(succ)), "bc/mean_logp": last.get("train/mean_logp", 0.0),

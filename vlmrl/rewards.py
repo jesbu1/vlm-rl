@@ -167,6 +167,45 @@ def mw_final_score(t: Trajectory) -> float:
     return 10.0 * t.success + float(np.log(1e-3 + _final_extra(t, "mw_progress")))
 
 
+class LexPreference:
+    """Lexicographic preference: the first key whose values differ by at least its margin decides (1 or 0); within
+    every margin is a tie (0.5). Use it when one criterion must dominate the next whatever their scales."""
+
+    def __init__(self, keys: Sequence[tuple[Callable[[Trajectory], float], float]]):
+        self.keys = list(keys)
+
+    def compare(self, pairs):
+        out = []
+        for a, b in pairs:
+            p = 0.5
+            for key, margin in self.keys:
+                d = key(a) - key(b)
+                if abs(d) >= margin:
+                    p = 1.0 if d > 0 else 0.0
+                    break
+            out.append(p)
+        return np.array(out)
+
+
+def mw_object_first() -> LexPreference:
+    """Metaworld ground truth, object progress before the dense reward. Rollout a beats b if, in order:
+    1. a ended on a valid reply and b on an invalid one;
+    2. a succeeded and b did not;
+    3. a's task object ended at least 1 cm closer to the goal (``info["obj_to_target"]``; reach: the hand);
+    4. a's final dense reward is higher (log scale, within 2% is a tie), as in ``pref_mw``.
+
+    Why step 3: on push, Metaworld's dense reward at the final state is highest for *holding* the puck where it is
+    (about 1 + 2 * 2 + 5 * 0.1 = 5.5 with the hand on it), while pushing it partway and losing contact scores
+    2 * grasp < 2. Ranking by that alone taught the cloned policy to grip the puck and hold still (success 0.12 -> 0.01
+    in 15 updates). Group members share the start, so a smaller final distance is more progress."""
+    return LexPreference([
+        (lambda t: float(t.end_reason != "invalid"), 0.5),
+        (lambda t: float(t.success), 0.5),
+        (lambda t: -100.0 * _final_extra(t, "mw_obj_dist"), 1.0),
+        (lambda t: float(np.log(1e-3 + _final_extra(t, "mw_progress"))), 0.02),
+    ])
+
+
 # ----------------------------------------------------------------------------- registry
 
 def build_reward(spec: str, max_turns: int = 1) -> RewardFn:
@@ -193,6 +232,10 @@ def build_reward(spec: str, max_turns: int = 1) -> RewardFn:
         # every group with any progress difference has a signal (sparse success alone gives none on push early on)
         "pref_mw": lambda: preference_reward(ScoreFnPreference(mw_final_score, tau=0.1, margin=0.02)),
         "mw_progress": lambda: per_traj(lambda t: _final_extra(t, "mw_progress")),
+        # Metaworld, object first: valid, then success, then the object >= 1 cm closer to the goal, then pref_mw's
+        # dense-reward rule (see mw_object_first: on push the dense reward alone favours holding the puck still)
+        "pref_mw_obj": lambda: preference_reward(mw_object_first()),
+        "mw_obj_dist": lambda: per_traj(lambda t: -_final_extra(t, "mw_obj_dist")),
     }
     terms = []
     for part in spec.split("+"):
