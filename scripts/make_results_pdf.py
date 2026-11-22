@@ -54,6 +54,10 @@ RUNS = {
     "m_rl": (MW, "147bb6b9"), "m_from_reach": (MW, "3e049c7c"), "m1_bc_prefmw": (MW, "ddd405a9"),
     "m1_bc_prefobj": (MW, "2e436798"), "m1_dagger": (MW, "16467d2b"), "m1_dart": (MW, "c7413f19"),
     "m5_bc30": (MW, "337e1e20"), "m5_bc100": (MW, "351850a4"), "m5_bc200": (MW, "971c5b8e"),
+    # the generic recipe (gain 0.5, BC on the scripted experts, train_seeds=10, RL with pref_mw_obj); "group:" = the
+    # group's newest run, so runs that have not started yet are picked up on the next --fetch
+    "rc_q35_ml10": (MW, "group:metaworld-recipe-q35-ml10"), "rc_q35_ml45": (MW, "group:metaworld-recipe-q35-ml45"),
+    "rc_q3vl4b_ml45": (MW, "group:metaworld-recipe-q3vl4b-ml45"),
 }
 CONFIG_KEYS = ["model", "lr", "temperature", "reward", "loss_agg", "kl_coef", "bc_steps", "bc_noise", "bc_dagger_steps",
                "groups_per_step", "group_size", "eval_episodes", "wandb_group"]
@@ -81,6 +85,12 @@ def fetch():
     api = wandb.Api(timeout=120)
     out = {}
     for key, (proj, rid) in RUNS.items():
+        if rid.startswith("group:"):
+            found = sorted(api.runs(f"{ENTITY}/{proj}", filters={"group": rid[6:]}), key=lambda x: x.created_at)
+            if not found:
+                print(f"{key:22s} {rid}: no run yet", flush=True)
+                continue
+            rid = found[-1].id
         r = api.run(f"{ENTITY}/{proj}/{rid}")
         rows = []
         for row in r.scan_history():

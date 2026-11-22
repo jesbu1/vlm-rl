@@ -94,3 +94,9 @@ Each GRPO group is 8 rollouts from the same start (same goal position and seed).
   eval are noise; the 128 training rollouts per step are the steadier signal.
 * **ML10, Qwen3.5-4B (gain 1.0):** RL only 0.12 on its training tasks; from the reach adapter 0.17, and 0.02 on the
   held-out tasks; BC then RL 0.04–0.15.
+* **The goal is ML10 / ML45 with as little engineering as possible.** The generic recipe, with no per-task code
+  (`configs/sweeps/metaworld_recipe.yaml`): controller gain 0.5, BC on Metaworld's scripted experts (steps scaled with the
+  number of tasks), training variations from 10 benchmark seeds (`train_seeds=10`: on push this took the clone from
+  0.94 / 0.28 to 0.62 / 0.69, training / held-out positions), then RL with `pref_mw_obj` at T = 1.0. ML45's experts
+  succeed 0.82 on its training tasks and 0.97 on its held-out tasks through our protocol. Live: ML10 (200 BC steps),
+  ML45 (400 BC steps; Qwen3.5-4B and Qwen3-VL-4B).

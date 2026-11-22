@@ -69,7 +69,10 @@ METAWORLD_PUSH = [("gain 0.5: Qwen3.5-4B, BC (30 steps) then RL", "metaworld-g05
                   ("gain 0.5: Qwen3.5-4B, 450 training positions (10 seeds), BC (100) then RL", "metaworld-g05-q35-push-seeds10", None),
                   ("gain 1.0: Qwen3.5-4B, BC then RL, pref_mw (RL undoes BC)", "metaworld-bc2-q35-push", None),
                   ("gain 1.0: Qwen3.5-4B, BC then RL, pref_mw_obj", "metaworld-bc3-q35-push", None)]
-METAWORLD_ML10 = [("gain 0.5: Qwen3.5-4B, BC (200 steps) then RL", "metaworld-g05-q35-ml10-bc200", None),
+METAWORLD_ML45 = [("recipe: Qwen3.5-4B, BC 400 then RL (train_seeds=10)", "metaworld-recipe-q35-ml45", None),
+                  ("recipe: Qwen3-VL-4B, BC 400 then RL (train_seeds=10)", "metaworld-recipe-q3vl4b-ml45", None)]
+METAWORLD_ML10 = [("recipe: Qwen3.5-4B, BC 200 then RL (train_seeds=10)", "metaworld-recipe-q35-ml10", None),
+                  ("gain 0.5: Qwen3.5-4B, BC (200 steps) then RL", "metaworld-g05-q35-ml10-bc200", None),
                   ("gain 0.5: Qwen3.5-4B, BC (100 steps) then RL", "metaworld-g05-q35-ml10-bc100", None),
                   ("gain 0.5: Qwen3.5-4B, BC (30 steps) then RL", "metaworld-g05-q35-ml10", None),
                   ("gain 1.0: Qwen3.5-4B, RL only", "metaworld-q35-v3-lr1e-5", ["147bb6b9"]),
@@ -237,6 +240,9 @@ def metaworld_blocks(a, wr) -> list:
         wr.PanelGrid(runsets=[rs(*x) for x in METAWORLD_PUSH], panels=tile([line(*x) for x in ml1])),
         wr.H2("ML10 (10 training tasks, 5 held-out tasks)"),
         wr.PanelGrid(runsets=[rs(*x) for x in METAWORLD_ML10], panels=tile([line(*x) for x in ml10], 3)),
+        wr.H2("ML45 (45 training tasks, 5 held-out tasks): the generic recipe"),
+        wr.PanelGrid(runsets=[rs(*x) for x in METAWORLD_ML45],
+                     panels=tile([line(k, t.replace("10 training", "45 training")) for k, t in ml10], 3)),
         wr.H2("Episodes of the best reach run: video (step slider) and transcript"),
         wr.PanelGrid(runsets=[best], panels=[
             wr.MediaBrowser(title="held-out positions: video", media_keys=["eval/heldout_positions/episode"],
