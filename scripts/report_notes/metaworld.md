@@ -52,7 +52,19 @@ Each GRPO group is 8 rollouts from the same start (same goal position and seed).
     reach 0.02 (steps 65–80), the first nonzero held-out-task score.
   * Push: 0 through step 50 even at T=1.6. The policy repeats one fixed move every turn
     (`{"dx": 0, "dy": 1.5, "dz": -1.5, "grip": "close"}`) whatever the image shows.
-* **What blocks push and the weaker models is discovery, not the reward.** They almost never sample the needed motion
-  (move sideways, go to the puck first). The proposed next step is a behaviour-cloning warm start from Metaworld's
-  scripted experts, which solve push 100% and ML10's training tasks 75% through this exact protocol.
+* **What blocked push and the weaker models was discovery, not the reward.** They almost never sampled the needed
+  motion (move sideways, go to the puck first).
+* **Behaviour cloning, then RL** (`bc_steps=30`, 64 expert episodes per step, successful ones only):
+  * **How it works:** Metaworld's scripted experts are driven through the same text protocol and their moves written
+    as the model's replies. The model is fine-tuned on them, then RL runs from the clone.
+  * **After BC alone** (step-0 eval, held-out / train):
+
+    | run | after BC alone | before BC |
+    |---|---|---|
+    | Qwen3-VL-4B reach | **0.28 / 0.28** | 0 |
+    | Qwen3.5-4B push | **0.09 / 0.19** | 0 everywhere, the first push successes |
+    | Gemma 4 E2B reach | 0.09 / 0.09 | 0 |
+    | Qwen3.5-4B ML10 | 0.12 on training tasks, 0.02 held-out | — |
+
+  * RL is running from these clones (live).
 * **Zero-shot is ~0 for every model**, and push has not learned from scratch either.
