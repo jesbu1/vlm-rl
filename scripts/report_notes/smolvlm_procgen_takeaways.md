@@ -407,6 +407,8 @@
       0.86 -> 0.65. Step-5 eval **10.4%**, 53% invalid (lr=5e-6 at 5: 9.9%, 77%). Format learning is slower, as expected.
       Steps 6-10: rollout invalid 82% -> 72% (lr=5e-6: 70% -> 57%), 34 groups with signal, grad norm 0.48 -> 0.25.
       Step-10 eval **12.5%**, 62% invalid (lr=5e-6 at 10: 17.2%, 68%). About 3-5 steps behind the lr=5e-6 run.
+      Steps 11-15: rollout invalid 71% -> 66% (lr=5e-6: 57% -> 50%), rollouts 2-4%, 39 groups with signal, grad norm
+      ~0.2. Step-15 eval **13.0%**, 73% invalid (lr=5e-6 at 15: 24.5%, 36%). Now ~7 steps behind and the gap is widening.
     * 256M `simple` (lr=5e-6, 128 tokens, noop) started 07:13: step-0 eval **1.6%**, eval invalid 82%.
       Steps 1-3: 1-2 groups with signal, rollout invalid 93%, success ~0%: **dropped after step 3**. 256M cannot
       bootstrap the `<action>` JSON format from scratch (500M could: 9-16 groups at steps 1-4).
