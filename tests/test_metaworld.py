@@ -183,3 +183,24 @@ def test_expert_rollout_solves_push_for_behaviour_cloning(renderable):
     assert sum(t.success for t in trajs) >= 2
     assert all(t.turns[0].response.startswith('{"dx": ') for t in trajs)
     env.close()
+
+
+def test_extra_training_seeds_exclude_held_out_positions():
+    """ML1 seed 1's training positions are seed 0's held-out positions: pooling seeds must drop them."""
+    one = M.TaskSampler("ML1:push-v3", "train", 0)
+    many = M.TaskSampler("ML1:push-v3", "train", 0, n_seeds=3)
+    held = [M._rand_vec(t) for t in M.split_tasks(M.benchmark("ML1:push-v3", 0), "test")["push-v3"]]
+    assert one.pool is None and many.dropped == 50 and len(many.pool["push-v3"]) == 100
+    for st in many.sample(64, np.random.default_rng(0)):
+        t = M.split_tasks(M.benchmark("ML1:push-v3", st["bench_seed"]), "train")["push-v3"][st["task"]]
+        assert min(np.linalg.norm(M._rand_vec(t) - h) for h in held) > 0.01
+    assert M.make_metaworld(benchmark="ML1:push-v3", train_seeds=3).train_sampler.pool is not None
+
+
+def test_reset_uses_the_start_states_benchmark_seed(renderable):
+    env = M.MetaWorldVecEnv("ML1:push-v3", image_size=32, render_size=(64, 48))
+    st = _state("ML1:push-v3", "train", "push-v3", task=0, seed=0)
+    d0 = env.reset([st])[0].extras["mw_obj_dist"]
+    d2 = env.reset([{**st, "bench_seed": 2}])[0].extras["mw_obj_dist"]
+    assert d0 != d2                                  # another seed's task 0: other puck / goal positions
+    env.close()

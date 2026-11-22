@@ -109,20 +109,51 @@ def split_tasks(bench, split: str) -> dict[str, list]:
     return out
 
 
-class TaskSampler:
-    """Uniform over the split's tasks, then over that task's variations; each start state gets its own seed."""
+def _rand_vec(task) -> np.ndarray:
+    """A task variation's sampled object / goal positions (Metaworld pickles them into ``Task.data``)."""
+    import pickle
+    return np.asarray(pickle.loads(task.data)["rand_vec"], dtype=float)
 
-    def __init__(self, bench_name: str, split: str, seed: int = 0):
+
+class TaskSampler:
+    """Uniform over the split's tasks, then over that task's variations; each start state gets its own seed.
+
+    ``n_seeds > 1`` (training only): pool the split's variations of benchmark seeds ``seed .. seed + n_seeds - 1``, for
+    more object / goal positions than the benchmark's 50 per task. Other seeds' *training* variations can be this
+    seed's *test* variations (ML1: seed 1's 50 training positions are exactly seed 0's 50 held-out positions), so any
+    variation within ``exclude_cm`` of a held-out one (same task, positions compared) is dropped."""
+
+    def __init__(self, bench_name: str, split: str, seed: int = 0, n_seeds: int = 1, exclude_cm: float = 1.0):
         self.bench_name, self.split, self.seed = bench_name, split, seed
         self.tasks = split_tasks(benchmark(bench_name, seed), split)
         self.env_names = sorted(self.tasks)
+        self.pool: dict[str, list[tuple[int, int]]] | None = None        # env_name -> [(bench seed, variation)]
+        if n_seeds > 1:
+            assert split == "train", "extra benchmark seeds are for training only"
+            held = split_tasks(benchmark(bench_name, seed), "test")
+            self.pool, self.dropped = {}, 0
+            for s in range(seed, seed + n_seeds):
+                for name, tasks in split_tasks(benchmark(bench_name, s), split).items():
+                    ref = [_rand_vec(t) for t in held.get(name, [])]      # ML10/ML45: held-out tasks differ
+                    for i, t in enumerate(tasks):
+                        v = _rand_vec(t)
+                        if ref and min(np.linalg.norm(r - v) for r in ref) * 100.0 < exclude_cm:
+                            self.dropped += 1
+                            continue
+                        self.pool.setdefault(name, []).append((s, i))
+            self.env_names = sorted(self.pool)
 
     def sample(self, n, rng):
         out = []
         for _ in range(n):
             name = self.env_names[int(rng.integers(len(self.env_names)))]
-            out.append({"benchmark": self.bench_name, "split": self.split, "env_name": name,
-                        "task": int(rng.integers(len(self.tasks[name]))), "seed": int(rng.integers(2**31 - 1))})
+            st = {"benchmark": self.bench_name, "split": self.split, "env_name": name}
+            if self.pool is None:
+                st["task"] = int(rng.integers(len(self.tasks[name])))
+            else:
+                st["bench_seed"], st["task"] = self.pool[name][int(rng.integers(len(self.pool[name])))]
+            st["seed"] = int(rng.integers(2**31 - 1))
+            out.append(st)
         return out
 
 
@@ -214,11 +245,11 @@ class MetaWorldVecEnv:
         for env, key in zip(self._envs, self._keys):
             self._pool.setdefault(key, []).append(env)
         self._envs, self._keys, self._obs, self._grip, self._progress, self._obj_dist = [], [], [], [], [], []
-        b = benchmark(self.bench_name, self.bench_seed)
         for s in start_states:
             key = (s["split"], s["env_name"])
             pool = self._pool.get(key)
             env = pool.pop() if pool else self._make(*key)
+            b = benchmark(self.bench_name, int(s.get("bench_seed", self.bench_seed)))     # cached per seed
             env.set_task(split_tasks(b, s["split"])[s["env_name"]][s["task"]])
             o, _ = env.reset(seed=int(s["seed"]))
             self._envs.append(env)
@@ -445,6 +476,9 @@ class MetaWorldConfig:
     # 1.0 (the default before 2026-11-22) ran at full speed to 1 cm, overshot and lifted the hand while dragging an
     # object: scripted-expert success push 0.63 -> 0.97, ML10 training tasks 0.85 -> 0.91, held-out tasks 0.42 -> 0.72
     gain: float = 0.5
+    # training positions from this many benchmark seeds (1 = the benchmark's own split; > 1 is an ablation outside the
+    # ML1/ML10 protocol: more positions, held-out ones excluded, eval unchanged)
+    train_seeds: int = 1
     max_turns: int = 15
     seed: int = 0
 
@@ -456,7 +490,7 @@ def make_metaworld(cfg: MetaWorldConfig | None = None, **kw) -> EnvBundle:
                                              cfg.max_substeps, render_size=(cfg.render_width, cfg.render_height),
                                              crop=cfg.crop, gain=cfg.gain),
         interface=MetaWorldTextInterface(cfg.max_delta, cfg.prompt_style, cfg.include_state),
-        train_sampler=TaskSampler(cfg.benchmark, "train", cfg.seed),
+        train_sampler=TaskSampler(cfg.benchmark, "train", cfg.seed, n_seeds=cfg.train_seeds),
         eval_sampler=TaskSampler(cfg.benchmark, cfg.eval_split, cfg.seed),
         max_turns=cfg.max_turns,
         expert=oracle_action,
