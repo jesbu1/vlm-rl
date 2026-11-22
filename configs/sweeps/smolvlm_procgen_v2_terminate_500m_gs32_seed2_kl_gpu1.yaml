@@ -1,0 +1,34 @@
+# smolvlm-procgen-v2, GPU 1: does a KL anchor stop the late greedy-eval drop? Same as the group_size-32 seed-2 run
+# (SmolVLM2-500M compact_rel, 192 tokens + parse_last, on_invalid=terminate, lr=5e-6, 64 x 32) plus **kl_coef=0.05**
+# (per-token k3 KL to the pretrained model). The seed-2 run without KL went 30.7 -> 28.1 -> 26.6% at steps 30-40 while
+# sampled rollouts rose 17% -> 24-29%; 128 x 16 seed 1 went 34.4 -> 26.0%. Paired with that seed-2 run (mean 28.5%).
+group: smolvlm-procgen-v2
+project: vlm-rl-pointmaze
+train_gpu: 1
+vllm_gpu: 1
+vllm_port: 8012
+vllm_gpu_util: 0.35
+overrides:
+  - experiment=pointmaze_procgen
+  - eval_on_invalid=noop
+  - reward=success
+  - steps=40
+  - groups_per_step=64
+  - max_resample_rounds=3
+  - micro_batch_size=16
+  - eval_every=5
+  - eval_episodes=64
+  - wandb_entity=tri
+  - "wandb_tags='pointmaze,procgen,smolvlm2-500m,fft,sweep'"
+grid:
+  group_size: [32]   # in the grid so the run name (and out_dir) differ from the 16-sample runs
+  on_invalid: [terminate]   # in the grid so the run name (and out_dir) differ from the noop run
+  policy: [smolvlm2_500m]   # in the grid so the run name (and out_dir) differ from the 256M runs in this group
+  env_kwargs.prompt_style: [compact_rel]
+  lr: [5.0e-6]
+  max_new_tokens: [192]
+  env_kwargs.parse_last: [true]
+  seed: [2]
+  kl_coef: [0.05]   # in the grid so the run name (and out_dir) differ from the no-KL seed-2 run
+vllm_args:
+  HuggingFaceTB/SmolVLM2-500M-Video-Instruct: [--max-model-len, "8192", --mm-processor-kwargs, '{"do_image_splitting": false}', --api-server-count, "4", --max-num-seqs, "1024", --mm-processor-cache-gb, "0"]

@@ -339,6 +339,15 @@
       held-out 11x11 **43.8%**, 15x15 17.2), 1% invalid (64 x 16 seed 2 at 30: 31.8%).
       Steps 31-35: rollout invalid 23% -> 18%, rollouts 21-25%, grad norm ~0.04. Step-35 eval **28.1%** (training 31.2,
       held-out 11x11 32.8, 15x15 20.3), 1% invalid (64 x 16 seed 2 at 35: 29.7%).
+      Finished at step 40: final eval **26.6%** (training 28.1, held-out 11x11 29.7, 15x15 21.9), 0.5% invalid; rollouts
+      24-29%, invalid 14%, grad norm 0.04. Mean eval over steps 30-40: **28.5%** vs 30.6% for 64 x 16 seed 2.
+      Greedy eval fell 30.7 -> 26.6% over steps 30-40 while rollouts rose 17% -> 24-29%: the third 2048-episode run
+      with this pattern.
+    * **Updated verdict, group_size 32 vs 64 x 16 (mean greedy eval over steps 30-40):** +2.8 (seed 0), +2.1 (seed 1),
+      **-2.1 (seed 2)**; average +0.9 points (30.7% vs 29.8%). **No reliable gain** from doubling episodes per step,
+      at ~2x wall-clock. 64 x 16 stays the default.
+    * Next on GPU1: **group_size 32 seed 2 + `kl_coef=0.05`** (k3 KL to the pretrained model), paired with the run
+      above: does a KL anchor stop the late greedy-eval drop?
     * 500M **`compact` (absolute goal) + terminate** (GPU0, started 07:32): step-0 eval **1.0%**, **78% invalid**
       (compact_rel at step 0: 7.8-11.5%, ~52% invalid). The absolute-coordinate prompt starts with far fewer valid
       replies; the queue's step-3 signal check decides whether terminate can learn from it.
