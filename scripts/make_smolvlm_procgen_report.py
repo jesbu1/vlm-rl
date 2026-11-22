@@ -70,7 +70,8 @@ METAWORLD_PUSH = [("gain 0.5: Qwen3.5-4B, BC then RL", "metaworld-g05-q35-push",
                   ("gain 1.0: Qwen3.5-4B, BC then RL, pref_mw_obj", "metaworld-bc3-q35-push", None),
                   ("gain 1.0: Qwen3.5-4B, BC + DAgger (worse clone)", "metaworld-bc4-q35-push-dagger", None),
                   ("gain 1.0: Qwen3.5-4B, BC + DART then RL", "metaworld-bc5-q35-push-dart1", None)]
-METAWORLD_ML10 = [("gain 0.5: Qwen3.5-4B, BC then RL", "metaworld-g05-q35-ml10", None),
+METAWORLD_ML10 = [("gain 0.5: Qwen3.5-4B, BC (30 steps) then RL", "metaworld-g05-q35-ml10", None),
+                  ("gain 0.5: Qwen3.5-4B, BC (100 steps) then RL", "metaworld-g05-q35-ml10-bc100", None),
                   ("gain 1.0: Qwen3.5-4B, RL only", "metaworld-q35-v3-lr1e-5", ["147bb6b9"]),
                   ("gain 1.0: Qwen3.5-4B, RL from the reach adapter", "metaworld-q35-v4-ml10-from-reach", None),
                   ("gain 1.0: Qwen3.5-4B, BC then RL, pref_mw_obj", "metaworld-bc3-q35-ml10", None)]

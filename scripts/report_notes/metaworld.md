@@ -44,7 +44,7 @@ Each GRPO group is 8 rollouts from the same start (same goal position and seed).
 | **Qwen3.5-4B** (LoRA on MLPs, lr 1e-5) | 0 (step 15) → **0.94 / 0.91** (95) → 0.78 / 0.88 (200) | RL only. Held-out plateaus at 0.5–0.78 after step 95 while training positions reach 0.97 |
 | **Qwen3-VL-4B** (LoRA) | 0.28 / 0.28 after BC → 0.66 / 0.81 (30) → **0.59–0.78 / 0.88–1.00** (70–100) | BC then RL. RL alone: 0 (always dx = dy = 0) |
 | Qwen3-VL-2B (full FT, lr 2e-6) | 0 → 0.22 / 0.22 (40) → 0.38 / 0.53 (100) | RL only, T = 1.6 (stuck at T = 1.2) |
-| Gemma 4 E2B (full FT, lr 1e-6) | 0.09 / 0.09 after BC → 0.16–0.22 / 0.19–0.25 (15–25) | BC then RL. RL only at T = 1.6: 0.1–0.2 |
+| Gemma 4 E2B (full FT, lr 1e-6) | 0.09 / 0.09 after BC → 0.28–0.44 / 0.41–0.56 (85–95) | BC then RL, slow but rising. RL only at T = 1.6: 0.1–0.2 |
 
 * **Exploration decides whether RL alone can start.** The preference reward needs rollouts in a group to differ. At
   T = 1.2 the mean log-prob of sampled tokens at step 1 was −0.6 for Qwen3.5-4B but −0.04 to −0.07 for the other
@@ -59,8 +59,17 @@ Each GRPO group is 8 rollouts from the same start (same goal position and seed).
 * **What held push back was mostly our controller.** At gain 1.0 it ran at full speed until 1 cm from each target,
   overshot, and lifted the hand while it dragged the puck, so the puck slipped out. The scripted expert succeeded
   only 0.63 through our protocol; at gain 0.5 it succeeds **0.97**, in 5.9 instead of 9.4 turns. ML10's expert goes
-  from 0.85 to 0.91 on its training tasks and from 0.42 to 0.72 on its held-out tasks. All push / ML10 runs are being
-  redone at gain 0.5 (live: behaviour cloning, then RL at T = 1.0 with `pref_mw_obj`).
+  from 0.85 to 0.91 on its training tasks and from 0.42 to 0.72 on its held-out tasks.
+* **At gain 0.5 the push clone doubles** (30 BC steps; training / held-out positions):
+
+  | clone | gain 1.0 | gain 0.5 |
+  |---|---|---|
+  | Qwen3.5-4B push | 0.22 / 0.03 | **0.47 / 0.25** |
+  | Qwen3.5-4B push, DART 1 cm | — | 0.44 / 0.22 |
+  | Qwen3-VL-4B push | 0.06 / 0.00 | 0.09 / 0.22 |
+  | Qwen3.5-4B ML10 (training / held-out tasks) | 0.12 / 0.12 | 0.10 / 0.00 |
+
+  RL from these clones is live (T = 1.0, `pref_mw_obj`); ML10 also with 100 BC steps.
 * **What we learned at gain 1.0** (clone 0.22 / 0.03, training / held-out positions):
   * **RL with `pref_mw` undid the clone** (rollouts 0.12 → 0.01): it learned to grip the puck and hold it, the
     dense reward's local optimum. **`pref_mw_obj` keeps the clone** (rollouts ~0.1 for 50 steps), with no clear gain.
