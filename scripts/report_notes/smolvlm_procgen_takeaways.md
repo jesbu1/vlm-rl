@@ -453,6 +453,10 @@
       26.6, 15x15 29.7), 13% invalid (lr=5e-6 at 25: 31.2%). Still rising, no drop yet.
       Steps 51-55: rollout invalid 30% -> 26%, rollouts 15-25%. Step-55 eval **28.1%** (training 31.2, held-out 11x11
       21.9, 15x15 31.2), 10% invalid.
+      Step 60: eval **30.7%** (training 35.9, held-out 11x11 26.6, 15x15 29.7), 13% invalid; rollouts 21-25%, invalid
+      22%. Mean over steps 50-60: **29.3%**, about where lr=5e-6 was at steps 25-30 (31.2 / 32.3%), so no gain per
+      update and twice the steps. No late drop yet, but it hasn't reached the equivalent point (lr=5e-6 steps 35-40).
+      **Extended to 90 steps** (resumes from the step-60 checkpoint; no code change): 90 here ~= 45 at lr=5e-6.
     * 256M `simple` (lr=5e-6, 128 tokens, noop) started 07:13: step-0 eval **1.6%**, eval invalid 82%.
       Steps 1-3: 1-2 groups with signal, rollout invalid 93%, success ~0%: **dropped after step 3**. 256M cannot
       bootstrap the `<action>` JSON format from scratch (500M could: 9-16 groups at steps 1-4).

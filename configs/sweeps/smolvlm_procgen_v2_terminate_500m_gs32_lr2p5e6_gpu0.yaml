@@ -13,7 +13,7 @@ overrides:
   - experiment=pointmaze_procgen
   - eval_on_invalid=noop
   - reward=success
-  - steps=60
+  - steps=90   # was 60; raised after it finished so the sweep resumes it from its step-60 checkpoint (same out_dir)
   - groups_per_step=64
   - max_resample_rounds=3
   - micro_batch_size=16
