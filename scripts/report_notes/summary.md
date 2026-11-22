@@ -13,7 +13,9 @@
 * **Push and ML10 are partly working; the main blocker was our controller.** Its gain overshot, so even Metaworld's
   scripted expert succeeded only 0.63 on push through our protocol (0.97 at the new gain 0.5). The cloned push policy
   doubles with it (0.47 on training, 0.25 on held-out positions, from 0.22 / 0.03), and RL from it now improves
-  push (rollouts 0.15 → ~0.25). ML10 needed more cloning: 0.38 on its training tasks after 100 steps (0.10 after 30). Earlier, at the old gain, RL with the dense-reward preference undid the
+  push (rollouts 0.15 → ~0.37). With 100 cloning steps push is nearly solved on its training positions (0.94) but
+  not on held-out ones (0.28): ML1 has only 50 training positions. ML10 needed more cloning: 0.38 on its
+  training tasks after 100 steps (0.10 after 30). Earlier, at the old gain, RL with the dense-reward preference undid the
   cloned push policy (it learned to hold the puck still); ranking by the puck's progress first fixed that.
 * **Most "collapses" were bugs**, all fixed:
   * Trained a template token the model never generates.

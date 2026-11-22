@@ -66,9 +66,11 @@ METAWORLD_REACH = [("Qwen3.5-4B, RL only (lr 1e-5)", "metaworld-q35-v3-lr1e-5", 
 METAWORLD_PUSH = [("gain 0.5: Qwen3.5-4B, BC (30 steps) then RL", "metaworld-g05-q35-push", None),
                   ("gain 0.5: Qwen3.5-4B, BC (100 steps) then RL", "metaworld-g05-q35-push-bc100", None),
                   ("gain 0.5: Qwen3-VL-4B, BC (100 steps) then RL", "metaworld-g05-q3vl4b-push-bc100", None),
+                  ("gain 0.5: Qwen3.5-4B, 450 training positions (10 seeds), BC (100) then RL", "metaworld-g05-q35-push-seeds10", None),
                   ("gain 1.0: Qwen3.5-4B, BC then RL, pref_mw (RL undoes BC)", "metaworld-bc2-q35-push", None),
                   ("gain 1.0: Qwen3.5-4B, BC then RL, pref_mw_obj", "metaworld-bc3-q35-push", None)]
-METAWORLD_ML10 = [("gain 0.5: Qwen3.5-4B, BC (100 steps) then RL", "metaworld-g05-q35-ml10-bc100", None),
+METAWORLD_ML10 = [("gain 0.5: Qwen3.5-4B, BC (200 steps) then RL", "metaworld-g05-q35-ml10-bc200", None),
+                  ("gain 0.5: Qwen3.5-4B, BC (100 steps) then RL", "metaworld-g05-q35-ml10-bc100", None),
                   ("gain 0.5: Qwen3.5-4B, BC (30 steps) then RL", "metaworld-g05-q35-ml10", None),
                   ("gain 1.0: Qwen3.5-4B, RL only", "metaworld-q35-v3-lr1e-5", ["147bb6b9"]),
                   ("gain 1.0: Qwen3.5-4B, RL from the reach adapter", "metaworld-q35-v4-ml10-from-reach", None)]

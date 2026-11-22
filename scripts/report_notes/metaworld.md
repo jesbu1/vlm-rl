@@ -69,9 +69,17 @@ Each GRPO group is 8 rollouts from the same start (same goal position and seed).
   | Qwen3-VL-4B push | 0.06 / 0.00 | 0.09 / 0.22 |
   | Qwen3.5-4B ML10 (training / held-out tasks) | 0.12 / 0.12 | 0.10 / 0.00; **0.38 / 0.00 with 100 BC steps** |
 
-* **RL now improves push:** from the gain-0.5 clone, training rollouts rise from 0.15 to ~0.25 (steps 1–19) and the
-  step-15 eval is 0.41 / 0.28; at gain 1.0 the rollouts never left ~0.1. Live: push with 100 BC steps (Qwen3.5-4B,
-  Qwen3-VL-4B), ML10 from its 100-step clone.
+* **RL now improves push:** from the 30-step gain-0.5 clone, training rollouts rise from 0.15 to ~0.37 (steps 26–35)
+  and eval reaches 0.59 / 0.31 (step 35); at gain 1.0 the rollouts never left ~0.1.
+* **More cloning: push training positions nearly solved, held-out positions not.** After 100 BC steps Qwen3.5-4B
+  scores 0.94 / 0.28 and Qwen3-VL-4B 0.91 / 0.28 (log-prob of the expert's replies −0.003: memorized). Held-out stays
+  at ~0.25–0.28 from 30 to 100 steps: ML1 trains on only 50 puck / goal positions.
+* **Ablation, outside the ML1 protocol: 450 training positions** (`env_kwargs.train_seeds=10`: the training
+  positions of benchmark seeds 0–9, minus those within 1 cm of a held-out one; seed 1's training positions *are* seed
+  0's held-out positions). Eval is unchanged. Note the denser coverage: the nearest training position to a held-out
+  one is 2.2 cm away (median) instead of 3.8 cm. Live.
+* **ML10 needs more cloning:** 100 steps gives 0.38 on its training tasks (log-prob −0.18, not yet memorized);
+  200 steps live. Its 5 held-out tasks stay at ~0: new tasks from 10 training tasks is a different problem.
 * **What we learned at gain 1.0** (clone 0.22 / 0.03, training / held-out positions):
   * **RL with `pref_mw` undid the clone** (rollouts 0.12 → 0.01): it learned to grip the puck and hold it, the
     dense reward's local optimum. **`pref_mw_obj` keeps the clone** (rollouts ~0.1 for 50 steps), with no clear gain.
