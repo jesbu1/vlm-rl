@@ -401,6 +401,8 @@
       slower lr avoid the late drop and keep climbing?
       Started 04:11. Step-0 eval **9.4%**, 59% invalid (lr=5e-6 run on the same weights and eval set: 11.5%, 54%;
       greedy evals of identical weights differ by a few points with vLLM batching).
+      Steps 1-5: rollout invalid 86% -> 83% (lr=5e-6: 85% -> 72%), 19 groups with signal at step 5, grad norm
+      0.86 -> 0.65. Step-5 eval **10.4%**, 53% invalid (lr=5e-6 at 5: 9.9%, 77%). Format learning is slower, as expected.
     * 256M `simple` (lr=5e-6, 128 tokens, noop) started 07:13: step-0 eval **1.6%**, eval invalid 82%.
       Steps 1-3: 1-2 groups with signal, rollout invalid 93%, success ~0%: **dropped after step 3**. 256M cannot
       bootstrap the `<action>` JSON format from scratch (500M could: 9-16 groups at steps 1-4).
