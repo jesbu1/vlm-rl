@@ -1,0 +1,33 @@
+# smolvlm-procgen-v2, GPU 0: does a lower lr help the best 2048-episode recipe? group_size 32 (64 groups x 32),
+# SmolVLM2-500M compact_rel, 192 tokens + parse_last, on_invalid=terminate, seed 0, but **lr=2.5e-6** (half) for
+# **60 steps** (vs 40). The lr=5e-6 runs peak around steps 25-35 and the greedy eval then drops several points while
+# sampled rollouts keep rising (gs32 seed 1: 33.9% -> 27.1%; 128 x 16 seed 1: 34.4% -> 26.0%). Paired with the
+# seed-0 lr=5e-6 gs32 run (mean 32.5% over steps 30-40): same eval set and starting weights.
+group: smolvlm-procgen-v2
+project: vlm-rl-pointmaze
+train_gpu: 0
+vllm_gpu: 0
+vllm_port: 8011
+vllm_gpu_util: 0.35
+overrides:
+  - experiment=pointmaze_procgen
+  - eval_on_invalid=noop
+  - reward=success
+  - steps=60
+  - groups_per_step=64
+  - max_resample_rounds=3
+  - micro_batch_size=16
+  - eval_every=5
+  - eval_episodes=64
+  - wandb_entity=tri
+  - "wandb_tags='pointmaze,procgen,smolvlm2-500m,fft,sweep'"
+grid:
+  group_size: [32]
+  on_invalid: [terminate]
+  policy: [smolvlm2_500m]
+  env_kwargs.prompt_style: [compact_rel]
+  lr: [2.5e-6]   # in the grid so the run name (and out_dir) differ from the lr=5e-6 gs32 run
+  max_new_tokens: [192]
+  env_kwargs.parse_last: [true]
+vllm_args:
+  HuggingFaceTB/SmolVLM2-500M-Video-Instruct: [--max-model-len, "8192", --mm-processor-kwargs, '{"do_image_splitting": false}', --api-server-count, "4", --max-num-seqs, "1024", --mm-processor-cache-gb, "0"]

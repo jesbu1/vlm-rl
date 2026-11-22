@@ -387,6 +387,18 @@
       (64 x 16 seed 1 at 35: 30.2%). Sampled training success and greedy eval are diverging (42% vs 25%); invalid
       replies are not the cause. Unverified guess: greedy decoding gets stuck repeating a move that sampling escapes.
       Letting it finish at step 40.
+      Finished at step 40: final eval **26.0%** (training 26.6, held-out 11x11 25.0, 15x15 26.6), 0% invalid; rollouts
+      40%, invalid 1%, grad norm 0.05. Mean eval over steps 30-40: **26.0%** vs 29.0% for 64 x 16 seed 1.
+    * **Verdict on 2048 episodes per step (mean greedy eval over steps 30-40, same-seed pairs):**
+        * group_size 32 (64 x 32): 32.5 vs 29.7 (seed 0), 31.1 vs 29.0 (seed 1). **+2-3 points on both seeds**; seed 2
+          is running. Small (about the eval noise) but consistent.
+        * 128 x 16: 31.4 vs 29.7 (seed 0), **26.0 vs 29.0 (seed 1)**. **Does not replicate.** Seed 1 peaked at 34.4%
+          (step 25), then fell while sampled rollouts rose to 40%.
+        * Spend extra episodes on more samples per start state (group_size 32), not on more start states.
+        * Open issue: late in both seed-1 2048-episode runs, greedy eval falls while sampled rollouts rise (26% vs 40% for
+          128 x 16). Testing it directly needs a sampled eval (`eval_temperature`), not run yet.
+    * Next on GPU0: **group_size 32 at lr=2.5e-6 for 60 steps** (seed 0; vs the lr=5e-6 seed-0 run, 32.5%). Does a
+      slower lr avoid the late drop and keep climbing?
     * 256M `simple` (lr=5e-6, 128 tokens, noop) started 07:13: step-0 eval **1.6%**, eval invalid 82%.
       Steps 1-3: 1-2 groups with signal, rollout invalid 93%, success ~0%: **dropped after step 3**. 256M cannot
       bootstrap the `<action>` JSON format from scratch (500M could: 9-16 groups at steps 1-4).
