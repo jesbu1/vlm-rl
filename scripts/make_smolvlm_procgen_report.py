@@ -65,11 +65,16 @@ METAWORLD_REACH = [("Qwen3.5-4B, RL only (lr 1e-5)", "metaworld-q35-v3-lr1e-5", 
                    ("Qwen3-VL-2B, RL only (T=1.6)", "metaworld-reach-q3vl2b-t16", None)]
 METAWORLD_PUSH = [("Qwen3.5-4B, BC then RL, pref_mw (RL undoes BC)", "metaworld-bc2-q35-push", None),
                   ("Qwen3.5-4B, BC then RL, pref_mw_obj", "metaworld-bc3-q35-push", None),
-                  ("Qwen3-VL-4B, BC then RL, pref_mw_obj", "metaworld-bc3-q3vl4b-push", None)]
+                  ("Qwen3-VL-4B, BC then RL, pref_mw_obj", "metaworld-bc3-q3vl4b-push", None),
+                  ("Qwen3.5-4B, BC + DAgger (worse clone; stopped)", "metaworld-bc4-q35-push-dagger", None),
+                  ("Qwen3.5-4B, BC + DART (noise 1 cm) then RL", "metaworld-bc5-q35-push-dart1", None),
+                  ("Qwen3.5-4B, BC + DART (noise 2 cm) then RL", "metaworld-bc5-q35-push-dart2", None)]
 METAWORLD_ML10 = [("Qwen3.5-4B, RL only", "metaworld-q35-v3-lr1e-5", ["147bb6b9"]),
                   ("Qwen3.5-4B, RL from the reach adapter", "metaworld-q35-v4-ml10-from-reach", None),
                   ("Qwen3.5-4B, BC then RL, pref_mw", "metaworld-bc2-q35-ml10", None),
-                  ("Qwen3.5-4B, BC then RL, pref_mw_obj", "metaworld-bc3-q35-ml10", None)]
+                  ("Qwen3.5-4B, BC then RL, pref_mw_obj", "metaworld-bc3-q35-ml10", None),
+                  ("Qwen3.5-4B, BC + DAgger (worse clone; stopped)", "metaworld-bc4-q35-ml10-dagger", None),
+                  ("Qwen3.5-4B, BC + DART (noise 1 cm) then RL", "metaworld-bc5-q35-ml10-dart1", None)]
 METAWORLD_BEST_RUN = ("metaworld-q35-v3-lr1e-5", "f1bc2e04")   # Qwen3.5-4B reach, lr 1e-5: held-out 0.41 at step 30
 # Restarts that crashed or failed within a few steps and were rerun under the same name (infrastructure: vLLM reload
 # errors, port collisions); hidden so every panel shows one line per configuration.
