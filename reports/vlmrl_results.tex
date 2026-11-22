@@ -1,0 +1,373 @@
+\documentclass[11pt]{article}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{amsmath}
+\usepackage[margin=2.2cm]{geometry}
+\usepackage{microtype}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{longtable}
+\usepackage{xcolor}
+\usepackage{caption}
+\usepackage[hidelinks]{hyperref}
+\captionsetup{font=small,labelfont=bf}
+\setlength{\parskip}{4pt}
+\setlength{\parindent}{0pt}
+\definecolor{boxbg}{HTML}{F2F1EE}
+\newcommand{\code}[1]{\texttt{#1}}
+\newcommand{\takeaway}[1]{\par\smallskip\noindent\colorbox{boxbg}{\parbox{\dimexpr\linewidth-2\fboxsep}{\small\textbf{Takeaways.} #1}}\par\smallskip}
+
+\title{VLM reinforcement learning on PointMaze and Metaworld:\\what worked, what didn't, and why}
+\author{vlmrl project notes}
+\date{Built from the wandb runs on 22 November 2026 (\code{scripts/make\_results\_pdf.py})}
+
+\begin{document}
+\maketitle
+
+\section*{Key results}
+\begin{itemize}
+\item \textbf{Mazes learn from sparse success reward} and transfer to held-out layouts. On procedural mazes after 40
+  steps, Qwen3-VL-2B reaches 0.48 on training layouts and 0.31/0.33 on held-out 11$\times$11/15$\times$15 layouts; Gemma 4
+  E2B, MiniCPM-V and SmolVLM2-2.2B are close behind (Fig.~\ref{fig:procgen}). On single fixed mazes, SmolVLM2-500M and
+  SmolVLM2-2.2B reach 0.8--0.97.
+\item \textbf{Loss aggregation decides whether small models survive RL.} With the standard token-mean loss,
+  SmolVLM2-2.2B collapses within 5 updates (replies shrink to bare words). Weighting every trajectory equally
+  (\code{traj\_mean}) removes the collapse (Fig.~\ref{fig:fixed}).
+\item \textbf{Metaworld reach learns from a preference reward built from the ground truth.} Qwen3.5-4B (LoRA) goes from 0 to
+  0.94 on held-out goal positions (step 95; 0.78 at step 200) with RL alone (Fig.~\ref{fig:reach}).
+\item \textbf{Exploration decides whether RL can start.} At the same temperature, Qwen3.5-4B samples with mean log-prob
+  $-0.58$ per token at step 1; Qwen3-VL-4B, Qwen3-VL-2B and Gemma sample at $-0.04$ to $-0.06$, all rollouts of a group
+  tie, and they never get a signal (Fig.~\ref{fig:explore}).
+\item \textbf{Behaviour cloning (BC) on Metaworld's scripted experts, then RL, fixes the start.} Qwen3-VL-4B, which never
+  learned with RL alone, goes 0.28 (clone) $\to$ 0.78 held-out with RL.
+\item \textbf{The single biggest lever for push was our own controller.} Its gain was too high: the hand overshot and
+  lifted while dragging the puck. Even the scripted expert succeeded only 0.63; at gain 0.5 it succeeds 0.97, and the
+  cloned policy doubles (Figs.~\ref{fig:expert}, \ref{fig:clones}).
+\item \textbf{Preference rewards need care with local optima.} Ranking push rollouts by Metaworld's dense reward taught the
+  policy to grip the puck and hold still. Ranking by the object's progress first fixed it (Fig.~\ref{fig:prefreward}).
+\item \textbf{What did not work:} RL alone on push (0 in every run), DAgger with the scripted experts (made clones worse),
+  and generalizing to held-out push positions or held-out ML10 tasks (push $\approx$0.28; ML10 held-out tasks $\approx$0).
+\item \textbf{Greedy evals are noisy}: the same push clone scored 0.12, 0.16 and 0.31 on held-out positions in three
+  runs. Differences below $\sim$0.15 on one 32-episode eval are not meaningful.
+\end{itemize}
+
+\tableofcontents
+\newpage
+
+%=====================================================================================================================
+\section{Setup}
+
+\paragraph{Tasks.}
+\textbf{PointMaze} (Gymnasium Robotics): a ball in a maze, top-down image. Fixed mazes (UMaze, medium) and procedural
+11$\times$11 mazes, evaluated on training layouts and on held-out 11$\times$11 and 15$\times$15 layouts. Reward:
+success (reaching the goal).
+\textbf{Metaworld} (Sawyer arm, v3): ML1 \emph{reach} and \emph{push} (50 training and 50 held-out goal/object positions
+each), and ML10 (10 training tasks, 5 held-out tasks). The model sees a 224$\times$224 crop of a 640$\times$480
+corner-camera frame.
+
+\paragraph{Interface (one image per turn).}
+Each turn the model gets the task instruction, the current frame and a short state line, e.g.\ \code{Gripper: open. Last
+move: dx=+2.0, dy=-1.0, dz=+0.0.}, and replies with a move in centimeters, e.g.\ \code{\{"dx": 3.0, "dy": -2.0, "dz":
+-1.0, "grip": "open"\}} (at most 10 cm). No coordinates of the goal or objects are given: they are visible only in the
+image. Earlier turns are not in the context. A waypoint controller executes the move over up to 40 simulator steps.
+Episodes have 15 turns (Metaworld) and end early on success.
+
+\paragraph{Training.}
+GRPO: each step samples groups of rollouts from shared start states (Metaworld: 16 groups $\times$ 8; mazes: 32
+$\times$ 16), z-scores rewards within each group, and drops groups with no spread. Every turn is one training sample
+with its trajectory's advantage (REINFORCE, no ratio clipping). Rollouts are generated by vLLM; the trainer scores the
+exact sampled token ids. Qwen3.5-4B and Qwen3-VL-4B are trained with LoRA (rank 64), the $\le$2B models and Gemma 4 E2B
+with full fine-tuning. \code{traj\_mean} weights every trajectory equally in the loss (Section~\ref{sec:fixed}).
+
+\paragraph{Evaluation.}
+Greedy decoding on fixed start states: 32 episodes per set on Metaworld (48 on ML10), 64 on mazes. Section~\ref{sec:noise}
+explains why single evals are noisy; the plots therefore also show training-rollout success (128 episodes per step).
+
+\paragraph{Scope.} Runs affected by bugs that were fixed during the project are left out; every figure uses runs
+from after the fixes. Appendix~\ref{app:runs} lists every run used.
+
+%=====================================================================================================================
+\section{PointMaze}
+
+\subsection{Procedural mazes: four models learn and transfer}
+\begin{figure}[h]
+\centering\includegraphics[width=\linewidth]{figures/maze_procgen.pdf}
+\caption{Procedural mazes, 40 RL steps, sparse success reward. Eval success on training layouts and on held-out
+layouts (same size, and larger 15$\times$15). Labels: final values.}
+\label{fig:procgen}
+\end{figure}
+All four models improve on held-out layouts about as much as on training layouts, so they learn to navigate rather than
+memorize layouts (Fig.~\ref{fig:procgen}). Learning rates matter by model: 5e-6 for Qwen3-VL-2B and SmolVLM2-2.2B,
+1e-6 for Gemma 4 E2B and MiniCPM-V (5e-6 made MiniCPM-V near-deterministic within 3 steps).
+
+\subsection{Single fixed mazes and the SmolVLM2-2.2B collapse}
+\label{sec:fixed}
+\begin{figure}[h]
+\centering\includegraphics[width=\linewidth]{figures/maze_fixed.pdf}
+\caption{Single fixed mazes, 100 steps. Left two: eval success. Right: SmolVLM2-2.2B training rollouts on UMaze with
+the token-mean loss (collapses at step 5) and with \code{traj\_mean}.}
+\label{fig:fixed}
+\end{figure}
+SmolVLM2-500M learns both fixed mazes (0.84 UMaze, 0.89 medium at step 100). SmolVLM2-2.2B with the default
+token-mean loss collapses after a few updates (Fig.~\ref{fig:fixed}, right): success climbs to 0.84, the replies shrink from
+98 to 22 characters, and the next update turns them into bare direction words (5 characters) that are not valid
+actions, so success falls to 0.04 with 98\% invalid replies. The same happens on procedural mazes, so maze sampling is
+not the cause; a lower learning rate, a warmup or a format penalty only delayed it.
+
+\textbf{Why:} with a token-mean loss every token weighs the same. Failed episodes use all 20 turns while successful ones
+are short, so failures carry most of the tokens and each update is net negative per token. That pushes probability away
+from everything sampled, including the valid format. \textbf{Fix:} \code{traj\_mean} rescales advantages so every
+trajectory weighs the same: UMaze 0.97, medium 0.81 (one dip at step 60); adding a small KL penalty to the reference
+(0.05) also stabilizes medium (0.94).
+
+\takeaway{Sparse success is enough for mazes, and the skill transfers to new layouts. If replies get shorter while
+success rises, the loss is about to tip negative: weight trajectories, not tokens.}
+
+%=====================================================================================================================
+\section{Metaworld reach}
+
+\subsection{RL alone works for Qwen3.5-4B}
+\begin{figure}[h]
+\centering\includegraphics[width=\linewidth]{figures/reach_models.pdf}
+\caption{ML1 reach. Left: eval on the 50 held-out goal positions (thin: each eval; thick: 3-eval mean). Right:
+training-rollout success. BC runs start at their clone's score.}
+\label{fig:reach}
+\end{figure}
+Qwen3.5-4B (LoRA on the MLPs, lr 1e-5, preference reward of Section~\ref{sec:pref}) starts at 0 and reaches 0.94 on
+held-out goal positions at step 95; afterwards held-out plateaus at 0.5--0.78 while training positions reach 0.97
+(0.78 / 0.88 at step 200). Zero-shot, every model scores 0.
+
+\subsection{Exploration decides whether a model can start}
+\begin{figure}[h]
+\centering\includegraphics[width=\linewidth]{figures/reach_exploration.pdf}
+\caption{Left: mean log-prob of the sampled tokens at the first RL step, all at temperature 1.2. Right: raising the
+temperature to 1.6 lets two of the stuck models start.}
+\label{fig:explore}
+\end{figure}
+The preference reward needs the 8 rollouts of a group to differ. Qwen3.5-4B samples diverse moves at temperature 1.2
+(mean log-prob $-0.58$ per token at step 1); the other three are nearly deterministic ($-0.04$ to $-0.06$), so their
+rollouts tie and the groups carry no signal (Fig.~\ref{fig:explore}). Raising the temperature to 1.6 got Qwen3-VL-2B
+(RL only: 0.38 held-out at step 100, peak 0.47) and Gemma moving. Qwen3-VL-4B stayed stuck even at 2.0: it always
+answered \code{dx = dy = 0}, never moving sideways.
+
+\subsection{Behaviour cloning, then RL}
+Metaworld ships a scripted expert per task. We drive it through the same text protocol, write its moves as the model's
+replies, and fine-tune on the successful episodes (30 steps of 64 episodes), then run RL from the clone.
+For Qwen3-VL-4B this turns 0 into the best reach model: 0.28 after cloning, 0.78 held-out (1.00 on training positions)
+by step 70. Gemma 4 E2B goes from 0.09 to 0.31--0.44.
+
+\takeaway{Check the step-1 log-prob before a long run: near zero means no exploration and no signal. Temperature
+fixes moderate cases; cloning an expert fixes the rest, and RL then improves on the clone.}
+
+%=====================================================================================================================
+\section{Preference rewards from the ground truth}
+\label{sec:pref}
+
+\subsection{The recipe (\code{pref\_mw})}
+Metaworld's success signal starts at 0\% for every model, so a sparse reward gives no signal. Instead each group is
+turned into preferences from Metaworld's ground truth at the final state:
+\begin{enumerate}
+\item Score every rollout: $s = 10\cdot\text{success} + \log(0.001 + r_\text{final})$, where $r_\text{final}\in[0,10]$ is
+  Metaworld's dense reward at the last step. An episode ended by an invalid reply gets $s=-20$.
+\item Compare every pair: $P(i \succ j) = \sigma((s_i - s_j)/0.1)$, a tie if $|s_i - s_j| < 0.02$ (within 2\% on the
+  log scale).
+\item Each rollout's reward is its win rate against the other 7; GRPO z-scores these within the group.
+\end{enumerate}
+With temperature 0.1 on log rewards this is essentially a ranking by final progress, with success first.
+
+\begin{table}[h]
+\centering\small
+\begin{tabular}{lrrrr}
+\toprule
+Rollout & $r_\text{final}$ & $s$ & Win rate & Advantage \\
+\midrule
+invalid reply & -- & $-20$ & 0 & $-1.34$ \\
+no success & 0.03 & $-3.5$ & 1/3 & $-0.45$ \\
+no success & 0.07 & $-2.6$ & 2/3 & $+0.45$ \\
+success & 9.8 & 12.3 & 1 & $+1.34$ \\
+\bottomrule
+\end{tabular}
+\caption{A worked example with 4 rollouts.}
+\end{table}
+
+\subsection{The grip-and-hold trap, and ranking by the object first}
+\begin{figure}[h]
+\centering
+\begin{minipage}{0.5\linewidth}\includegraphics[width=\linewidth]{figures/push_reward.pdf}\end{minipage}\hfill
+\begin{minipage}{0.47\linewidth}
+\caption{Push, RL from the same cloned policy (controller gain 1.0). With the dense-reward ranking, success falls
+from 0.11 to 0.01 in 15 steps; ranking by object progress first keeps it at $\sim$0.10.}
+\label{fig:prefreward}
+\end{minipage}
+\end{figure}
+On push, Metaworld's dense reward at the final state is about $1 + 2\cdot 2 + 5\cdot 0.1 \approx 5.5$ for
+\emph{gripping the puck and holding it still}, but below 2 for pushing it partway and losing contact. The ranking therefore
+rewards holding, and RL learned exactly that: descend, close the gripper on the puck, and stay for the rest of the
+episode (Fig.~\ref{fig:prefreward}).
+
+\code{pref\_mw\_obj} compares two rollouts rule by rule: (1) a valid ending beats an invalid one; (2) success wins; (3) the
+rollout whose task object ended at least 1 cm closer to its goal wins (Metaworld's \code{obj\_to\_target}, for reach
+the hand); (4) otherwise the dense-reward rule above.
+
+\takeaway{A dense reward read at the final state is a fine ranking signal until it has a local optimum the policy can sit
+in. Rank by the task's own progress measure (object to goal) before the shaped reward.}
+
+%=====================================================================================================================
+\section{Push: imitation, control, and generalization}
+
+\subsection{RL alone finds nothing}
+Every RL-only push run stayed at 0 (also from the trained reach adapter and at temperature 1.6): the policy repeats one
+fixed move whatever the image shows, and never samples the sequence push needs (go behind the puck, drop, push).
+
+\subsection{Cloning the expert, DAgger and DART}
+\begin{figure}[h]
+\centering\includegraphics[width=\linewidth]{figures/push_clones.pdf}
+\caption{Success of the cloned push policies before any RL (step-0 eval, 32 episodes per set; pooled where one recipe
+has several evals). Bars: 95\% Wilson intervals.}
+\label{fig:clones}
+\end{figure}
+\begin{table}[h]\centering\small\input{tables/clones.tex}\caption{The same clones as counts (successes/episodes).}\end{table}
+
+\textbf{Plain cloning} (30 steps) gave the first push successes: 0.20 on training positions, 0.06 held-out, against the
+expert's 0.61 through the same protocol. The clone kept repeating the expert's ``drop onto the puck'' move after its hand
+had already reached the table, a state the expert never visits.
+
+\textbf{DAgger made it worse} (0.20 $\to$ 0.00). DAgger runs the clone and labels the states it reaches with the expert's
+move. But Metaworld's experts are state machines with sharp thresholds on state the model cannot see: more than 2 cm from
+the puck in $x/y$ means ``go back up 20 cm'', within 2 cm means ``drop and close''. In the clone's own states nearly
+identical images got opposite labels; the fit to the labels fell to log-prob $-0.50$ (vs $-0.09$ on expert data).
+
+\textbf{DART helped held-out positions a little}: the expert drives with 1 cm of noise on each move and its clean replies
+are cloned, so the states stay near the expert's path but include small slips. Pooled over three evals, 19/96 held-out
+successes vs 4/64 for the plain clone. With 2 cm of noise the expert's own success fell to 0.20 and the clone got worse.
+
+\subsection{The controller gain}
+\begin{figure}[h]
+\centering\includegraphics[width=\linewidth]{figures/expert_gain.pdf}
+\caption{Scripted-expert success through our text protocol at the old and new controller gain (8 episodes per task;
+where both dots coincide only one is visible). On ML1 push (30 episodes): 0.63 $\to$ 0.97.}
+\label{fig:expert}
+\end{figure}
+The eval transcripts showed the clone doing the right thing (above the puck, drop, close, move 10 cm toward the goal)
+while the hand rose 2--3 cm per turn during the drag, even though it was commanded down, until the puck slipped out.
+The waypoint controller commanded full speed until 1 cm from each target (gain 1.0) and overshot. At gain 0.5 it slows
+down from 2 cm out: the expert's push success goes from 0.63 to 0.97 and it needs 5.9 turns instead of 9.4. ML10's
+experts improve too (training tasks 0.85 $\to$ 0.91, held-out tasks 0.42 $\to$ 0.72; only door-open drops,
+Fig.~\ref{fig:expert}). The cloned push policy doubles (0.47 / 0.25 after 30 steps).
+
+\subsection{More cloning: training positions solved, held-out positions not}
+With 100 cloning steps both 4B models nearly solve push on its 50 training positions (Qwen3.5-4B 0.94, Qwen3-VL-4B 0.91),
+but held-out stays at 0.28 for both, the same as after 30 steps. The fit to the expert data reaches log-prob $-0.003$:
+the clone has memorized the 50 positions. ML1 push trains on only 50 puck/goal configurations.
+
+An ablation outside the ML1 protocol clones on 450 positions (the training positions of benchmark seeds 0--9). This
+needed care: \emph{seed 1's 50 training positions are exactly seed 0's 50 held-out positions}, so any training position within
+1 cm of a held-out one is dropped. The remaining positions sit closer to the held-out ones (median nearest distance 2.2 cm
+instead of 3.8 cm), which has to be kept in mind when reading the result. At the time of writing it is still training;
+the clone's fit is $-0.20$ after 83 of 100 steps, i.e.\ it is not memorizing.
+
+\subsection{RL from the clones}
+\begin{figure}[h]
+\centering\includegraphics[width=\linewidth]{figures/push_rl.pdf}
+\caption{Push, RL from the cloned policies (\code{pref\_mw\_obj}, temperature 1.0 except the gain-1.0 run at 1.2).}
+\label{fig:pushrl}
+\end{figure}
+At gain 0.5, RL improves the 30-step clone: training rollouts rise from 0.22 (steps 1--5) to 0.36 (steps 36--45); at
+gain 1.0 they never left $\sim$0.10. From the memorized 100-step clones, rollouts stay at 0.8--0.9 and held-out does not
+improve: Qwen3.5-4B drifts from $\sim$0.26 to $\sim$0.14 over 25 steps, Qwen3-VL-4B stays at 0.2--0.4
+(Fig.~\ref{fig:pushrl}). RL on the 50 training positions sharpens the memorized behaviour rather than generalizing it.
+
+\textbf{Temperature for RL from a clone.} Unlike reach from scratch, a clone already varies its moves, and sampling
+noise in the digits spoils precise pushes. From the same DART clone, mean rollout success over the first 9 steps was
+0.106 at temperature 0.8 and 1.0 and 0.060 at 1.2.
+
+\takeaway{Before blaming the model, run the scripted expert through your own action interface: our controller capped the
+expert at 0.63. Cloning then gets training positions to $>$0.9, but with 50 configurations the model memorizes them;
+held-out push needs more varied data, not more RL on the same positions.}
+
+%=====================================================================================================================
+\section{ML10: a wider task distribution}
+\begin{figure}[h]
+\centering\includegraphics[width=\linewidth]{figures/ml10.pdf}
+\caption{ML10 with Qwen3.5-4B: eval on its 10 training tasks and its 5 held-out tasks (48 episodes each).}
+\label{fig:ml10}
+\end{figure}
+RL alone reaches 0.10--0.12 on the training tasks; starting from the trained reach adapter, 0.12--0.17, with the first
+held-out-task successes (0.02). Cloning needs many more steps than on one task: after 30 steps the clone scores 0.10, after
+100 steps 0.38 (fit $-0.18$, still not memorized; a 200-step clone is training). The 5 held-out tasks stay near 0 in every
+run: the instructions and objects are new, and 10 training tasks are too few to transfer.
+
+\takeaway{Multi-task cloning scales with the number of tasks: budget proportionally more expert data. Held-out
+\emph{tasks} (as opposed to held-out positions) did not work at all at this scale.}
+
+%=====================================================================================================================
+\section{Methodology lessons}
+\label{sec:noise}
+\begin{itemize}
+\item \textbf{Greedy evals are not reproducible.} vLLM's greedy decoding is not bit-exact across servers and batch
+  compositions; near-ties in a digit flip, and over 15 turns the episode diverges. The same push clone scored 0.12, 0.16
+  and 0.31 on held-out positions in three runs. With 32 episodes the 95\% interval at $p=0.25$ is about $\pm0.15$. Pool
+  evals, show intervals, and lean on the 128 training rollouts per step.
+\item \textbf{Three cheap diagnostics} explained most failures: the step-1 mean log-prob (no exploration $\to$ no signal),
+  its drift during training (sharpening toward a deterministic policy), and reply length (shrinking replies preceded every
+  small-model collapse). The trainer-vs-vLLM log-prob gap on the same tokens checks that training is on-policy.
+\item \textbf{Run the expert through your own interface first.} It measures the ceiling of the protocol, and here it
+  exposed the controller gain.
+\item \textbf{Check splits for leakage} before adding data: Metaworld ML1's seed 1 training split is seed 0's test split.
+\end{itemize}
+
+%=====================================================================================================================
+\section{What did not work, in one table}
+{\centering\small
+\begin{tabular}{>{\raggedright\arraybackslash}p{4.4cm}>{\raggedright\arraybackslash}p{3.6cm}>{\raggedright\arraybackslash}p{7.2cm}}
+\toprule
+Approach & Result & Why \\
+\midrule
+Token-mean loss on SmolVLM2-2.2B & collapse in 5 updates & long failed episodes dominate the tokens; updates net negative \\
+Lower lr / warmup / format penalty & only delayed the collapse & they do not change the token weighting \\
+RL alone, less exploratory models & 0 on reach & near-deterministic sampling: groups tie, no signal \\
+RL alone on push (any start) & 0 & never samples the multi-phase motion \\
+Dense-reward preference on push & RL undid the clone & local optimum: grip the puck and hold still \\
+DAgger with scripted experts & clone 0.20 $\to$ 0.00 & threshold experts give visually identical states opposite labels \\
+DART with 2 cm noise & worse clone & the noisy expert itself succeeds only 0.20 \\
+More cloning on 50 push positions & held-out stays 0.28 & memorizes the training configurations \\
+RL from the memorized clone & held-out flat or down & sharpens the memorized behaviour \\
+ML10 held-out tasks & $\approx$0 everywhere & too few training tasks for task transfer \\
+\bottomrule
+\end{tabular}\par}
+
+\section{Open questions and next steps}
+\begin{itemize}
+\item Does the 450-position clone generalize to held-out push positions (and is the gain real, given the denser
+  coverage)? If yes, cloning on many random positions, then RL, is the recipe for push.
+\item ML10 with 200 cloning steps: does the training-task score keep rising toward the expert's 0.91?
+\item Reach plateaus at 0.6--0.8 on held-out positions while training positions reach 0.9--1.0: more positions (as for push)
+  should narrow that gap.
+\item A larger eval (128+ episodes) or pooled evals would make step-to-step comparisons meaningful.
+\end{itemize}
+
+\appendix
+\section{Runs used}
+\label{app:runs}
+Every curve and number above comes from these wandb runs (entity \code{tri}; \code{maze/} = project
+\code{vlm-rl-pointmaze}, \code{mw/} = project \code{vlm-rl-metaworld}). The scripted-expert success rates (Fig.~\ref{fig:expert}) were measured separately by driving
+\code{metaworld.policies} through the environment's text protocol (\code{vlmrl.envs.metaworld.oracle\_action}).
+
+{\small\input{tables/runs.tex}}
+
+\section{Settings}
+\begin{itemize}
+\item \textbf{Metaworld:} 16 groups $\times$ 8 rollouts per step, 15 turns, replies of at most 128 tokens, temperature 1.2
+  (1.0 for RL from push/ML10 clones), \code{traj\_mean}, no KL. Qwen3.5-4B: LoRA rank 64 on the language model's MLPs,
+  lr 1e-5. Qwen3-VL-4B: LoRA rank 64, lr 1e-5. Qwen3-VL-2B: full fine-tuning, lr 2e-6. Gemma 4 E2B: full fine-tuning with
+  the vision tower frozen, lr 1e-6. Behaviour cloning: 64 expert episodes per step (successful ones only), lr 5e-5 for
+  LoRA, 1e-5 for Gemma.
+\item \textbf{Mazes:} 32 groups $\times$ 16 rollouts, temperature 1.0, sparse success reward; procedural mazes 40 steps,
+  fixed mazes 100 steps.
+\item \textbf{Rebuild:} \code{uv run scripts/make\_results\_pdf.py -{}-fetch} (needs wandb credentials) refreshes
+  \code{reports/data/runs.json}; without \code{-{}-fetch} the figures, tables and PDF are rebuilt from the cache.
+\end{itemize}
+
+\end{document}

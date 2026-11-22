@@ -1,0 +1,54 @@
+\begin{longtable}{@{}llll@{}}
+\toprule
+Key & Run & wandb group & Model \\
+\midrule
+\endhead
+\texttt{pg\_qwen2b} & \texttt{7273b286} & \texttt{maze/procgen-fft-v2-diag} & Qwen3-VL-2B \\
+\texttt{pg\_minicpm} & \texttt{23055312} & \texttt{maze/procgen-fft-v3-exact} & MiniCPM-V-4.6 \\
+\texttt{pg\_gemma} & \texttt{3e97482a} & \texttt{maze/procgen-fft-v2} & gemma-4-E2B \\
+\texttt{pg\_smol22\_traj} & \texttt{e320a919} & \texttt{maze/procgen-fft-v3-exact-trajmean} & SmolVLM2-2.2B \\
+\texttt{fx\_500m\_umaze} & \texttt{da33c51b} & \texttt{maze/smolvlm2-fixed-maze-v1} & SmolVLM2-500M \\
+\texttt{fx\_500m\_medium} & \texttt{86e6b888} & \texttt{maze/smolvlm2-fixed-maze-v1} & SmolVLM2-500M \\
+\texttt{fx\_22\_tok\_umaze} & \texttt{39d8029d} & \texttt{maze/smolvlm2-fixed-maze-v1} & SmolVLM2-2.2B \\
+\texttt{fx\_22\_tok\_medium} & \texttt{e532811d} & \texttt{maze/smolvlm2-fixed-maze-v1} & SmolVLM2-2.2B \\
+\texttt{fx\_22\_traj\_umaze} & \texttt{73150cd4} & \texttt{maze/smolvlm2-fixed-maze-v1-trajmean} & SmolVLM2-2.2B \\
+\texttt{fx\_22\_traj\_medium} & \texttt{1eb55355} & \texttt{maze/smolvlm2-fixed-maze-v1-trajmean} & SmolVLM2-2.2B \\
+\texttt{fx\_22\_trajkl\_umaze} & \texttt{f118986b} & \texttt{maze/smolvlm2-fixed-maze-v1-trajmean-kl} & SmolVLM2-2.2B \\
+\texttt{fx\_22\_trajkl\_medium} & \texttt{077253d8} & \texttt{maze/smolvlm2-fixed-maze-v1-trajmean-kl} & SmolVLM2-2.2B \\
+\texttt{r\_q35} & \texttt{f1bc2e04} & \texttt{mw/metaworld-q35-v3-lr1e-5} & Qwen3.5-4B \\
+\texttt{r\_q3vl4b\_bc} & \texttt{726835b5} & \texttt{mw/metaworld-bc2-q3vl4b-reach} & Qwen3-VL-4B \\
+\texttt{r\_gemma\_bc} & \texttt{d092d258} & \texttt{mw/metaworld-bc2-gemma4-reach} & gemma-4-E2B \\
+\texttt{r\_q3vl2b\_t16} & \texttt{69f4f4fc} & \texttt{mw/metaworld-reach-q3vl2b-t16} & Qwen3-VL-2B \\
+\texttt{r\_gemma\_t16} & \texttt{8cea117b} & \texttt{mw/metaworld-reach-gemma4-t16} & gemma-4-E2B \\
+\texttt{r\_q3vl4b\_t12} & \texttt{b39008c2} & \texttt{mw/metaworld-reach-q3vl4b} & Qwen3-VL-4B \\
+\texttt{r\_q3vl2b\_t12} & \texttt{448f683a} & \texttt{mw/metaworld-reach-q3vl2b} & Qwen3-VL-2B \\
+\texttt{r\_gemma\_t12} & \texttt{d6e2f340} & \texttt{mw/metaworld-reach-gemma4} & gemma-4-E2B \\
+\texttt{r\_q3vl4b\_t16} & \texttt{7bf0dea1} & \texttt{mw/metaworld-reach-q3vl4b-t16} & Qwen3-VL-4B \\
+\texttt{r\_q3vl4b\_t20} & \texttt{ccb99dd9} & \texttt{mw/metaworld-reach-q3vl4b-t20} & Qwen3-VL-4B \\
+\texttt{p\_rl\_from\_reach} & \texttt{4a80c58d} & \texttt{mw/metaworld-q35-v4-push-from-reach} & Qwen3.5-4B \\
+\texttt{p\_rl\_from\_reach\_t16} & \texttt{47188e19} & \texttt{mw/metaworld-q35-v4-push-from-reach-t16} & Qwen3.5-4B \\
+\texttt{p1\_bc\_prefmw} & \texttt{a6c19ea2} & \texttt{mw/metaworld-bc2-q35-push} & Qwen3.5-4B \\
+\texttt{p1\_bc\_prefobj} & \texttt{ed31ad85} & \texttt{mw/metaworld-bc3-q35-push} & Qwen3.5-4B \\
+\texttt{p1\_q3vl4b\_bc} & \texttt{a1aeb101} & \texttt{mw/metaworld-bc3-q3vl4b-push} & Qwen3-VL-4B \\
+\texttt{p1\_dagger} & \texttt{b8487691} & \texttt{mw/metaworld-bc4-q35-push-dagger} & Qwen3.5-4B \\
+\texttt{p1\_dart1} & \texttt{51e3aa75} & \texttt{mw/metaworld-bc5-q35-push-dart1} & Qwen3.5-4B \\
+\texttt{p1\_dart2} & \texttt{7fecc5dd} & \texttt{mw/metaworld-bc5-q35-push-dart2} & Qwen3.5-4B \\
+\texttt{p1\_dart1\_t08} & \texttt{ca608d8c} & \texttt{mw/metaworld-bc6-q35-push-dart1-t08} & Qwen3.5-4B \\
+\texttt{p1\_dart1\_t10} & \texttt{ed962f90} & \texttt{mw/metaworld-bc6-q35-push-dart1-t10} & Qwen3.5-4B \\
+\texttt{p5\_bc30} & \texttt{223fd849} & \texttt{mw/metaworld-g05-q35-push} & Qwen3.5-4B \\
+\texttt{p5\_dart30} & \texttt{65571a85} & \texttt{mw/metaworld-g05-q35-push-dart} & Qwen3.5-4B \\
+\texttt{p5\_q3vl4b\_bc30} & \texttt{00238be4} & \texttt{mw/metaworld-g05-q3vl4b-push} & Qwen3-VL-4B \\
+\texttt{p5\_bc100} & \texttt{a80a57d1} & \texttt{mw/metaworld-g05-q35-push-bc100} & Qwen3.5-4B \\
+\texttt{p5\_q3vl4b\_bc100} & \texttt{782211cf} & \texttt{mw/metaworld-g05-q3vl4b-push-bc100} & Qwen3-VL-4B \\
+\texttt{p5\_seeds10} & \texttt{9f6f5f04} & \texttt{mw/metaworld-g05-q35-push-seeds10} & Qwen3.5-4B \\
+\texttt{m\_rl} & \texttt{147bb6b9} & \texttt{mw/metaworld-q35-v3-lr1e-5} & Qwen3.5-4B \\
+\texttt{m\_from\_reach} & \texttt{3e049c7c} & \texttt{mw/metaworld-q35-v4-ml10-from-reach} & Qwen3.5-4B \\
+\texttt{m1\_bc\_prefmw} & \texttt{ddd405a9} & \texttt{mw/metaworld-bc2-q35-ml10} & Qwen3.5-4B \\
+\texttt{m1\_bc\_prefobj} & \texttt{2e436798} & \texttt{mw/metaworld-bc3-q35-ml10} & Qwen3.5-4B \\
+\texttt{m1\_dagger} & \texttt{16467d2b} & \texttt{mw/metaworld-bc4-q35-ml10-dagger} & Qwen3.5-4B \\
+\texttt{m1\_dart} & \texttt{c7413f19} & \texttt{mw/metaworld-bc5-q35-ml10-dart1} & Qwen3.5-4B \\
+\texttt{m5\_bc30} & \texttt{337e1e20} & \texttt{mw/metaworld-g05-q35-ml10} & Qwen3.5-4B \\
+\texttt{m5\_bc100} & \texttt{351850a4} & \texttt{mw/metaworld-g05-q35-ml10-bc100} & Qwen3.5-4B \\
+\texttt{m5\_bc200} & \texttt{971c5b8e} & \texttt{mw/metaworld-g05-q35-ml10-bc200} & Qwen3.5-4B \\
+\bottomrule
+\end{longtable}

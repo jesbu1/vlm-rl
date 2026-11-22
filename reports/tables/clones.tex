@@ -1,0 +1,15 @@
+\begin{tabular}{lrrl}
+\toprule
+Clone & Training pos. & Held-out pos. & Evals \\
+\midrule
+gain 1.0, BC 30 steps & 13/64 (0.20) & 4/64 (0.06) & two clones, same recipe \\
+gain 1.0, + DAgger 20 steps & 0/32 (0.00) & 0/32 (0.00) &  \\
+gain 1.0, + DART 1 cm, 20 steps & 24/96 (0.25) & 19/96 (0.20) & one clone, three evals \\
+gain 1.0, + DART 2 cm, 20 steps & 3/32 (0.09) & 5/32 (0.16) &  \\
+gain 0.5, BC 30 steps & 15/32 (0.47) & 8/32 (0.25) &  \\
+gain 0.5, DART 1 cm, 30 steps & 14/32 (0.44) & 7/32 (0.22) &  \\
+gain 0.5, BC 100 steps & 30/32 (0.94) & 9/32 (0.28) &  \\
+gain 0.5, BC 100 steps, 450 positions & \multicolumn{2}{c}{running} & \\
+gain 0.5, Qwen3-VL-4B, BC 100 steps & 29/32 (0.91) & 9/32 (0.28) &  \\
+\bottomrule
+\end{tabular}
