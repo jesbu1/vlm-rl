@@ -80,6 +80,7 @@ class TrainConfig:
     bc_episodes: int = 64                               # expert episodes per BC step
     bc_success_only: bool = True                        # clone only the expert episodes that succeed
     bc_lr: float = 0.0                                  # lr during behaviour cloning (0 = lr)
+    bc_dagger_steps: int = 0                            # the last N of bc_steps run the current clone, labelled by the expert (DAgger)
     micro_batch_size: int = 1                           # sequences per forward/backward
     # generation
     max_new_tokens: int = 256
@@ -578,7 +579,9 @@ class Trainer:
     def behaviour_clone(self) -> dict:
         """bc_steps updates on the scripted expert's transcripts (advantage +1 on every turn: with the token-mean loss
         this is maximum likelihood on the expert's replies). Runs before the step-0 eval, which then measures the
-        cloned policy; the rollout engine gets the cloned weights before RL starts."""
+        cloned policy; the rollout engine gets the cloned weights before RL starts. The last ``bc_dagger_steps`` steps
+        are DAgger: the current clone drives the episodes and the expert labels every state it reaches, so the clone
+        also learns what to do after its own mistakes (pure cloning only shows the expert's states)."""
         from vlmrl.rollout import expert_rollout
         c = self.cfg
         if self.bundle.expert is None:
@@ -587,22 +590,36 @@ class Trainer:
         succ, last = [], {}
         self._lr_base = c.bc_lr or c.lr
         for i in range(c.bc_steps):
+            dagger = i >= c.bc_steps - c.bc_dagger_steps
+            if dagger and i > 0 and self.generator is not self.policy:
+                self.generator.sync(self.policy, 0)          # DAgger rolls out the current clone
             starts = self.bundle.train_sampler.sample(c.bc_episodes, rng)
             trajs = expert_rollout(self.env, self.bundle.interface, self.bundle.expert, starts,
-                                   list(range(len(starts))), self.bundle.max_turns)
+                                   list(range(len(starts))), self.bundle.max_turns,
+                                   generate=self._gen(c.temperature) if dagger else None, max_images=c.max_images,
+                                   max_frames=c.max_frames, thinking=self._thinking)
             succ.append(float(np.mean([t.success for t in trajs])))
-            keep = [t for t in trajs if t.success] if c.bc_success_only else trajs
+            if dagger:   # every turn has the expert's label for the state the clone reached, failed episodes included
+                keep = trajs
+            else:
+                keep = [t for t in trajs if t.success] if c.bc_success_only else trajs
             for t in keep:
                 t.advantage = 1.0
             last = self.update([keep]) if keep else {"train/skipped": 1.0}
-            print(f"[bc] step {i + 1}/{c.bc_steps}: expert success {succ[-1]:.2f}, {len(keep)} episodes, "
+            print(f"[bc] step {i + 1}/{c.bc_steps}: {'clone (DAgger)' if dagger else 'expert'} success {succ[-1]:.2f}, "
+                  f"{len(keep)} episodes, "
                   f"mean log-prob {last.get('train/mean_logp', float('nan')):.3f}", flush=True)
         self._lr_base = None
         self.policy.save(f"{c.out_dir}/ckpt_bc")   # the clone alone, reusable via init_adapter (LoRA)
         if self.generator is not self.policy:
             self.generator.sync(self.policy, 0)
-        return {"bc/expert_success": float(np.mean(succ)), "bc/mean_logp": last.get("train/mean_logp", 0.0),
-                "bc/steps": c.bc_steps}
+        n_exp = c.bc_steps - min(c.bc_dagger_steps, c.bc_steps)
+        out = {"bc/expert_success": float(np.mean(succ[:n_exp])) if n_exp else float("nan"),
+               "bc/mean_logp": last.get("train/mean_logp", 0.0), "bc/steps": c.bc_steps}
+        if c.bc_dagger_steps:
+            out["bc/dagger_success"] = float(np.mean(succ[n_exp:]))     # the clone's own episodes during DAgger
+            out["bc/dagger_last_success"] = succ[-1]
+        return out
 
     def train(self):
         c = self.cfg

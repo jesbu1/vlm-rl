@@ -243,3 +243,25 @@ def test_expert_rollout_writes_protocol_transcripts(umaze, rng):
     for tr in trajs:
         tr.advantage = 1.0
     assert len(to_samples(trajs, None, max_frames=1)) == sum(len(t.turns) for t in trajs)
+
+
+def test_expert_rollout_dagger_executes_the_policy_and_records_the_expert(umaze, rng):
+    """DAgger: the policy's reply is executed (the expert's when the policy's is invalid), the expert's reply is what
+    the transcript records (and what BC trains on)."""
+    from vlmrl.rollout import expert_rollout
+    itf = umaze.interface
+    expert, mine = np.array([0.3, -0.1]), np.array([-0.2, 0.25])
+    calls = []
+
+    def gen(convs):
+        calls.append(len(convs))
+        return [itf.format_action(mine) if len(calls) % 2 else "no idea" for _ in convs]
+    trajs = expert_rollout(umaze.make_vec_env(), itf, lambda env, k: expert, umaze.train_sampler.sample(2, rng),
+                           [0, 1], 4, generate=gen, max_frames=1)
+    for tr in trajs:
+        assert all(np.allclose(itf.parse_action(t.response), expert) for t in tr.turns)       # labels: the expert
+        executed = [t.action for t in tr.turns]
+        assert np.allclose(executed[0], itf.parse_action(itf.format_action(mine)))            # turn 1: the policy's
+        if len(executed) > 1:
+            assert np.allclose(executed[1], expert)                                           # invalid -> expert's
+    assert calls[0] == 2

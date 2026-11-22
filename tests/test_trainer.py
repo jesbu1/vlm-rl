@@ -507,3 +507,7 @@ def test_behaviour_clone_trains_on_expert_transcripts(tmp_path):
     with pytest.raises(ValueError):
         Trainer(dataclasses.replace(cfg, out_dir=str(tmp_path / "b")), policy=FakePolicy(random_generate(0)),
                 bundle=_bundle()).behaviour_clone()
+    tr3 = Trainer(dataclasses.replace(cfg, out_dir=str(tmp_path / "d"), bc_steps=3, bc_dagger_steps=2),
+                  policy=FakePolicy(random_generate(0)), bundle=b)
+    m3 = tr3.behaviour_clone()                        # 1 expert step, then 2 steps on the clone's own episodes
+    assert 0.0 <= m3["bc/expert_success"] <= 1.0 and 0.0 <= m3["bc/dagger_success"] <= 1.0

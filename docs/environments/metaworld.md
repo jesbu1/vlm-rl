@@ -80,7 +80,12 @@ protocol** (format -> parse -> execute), 15 turns, 2-3 episodes per task:
 exactly the RL rollouts' format). It uses `bc_episodes` episodes per step, the successful ones only by default, at
 `bc_lr`. Then RL starts from the cloned policy; the step-0 eval measures the clone. The motivation: push and the less
 exploratory models never sample the motion they need (no sideways moves, or one fixed move every turn), so RL from
-scratch gets no signal.
+scratch gets no signal. The clone is saved as `ckpt_bc` (reusable with `init_adapter`).
+
+**DAgger** (`bc_dagger_steps=K`): the last K of the `bc_steps` roll out the current clone instead of the expert; the
+expert labels every state the clone reaches, and those labels are trained on (failed episodes included). A pure clone
+of push succeeds 0.22 where its expert succeeds 0.61. One move off the expert's path leads to states the expert data
+never shows: the clone keeps pushing down after the hand has reached the puck.
 
 The experts are tuned for closed-loop control at every simulator step. Through coarse waypoints, a binary gripper and 15
 turns, precise grasp-and-place tasks lose the most. Treat these as the ceiling of the protocol, not of a learned policy.

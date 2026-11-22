@@ -177,10 +177,18 @@ def rollout_pooled(generate: Generate, tasks: Sequence[RolloutTask], max_images:
 
 
 def expert_rollout(env: VecEnv, interface: TextInterface, expert: Callable, start_states: Sequence[dict],
-                   group_ids: Sequence[int], max_turns: int) -> list[Trajectory]:
+                   group_ids: Sequence[int], max_turns: int, generate: Generate | None = None,
+                   max_images: int | None = None, max_frames: int | None = None,
+                   thinking: bool = False) -> list[Trajectory]:
     """Episodes driven by a scripted expert through the text protocol: each turn the expert's action is written as
     the reply the model would give (``interface.format_action``) and parsed back before it is executed, so the
-    transcripts have exactly the structure of ``rollout``'s and can be trained on (behaviour cloning)."""
+    transcripts have exactly the structure of ``rollout``'s and can be trained on (behaviour cloning).
+
+    With ``generate`` (DAgger): the *policy's* reply is executed (the expert's when the policy's is invalid), but the
+    transcript records the expert's reply for the state the policy reached. Training on it teaches the clone to
+    recover from its own mistakes, which pure cloning never shows it. The next observation's "last move" is the
+    policy's; with ``max_frames=1`` no earlier reply is in the context, so the recorded labels are never seen as
+    history."""
     obs = env.reset(start_states)
     trajs = [Trajectory(group_id=g, start_state=s, messages=[
         {"role": "system", "content": [{"type": "text", "text": interface.system_prompt(s)}]},
@@ -192,6 +200,13 @@ def expert_rollout(env: VecEnv, interface: TextInterface, expert: Callable, star
             break
         texts = [interface.format_action(expert(env, k)) for k in active]
         actions = [interface.parse_action(x) for x in texts]
+        if generate is not None:
+            own = generate([context_view(trajs[k].messages, max_images, max_frames) for k in active])
+            for j, x in enumerate(own):
+                ans = final_answer(x, thinking)
+                a = interface.parse_action(ans) if ans is not None else None
+                if a is not None:
+                    actions[j] = a
         results = env.step(active, actions)
         still = []
         for k, text, a, res in zip(active, texts, actions, results):
