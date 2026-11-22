@@ -296,6 +296,11 @@
       the ~30% band; one eval is +-3 points, so steps 35-40 decide whether the batch lifts the plateau.
       Steps 31-35: rollout invalid 14% -> 9%, rollouts 27-33%, grad norm ~0.05, ~1700 s/step. Step-35 eval **31.8%**
       (training 34.4, held-out 11x11 25.0, 15x15 35.9), 0.3% invalid (64 x 16 seeds at 35: 29.7 / 30.2 / 29.7%).
+      Finished at step 40: final eval **32.3%** (training 37.5, held-out 11x11 25.0, 15x15 34.4), 0.1% invalid; rollouts
+      33%, invalid 5%, grad norm 0.03. Mean eval over steps 30-40: **31.4%** (group_size 32: 32.5%; 64 x 16 seeds:
+      29.7 / 29.0 / 30.6%). Both 2048-episode layouts end ~2 points above the 1024-episode seeds, and the held-out
+      15x15 split gains most (31-36% vs 19-25%), at ~2x the wall-clock (~10 h for 40 steps vs ~5 h).
+    * Next on GPU1: **seed 1 of group_size 32**, so each 2048-episode layout has two seeds.
     * 500M **`compact` (absolute goal) + terminate** (GPU0, started 07:32): step-0 eval **1.0%**, **78% invalid**
       (compact_rel at step 0: 7.8-11.5%, ~52% invalid). The absolute-coordinate prompt starts with far fewer valid
       replies; the queue's step-3 signal check decides whether terminate can learn from it.
