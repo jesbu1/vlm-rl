@@ -7,11 +7,12 @@
   * Single fixed mazes: SmolVLM2-500M reaches 0.95 on medium, SmolVLM2-2.2B 0.98 on UMaze.
 * **Metaworld reach learns, with four models.** Held-out goal positions:
   * Qwen3.5-4B, RL only: 0 → 0.94 at step 95, 0.78 at step 200.
-  * Qwen3-VL-4B, behaviour cloning on scripted experts first: 0.28 → 0.66 in 30 RL steps. RL alone gave 0.
+  * Qwen3-VL-4B, behaviour cloning on scripted experts first: 0.28 → 0.75 in 70 RL steps (1.00 on training
+    positions). RL alone gave 0.
   * Qwen3-VL-2B (RL only) 0.38 at step 100; Gemma 4 E2B (BC first) about 0.2.
-* **Push and ML10 are not solved yet.** BC gives the first push successes (0.19 on training positions), but RL with
-  the dense-reward preference undid them: Metaworld's push reward is highest for holding the puck still. An
-  object-first preference is running.
+* **Push and ML10 are not solved yet.** BC gives the first push successes (0.22 on training positions). RL with the
+  dense-reward preference undid them (Metaworld's push reward is highest for holding the puck still); ranking by the
+  puck's progress first keeps them but has not improved them. DAgger made the clone worse; DART is running.
 * **Most "collapses" were bugs**, all fixed:
   * Trained a template token the model never generates.
   * Re-tokenized replies instead of the sampled ids.
