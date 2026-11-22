@@ -329,6 +329,8 @@
       Steps 6-10: rollout invalid 72% -> 61%, rollouts 2-4%, grad norm 0.23 -> 0.11, 48 groups with signal. Step-10 eval
       **12.0%**, but 79% invalid (64 x 16 seed 2 at 10: 18.2%, 54% invalid). Behind on eval format so far, though
       training invalid is falling at the usual rate.
+      Steps 11-15: rollout invalid 60% -> 52%, rollouts 4-6%, grad norm ~0.10. Step-15 eval **21.4%** (training 28.1,
+      held-out 11x11 26.6, 15x15 9.4), 37% invalid (64 x 16 seed 2 at 15: 26.0%, 38% invalid).
     * 500M **`compact` (absolute goal) + terminate** (GPU0, started 07:32): step-0 eval **1.0%**, **78% invalid**
       (compact_rel at step 0: 7.8-11.5%, ~52% invalid). The absolute-coordinate prompt starts with far fewer valid
       replies; the queue's step-3 signal check decides whether terminate can learn from it.
