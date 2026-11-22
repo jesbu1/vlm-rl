@@ -176,6 +176,41 @@ def rollout_pooled(generate: Generate, tasks: Sequence[RolloutTask], max_images:
     return trajs
 
 
+def expert_rollout(env: VecEnv, interface: TextInterface, expert: Callable, start_states: Sequence[dict],
+                   group_ids: Sequence[int], max_turns: int) -> list[Trajectory]:
+    """Episodes driven by a scripted expert through the text protocol: each turn the expert's action is written as
+    the reply the model would give (``interface.format_action``) and parsed back before it is executed, so the
+    transcripts have exactly the structure of ``rollout``'s and can be trained on (behaviour cloning)."""
+    obs = env.reset(start_states)
+    trajs = [Trajectory(group_id=g, start_state=s, messages=[
+        {"role": "system", "content": [{"type": "text", "text": interface.system_prompt(s)}]},
+        {"role": "user", "content": interface.observation_message(obs[k], 0, None, False)}])
+        for k, (s, g) in enumerate(zip(start_states, group_ids))]
+    active = list(range(len(start_states)))
+    for t in range(max_turns):
+        if not active:
+            break
+        texts = [interface.format_action(expert(env, k)) for k in active]
+        actions = [interface.parse_action(x) for x in texts]
+        results = env.step(active, actions)
+        still = []
+        for k, text, a, res in zip(active, texts, actions, results):
+            tr = trajs[k]
+            tr.messages.append({"role": "assistant", "content": [{"type": "text", "text": text}]})
+            tr.turns.append(Turn(obs=obs[k], response=text, action=a, result=res))
+            obs[k] = res.obs
+            if res.terminated or res.truncated:
+                tr.done = True
+                tr.end_reason = "success" if res.info.get("success") else ("terminated" if res.terminated else "truncated")
+            elif t == max_turns - 1:
+                tr.done, tr.end_reason = True, "max_turns"
+            else:
+                tr.messages.append({"role": "user", "content": interface.observation_message(res.obs, t + 1, res, False)})
+                still.append(k)
+        active = still
+    return trajs
+
+
 def to_samples(trajs: Sequence[Trajectory], max_images: int | None, max_frames: int | None = None) -> list[Sample]:
     """Full context -> one sequence per episode with every assistant turn in the loss (PEAR-style).
     Truncated image/frame history -> one sequence per turn, each with exactly the context that turn saw."""

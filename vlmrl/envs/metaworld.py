@@ -451,4 +451,5 @@ def make_metaworld(cfg: MetaWorldConfig | None = None, **kw) -> EnvBundle:
         train_sampler=TaskSampler(cfg.benchmark, "train", cfg.seed),
         eval_sampler=TaskSampler(cfg.benchmark, cfg.eval_split, cfg.seed),
         max_turns=cfg.max_turns,
+        expert=oracle_action,
     )

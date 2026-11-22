@@ -225,3 +225,21 @@ def test_generated_ids_reach_turns_and_per_turn_samples(umaze, rng):
     per_turn = to_samples(trajs, None, max_frames=1)
     assert per_turn and all(s.gen_ids == [11, 12, 13] for s in per_turn)
     assert all(s.gen_ids is None for s in to_samples(trajs, None))          # full history: text path
+
+
+def test_expert_rollout_writes_protocol_transcripts(umaze, rng):
+    """Expert episodes have rollout's structure: system, user, then (assistant, user)*; every reply is the expert's
+    action written by the interface and parsed back."""
+    from vlmrl.rollout import expert_rollout
+    act = np.array([0.3, -0.1])
+    trajs = expert_rollout(umaze.make_vec_env(), umaze.interface, lambda env, k: act,
+                           umaze.train_sampler.sample(3, rng), [0, 1, 2], 4)
+    for tr in trajs:
+        roles = [m["role"] for m in tr.messages]
+        assert roles[:2] == ["system", "user"] and all(r == ("assistant" if i % 2 == 0 else "user")
+                                                       for i, r in enumerate(roles[2:]))
+        assert len(tr.turns) == roles.count("assistant") and tr.done
+        assert all(np.allclose(t.action, umaze.interface.parse_action(t.response)) for t in tr.turns)
+    for tr in trajs:
+        tr.advantage = 1.0
+    assert len(to_samples(trajs, None, max_frames=1)) == sum(len(t.turns) for t in trajs)

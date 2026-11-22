@@ -61,3 +61,4 @@ class EnvBundle:
     train_sampler: StartStateSampler
     eval_sampler: StartStateSampler
     max_turns: int
+    expert: Any = None                 # optional scripted expert (vec_env, slot) -> action, for behaviour cloning

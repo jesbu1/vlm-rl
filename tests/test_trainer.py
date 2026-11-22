@@ -484,3 +484,25 @@ def test_traj_mean_gives_every_trajectory_equal_total_weight(tmp_path):
     assert w[0] == pytest.approx(-w[1]) and w[1] == pytest.approx(130 / 2)                  # balanced, token-mean scale
     with pytest.raises(ValueError):
         _trainer(tmp_path / "b", random_generate(0), loss_agg="nope")._weight_by_trajectory(samples)
+
+
+def test_behaviour_clone_trains_on_expert_transcripts(tmp_path):
+    import dataclasses
+    b = dataclasses.replace(_bundle(), expert=lambda env, k: np.array([0.3, 0.0]))
+    cfg = TrainConfig(out_dir=str(tmp_path), groups_per_step=2, group_size=4, eval_every=0, log_samples_every=0,
+                      save_every=0, lr=0.1, bc_steps=2, bc_episodes=3, bc_success_only=False, filter_groups=False)
+    tr = Trainer(cfg, policy=FakePolicy(random_generate(0)), bundle=b)
+    m = tr.behaviour_clone()
+    assert tr.opt.param_groups[0]["lr"] == pytest.approx(0.1) and tr._lr_base is None   # bc_lr unset: lr
+    tr2 = Trainer(dataclasses.replace(cfg, out_dir=str(tmp_path / "c"), bc_lr=0.5), policy=FakePolicy(random_generate(0)),
+                  bundle=b)
+    tr2.behaviour_clone()
+    assert tr2.opt.param_groups[0]["lr"] == pytest.approx(0.5)               # BC ran at bc_lr
+    kept, _, _ = tr2.collect()
+    for i, t in enumerate(kept[0]):
+        t.advantage = 1.0 if i < 2 else -1.0
+    assert tr2.update([kept[0]])["train/lr"] == pytest.approx(0.1)          # back to lr for RL
+    assert m["bc/steps"] == 2 and 0.0 <= m["bc/expert_success"] <= 1.0 and np.isfinite(m["bc/mean_logp"])
+    with pytest.raises(ValueError):
+        Trainer(dataclasses.replace(cfg, out_dir=str(tmp_path / "b")), policy=FakePolicy(random_generate(0)),
+                bundle=_bundle()).behaviour_clone()

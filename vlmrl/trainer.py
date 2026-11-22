@@ -76,6 +76,10 @@ class TrainConfig:
     lr_warmup_steps: int = 0                            # linear lr warmup over the first N optimizer steps (0 = off)
     loss_agg: str = "token_mean"                        # token_mean (PEAR: one mean over all tokens) | traj_mean
     init_adapter: str = ""                              # start from a saved LoRA adapter (dir or s3:// URI); a resume wins
+    bc_steps: int = 0                                   # behaviour cloning on the env's scripted expert before RL (fresh runs)
+    bc_episodes: int = 64                               # expert episodes per BC step
+    bc_success_only: bool = True                        # clone only the expert episodes that succeed
+    bc_lr: float = 0.0                                  # lr during behaviour cloning (0 = lr)
     micro_batch_size: int = 1                           # sequences per forward/backward
     # generation
     max_new_tokens: int = 256
@@ -323,8 +327,9 @@ class Trainer:
         words in one update; warmup shrinks those steps. Stateless, so resumes need nothing extra."""
         w = self.cfg.lr_warmup_steps
         f = min(1.0, (self._opt_steps() + 1) / w) if w > 0 else 1.0
+        base = getattr(self, "_lr_base", None) or self.cfg.lr      # bc_lr during behaviour cloning
         for g in self.opt.param_groups:
-            g["lr"] = self.cfg.lr * f
+            g["lr"] = base * f
 
     def update(self, groups):
         c, pol = self.cfg, self.policy
@@ -570,11 +575,40 @@ class Trainer:
             self.wandb.log(metrics, step=step, commit=True)  # don't hold the row open until the next step
 
     # ------------------------------------------------------------------ main loop
+    def behaviour_clone(self) -> dict:
+        """bc_steps updates on the scripted expert's transcripts (advantage +1 on every turn: with the token-mean loss
+        this is maximum likelihood on the expert's replies). Runs before the step-0 eval, which then measures the
+        cloned policy; the rollout engine gets the cloned weights before RL starts."""
+        from vlmrl.rollout import expert_rollout
+        c = self.cfg
+        if self.bundle.expert is None:
+            raise ValueError("bc_steps > 0 needs an env with a scripted expert (EnvBundle.expert)")
+        rng = np.random.default_rng(20_000 + c.seed)
+        succ, last = [], {}
+        self._lr_base = c.bc_lr or c.lr
+        for i in range(c.bc_steps):
+            starts = self.bundle.train_sampler.sample(c.bc_episodes, rng)
+            trajs = expert_rollout(self.env, self.bundle.interface, self.bundle.expert, starts,
+                                   list(range(len(starts))), self.bundle.max_turns)
+            succ.append(float(np.mean([t.success for t in trajs])))
+            keep = [t for t in trajs if t.success] if c.bc_success_only else trajs
+            for t in keep:
+                t.advantage = 1.0
+            last = self.update([keep]) if keep else {"train/skipped": 1.0}
+            print(f"[bc] step {i + 1}/{c.bc_steps}: expert success {succ[-1]:.2f}, {len(keep)} episodes, "
+                  f"mean log-prob {last.get('train/mean_logp', float('nan')):.3f}", flush=True)
+        self._lr_base = None
+        if self.generator is not self.policy:
+            self.generator.sync(self.policy, 0)
+        return {"bc/expert_success": float(np.mean(succ)), "bc/mean_logp": last.get("train/mean_logp", 0.0),
+                "bc/steps": c.bc_steps}
+
     def train(self):
         c = self.cfg
+        bc = self.behaviour_clone() if c.bc_steps and self.start_step == 0 else {}
         if c.eval_every and self.start_step == 0:
             m, by_set = self.evaluate()
-            self.log(0, m)
+            self.log(0, {**bc, **m})
             for name, trajs in by_set.items():
                 self.log_episodes(name, 0, trajs)
         for step in range(self.start_step + 1, c.steps + 1):

@@ -75,6 +75,13 @@ protocol** (format -> parse -> execute), 15 turns, 2-3 episodes per task:
 | ML10 | held-out tasks | 0.60 | shelf-place 0.0, sweep-into 0.5 |
 | ML45 | held-out tasks | 0.70 | bin-picking 0.0 |
 
+**Behaviour cloning before RL:** with `bc_steps=N` the trainer first runs N updates on the experts' transcripts
+(`rollout.expert_rollout`: each turn the expert's action is written as the model's reply, so the transcripts have
+exactly the RL rollouts' format). It uses `bc_episodes` episodes per step, the successful ones only by default, at
+`bc_lr`. Then RL starts from the cloned policy; the step-0 eval measures the clone. The motivation: push and the less
+exploratory models never sample the motion they need (no sideways moves, or one fixed move every turn), so RL from
+scratch gets no signal.
+
 The experts are tuned for closed-loop control at every simulator step. Through coarse waypoints, a binary gripper and 15
 turns, precise grasp-and-place tasks lose the most. Treat these as the ceiling of the protocol, not of a learned policy.
 

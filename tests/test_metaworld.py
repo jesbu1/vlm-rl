@@ -165,3 +165,14 @@ def test_compact_rel_has_no_absolute_coordinates(renderable):
     assert itf.parse_action('{"x": 1, "y": 2, "z": 3}') is None            # absolute-looking keys are not moves
     assert np.allclose(itf.parse_action('{"grip": "open"}'), [0, 0, 0, 1])
     env.close()
+
+
+def test_expert_rollout_solves_push_for_behaviour_cloning(renderable):
+    from vlmrl.rollout import expert_rollout
+    b = M.make_metaworld(benchmark="ML1:push-v3", image_size=32, prompt_style="compact_rel", max_turns=15)
+    env = b.make_vec_env()
+    trajs = expert_rollout(env, b.interface, b.expert, [_state("ML1:push-v3", "train", "push-v3", task=i, seed=i)
+                                                        for i in range(3)], [0, 1, 2], 15)
+    assert sum(t.success for t in trajs) >= 2
+    assert all(t.turns[0].response.startswith('{"dx": ') for t in trajs)
+    env.close()
