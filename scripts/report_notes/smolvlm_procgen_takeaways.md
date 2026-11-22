@@ -333,6 +333,8 @@
       held-out 11x11 26.6, 15x15 9.4), 37% invalid (64 x 16 seed 2 at 15: 26.0%, 38% invalid).
       Steps 16-20: rollout invalid 50% -> 41%, rollouts 7-11%, grad norm ~0.08. Step-20 eval **24.5%** (training 28.1,
       held-out 11x11 29.7, 15x15 15.6), 5% invalid (64 x 16 seed 2 at 20: 27.1%, 17% invalid).
+      Steps 21-25: rollout invalid 39% -> 32%, rollouts 10-15%, grad norm ~0.06. Step-25 eval **27.1%** (training 31.2,
+      held-out 11x11 31.2, 15x15 18.8), 2% invalid (64 x 16 seed 2 at 25: 29.2%).
     * 500M **`compact` (absolute goal) + terminate** (GPU0, started 07:32): step-0 eval **1.0%**, **78% invalid**
       (compact_rel at step 0: 7.8-11.5%, ~52% invalid). The absolute-coordinate prompt starts with far fewer valid
       replies; the queue's step-3 signal check decides whether terminate can learn from it.
