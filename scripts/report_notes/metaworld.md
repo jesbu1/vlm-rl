@@ -63,7 +63,10 @@ Each GRPO group is 8 rollouts from the same start (same goal position and seed).
 * **DAgger made the clone worse** (0.22 → 0.00; ML10 0.12 → 0.04). The scripted experts are state machines with
   sharp thresholds on state the model cannot see (more than 2 cm from the puck means "go back up 20 cm"), so in the
   clone's own states nearly identical images get opposite labels.
-* **Live: DART** — the expert drives with 1 or 2 cm of noise on each move and the clean labels are cloned, so the
-  states stay near the expert's path but include small slips.
+* **DART helps push:** the expert drives with noise on each move and its clean replies are cloned, so the states stay
+  near the expert's path but include small slips. 20 DART steps from the clone: 1 cm noise 0.25 / **0.16** (from
+  0.22 / 0.03), 2 cm 0.09 / 0.16. On ML10 it hurt (0.12 → 0.02): its tasks need precision. RL from the DART clones
+  is live.
+* **RL is starting to improve push** (from the plain clone, `pref_mw_obj`): rollouts 0.06 → 0.16 over steps 28–32.
 * **ML10, Qwen3.5-4B:** RL only reaches 0.12 on its training tasks; from the reach adapter 0.17, and 0.02 on the
-  held-out tasks. BC then RL stays at 0.04–0.12 with either reward; DART live.
+  held-out tasks. BC then RL evals 0.04–0.12 with either reward; rollouts rising to 0.21 by step 32 (`pref_mw_obj`).
