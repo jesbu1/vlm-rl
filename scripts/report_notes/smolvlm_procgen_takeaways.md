@@ -415,6 +415,8 @@
       (lr=5e-6 at 20: 29.7%, 25%). Its training curve tracks the lr=5e-6 run at about half the step count (rollout invalid
       58% at step 20 vs at step ~11), so 60 steps here ~= 30 steps at lr=5e-6, before the point where the late drop
       appeared (steps 35-40). It may need ~80 steps to answer the question.
+      Steps 21-25: rollout invalid 56% -> 54%, rollouts 3-6%, grad norm ~0.11. Step-25 eval **16.7%** (training 23.4,
+      held-out 11x11 10.9, 15x15 15.6), 59% invalid (lr=5e-6 at 12-13 steps' equivalent: ~20%).
     * 256M `simple` (lr=5e-6, 128 tokens, noop) started 07:13: step-0 eval **1.6%**, eval invalid 82%.
       Steps 1-3: 1-2 groups with signal, rollout invalid 93%, success ~0%: **dropped after step 3**. 256M cannot
       bootstrap the `<action>` JSON format from scratch (500M could: 9-16 groups at steps 1-4).
