@@ -1,0 +1,35 @@
+# The generic Metaworld recipe: no per-task code anywhere.
+#   1. Controller gain 0.5 (the env default since 2026-11-22; 1.0 capped Metaworld's own experts).
+#   2. Behaviour cloning on Metaworld's scripted experts, driven through the same text protocol (bc_steps; scale with the
+#      number of tasks: ML10 0.10 / 0.38 / 0.52 on its training tasks after 30 / 100 / 200 steps).
+#   3. RL with pref_mw_obj (success, then the task object's distance to its goal, then the dense reward: all reported by
+#      every Metaworld task), temperature 1.0 (a clone already explores; 1.2 spoils precise moves).
+#   4. Training variations from 10 benchmark seeds (train_seeds=10). On ML1 push this took the clone from 0.94 / 0.28
+#      (training / held-out positions) to 0.62 / 0.69. ML10 / ML45's held-out tasks are other task classes, so extra
+#      variations of the training tasks cannot leak into them.
+# Submit one run per benchmark (2 GPUs: trainer + vLLM), e.g.
+#   --only 'metaworld_ml10' --set bc_steps=200     --only 'metaworld_ml45' --set bc_steps=400
+group: metaworld-recipe
+project: vlm-rl-metaworld
+vllm_port: 8011
+overrides:
+  - policy=qwen35_4b_lora_mlp
+  - env_kwargs.prompt_style=compact_rel
+  - +env_kwargs.train_seeds=10
+  - reward=pref_mw_obj
+  - loss_agg=traj_mean
+  - temperature=1.0
+  - max_new_tokens=128
+  - bc_episodes=64
+  - bc_lr=5e-5
+  - lr=1e-5
+  - steps=100
+  - save_every=50
+  - resume_every=5
+  - wandb_entity=tri
+  - "wandb_tags='metaworld,recipe,bc,rl'"
+grid:
+  experiment: [metaworld_ml10, metaworld_ml45]
+vllm_args:
+  Qwen/Qwen3.5-4B: [--mm-processor-cache-gb, "0"]
+  Qwen/Qwen3-VL-4B-Instruct: [--mm-processor-cache-gb, "0"]

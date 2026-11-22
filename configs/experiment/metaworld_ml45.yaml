@@ -1,0 +1,21 @@
+# @package _global_
+# Metaworld ML45: train on its 45 training tasks (each episode draws a task, then one of its variations), evaluate
+# greedy on those tasks and on ML45's 5 held-out tasks (bin-picking, box-close, hand-insert, door-lock, door-unlock).
+# Scripted-expert ceiling through the text protocol at controller gain 0.5: 0.82 on the training tasks (handle-pull-side,
+# lever-pull, stick-push 0), 0.97 on the held-out tasks. Standalone like metaworld_ml10 (no merged eval sets).
+defaults:
+  - pointmaze_q3vl4b_vllm
+  - override /task: metaworld
+env_kwargs:
+  benchmark: ML45
+groups_per_step: 16
+group_size: 8
+max_resample_rounds: 3
+max_new_tokens: 256
+steps: 40
+eval_every: 5
+eval_episodes: 90
+eval_sets:
+  train_tasks: {eval_split: train, episodes: 90}
+  heldout_tasks: {eval_split: test, episodes: 50}
+out_dir: runs/metaworld_ml45
