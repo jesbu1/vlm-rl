@@ -362,6 +362,9 @@
       **27.6%** (training 29.7, held-out 11x11 21.9, 15x15 31.2), 6% invalid (64 x 16 seed 1 at 20: 25.0%).
       Steps 21-25: rollout invalid 29% -> 22%, rollouts 20-23%, grad norm ~0.06. Step-25 eval **34.4%** (training
       35.9, held-out 11x11 31.2, 15x15 35.9), 0.7% invalid (64 x 16 seed 1 at 25: 25.0%; its best by step 40 was 30.2%).
+      Steps 26-30: rollouts 24% -> 34% -> 27%, invalid 20% -> 9%, but grad norm **rose 0.055 -> 0.113**. Step-30 eval
+      **27.1%** (training 25.0, held-out 11x11 25.0, 15x15 31.2), 0% invalid: a 7-point drop from step 25, more than the
+      ~3-point eval noise (64 x 16 seed 1 at 30: 26.6%). Watching for the start of a collapse.
     * 256M `simple` (lr=5e-6, 128 tokens, noop) started 07:13: step-0 eval **1.6%**, eval invalid 82%.
       Steps 1-3: 1-2 groups with signal, rollout invalid 93%, success ~0%: **dropped after step 3**. 256M cannot
       bootstrap the `<action>` JSON format from scratch (500M could: 9-16 groups at steps 1-4).
