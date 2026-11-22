@@ -353,6 +353,9 @@
       Step-5 eval **6.8%**, 71% invalid (no KL: 9.9%, 66%). Same training pace so far; the eval gap is within noise.
       Steps 6-10: rollout invalid 72% -> 61% (no KL: same), rollouts 1-4%, KL 0.023 -> 0.028. Step-10 eval **15.1%**
       (training 18.8, held-out 11x11 15.6, 15x15 10.9), 48% invalid (no KL: 12.0%, 79%).
+      Steps 11-15: rollout invalid 61% -> 52% (no KL: 60% -> 52%), rollouts 3-7%, KL 0.029 -> 0.047, grad norm ~0.2
+      (no KL: ~0.1; includes the KL term). Step-15 eval **20.3%** (training 25.0, held-out 11x11 20.3, 15x15 15.6),
+      12% invalid (no KL: 21.4%, 37%).
     * 500M **`compact` (absolute goal) + terminate** (GPU0, started 07:32): step-0 eval **1.0%**, **78% invalid**
       (compact_rel at step 0: 7.8-11.5%, ~52% invalid). The absolute-coordinate prompt starts with far fewer valid
       replies; the queue's step-3 signal check decides whether terminate can learn from it.
