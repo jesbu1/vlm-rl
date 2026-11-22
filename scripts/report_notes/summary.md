@@ -10,10 +10,10 @@
   * Qwen3-VL-4B, behaviour cloning on scripted experts first: 0.28 → 0.75 in 70 RL steps (1.00 on training
     positions). RL alone gave 0.
   * Qwen3-VL-2B (RL only) 0.38 at step 100; Gemma 4 E2B (BC first) about 0.2.
-* **Push and ML10 are not solved yet.** BC gives the first push successes (0.22 on training positions). RL with the
-  dense-reward preference undid them (Metaworld's push reward is highest for holding the puck still); ranking by the
-  puck's progress first keeps them, and RL is starting to improve them. DAgger made the clone worse; DART (cloning
-  the expert driven with noise) improved held-out push from 0.03 to 0.16.
+* **Push and ML10 are not solved yet; the main blocker was our controller.** Its gain overshot, so even Metaworld's
+  scripted expert succeeded only 0.63 on push through our protocol (0.97 at the new gain 0.5). Push and ML10 are being
+  rerun with it: behaviour cloning, then RL. Earlier, at the old gain, RL with the dense-reward preference undid the
+  cloned push policy (it learned to hold the puck still); ranking by the puck's progress first fixed that.
 * **Most "collapses" were bugs**, all fixed:
   * Trained a template token the model never generates.
   * Re-tokenized replies instead of the sampled ids.

@@ -5,6 +5,8 @@ Metaworld (Farama, Sawyer arm), same trainer and text protocol; wandb project `t
   No coordinates are given; the goal is visible only in the image.
 * **Reply:** `{"dx": 3.0, "dy": -2.0, "dz": -1.0, "grip": "open"}`, a hand move in cm (at most 10 per turn).
 * **Episode:** 15 turns, ending early on Metaworld's `success`.
+* **Execution:** a waypoint controller moves the hand to the reply's target over up to 40 simulator steps, at
+  `clip(gain · distance in cm, −1, 1)` per step. Gain 0.5 since 2026-11-22; the earlier 1.0 overshot (below).
 
 **Reward: preferences from Metaworld's ground truth (`reward=pref_mw`)**
 
@@ -54,19 +56,22 @@ Each GRPO group is 8 rollouts from the same start (same goal position and seed).
 
 **Push and ML10**
 * **Push, RL only: 0** in every run, also from the reach adapter (the policy repeats one fixed move).
-* **Push, BC:** the clone succeeds 0.22 / 0.03 (training / held-out), the first push successes; the expert succeeds
-  0.61. The clone keeps sending the "drop onto the puck" move after its hand is already on the table, a state the
-  expert never visits.
-* **RL with `pref_mw` undid the clone** (rollouts 0.12 → 0.01 in 15 steps): it learned to grip the puck and hold it,
-  the dense reward's local optimum. **With `pref_mw_obj` the clone holds** (rollouts ~0.1 through step 26) but has
-  not improved yet.
-* **DAgger made the clone worse** (0.22 → 0.00; ML10 0.12 → 0.04). The scripted experts are state machines with
-  sharp thresholds on state the model cannot see (more than 2 cm from the puck means "go back up 20 cm"), so in the
-  clone's own states nearly identical images get opposite labels.
-* **DART helps push:** the expert drives with noise on each move and its clean replies are cloned, so the states stay
-  near the expert's path but include small slips. 20 DART steps from the clone: 1 cm noise 0.25 / **0.16** (from
-  0.22 / 0.03), 2 cm 0.09 / 0.16. On ML10 it hurt (0.12 → 0.02): its tasks need precision. RL from the DART clones
-  is live.
-* **RL is starting to improve push** (from the plain clone, `pref_mw_obj`): rollouts 0.06 → 0.16 over steps 28–32.
-* **ML10, Qwen3.5-4B:** RL only reaches 0.12 on its training tasks; from the reach adapter 0.17, and 0.02 on the
-  held-out tasks. BC then RL evals 0.04–0.12 with either reward; rollouts rising to 0.21 by step 32 (`pref_mw_obj`).
+* **What held push back was mostly our controller.** At gain 1.0 it ran at full speed until 1 cm from each target,
+  overshot, and lifted the hand while it dragged the puck, so the puck slipped out. The scripted expert succeeded
+  only 0.63 through our protocol; at gain 0.5 it succeeds **0.97**, in 5.9 instead of 9.4 turns. ML10's expert goes
+  from 0.85 to 0.91 on its training tasks and from 0.42 to 0.72 on its held-out tasks. All push / ML10 runs are being
+  redone at gain 0.5 (live: behaviour cloning, then RL at T = 1.0 with `pref_mw_obj`).
+* **What we learned at gain 1.0** (clone 0.22 / 0.03, training / held-out positions):
+  * **RL with `pref_mw` undid the clone** (rollouts 0.12 → 0.01): it learned to grip the puck and hold it, the
+    dense reward's local optimum. **`pref_mw_obj` keeps the clone** (rollouts ~0.1 for 50 steps), with no clear gain.
+  * **DAgger made the clone worse** (0.22 → 0.00; ML10 0.12 → 0.04). The experts are state machines with sharp
+    thresholds on state the model cannot see (more than 2 cm from the puck means "go back up 20 cm"), so in the
+    clone's own states nearly identical images get opposite labels.
+  * **DART helped held-out push** (expert driven with 1 cm noise, clean labels cloned): 19 / 96 held-out successes
+    over three evals vs 4 / 64 for the plain clone. On ML10 it hurt (0.12 → 0.02).
+  * **Lower rollout temperature** gave ~1.5× more successful rollouts (T = 0.8–1.0: 0.12 vs T = 1.2: 0.08).
+* **Eval noise:** greedy decoding in vLLM is not exactly reproducible, and 15 turns amplify any difference: the same
+  clone scored 0.12, 0.16 and 0.31 on held-out positions in three runs. Differences below ~0.15 on one 32-episode
+  eval are noise; the 128 training rollouts per step are the steadier signal.
+* **ML10, Qwen3.5-4B (gain 1.0):** RL only 0.12 on its training tasks; from the reach adapter 0.17, and 0.02 on the
+  held-out tasks; BC then RL 0.04–0.15.
