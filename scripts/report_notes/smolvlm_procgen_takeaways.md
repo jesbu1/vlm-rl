@@ -399,6 +399,8 @@
           128 x 16). Testing it directly needs a sampled eval (`eval_temperature`), not run yet.
     * Next on GPU0: **group_size 32 at lr=2.5e-6 for 60 steps** (seed 0; vs the lr=5e-6 seed-0 run, 32.5%). Does a
       slower lr avoid the late drop and keep climbing?
+      Started 04:11. Step-0 eval **9.4%**, 59% invalid (lr=5e-6 run on the same weights and eval set: 11.5%, 54%;
+      greedy evals of identical weights differ by a few points with vLLM batching).
     * 256M `simple` (lr=5e-6, 128 tokens, noop) started 07:13: step-0 eval **1.6%**, eval invalid 82%.
       Steps 1-3: 1-2 groups with signal, rollout invalid 93%, success ~0%: **dropped after step 3**. 256M cannot
       bootstrap the `<action>` JSON format from scratch (500M could: 9-16 groups at steps 1-4).
