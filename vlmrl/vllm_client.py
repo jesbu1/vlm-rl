@@ -87,6 +87,7 @@ class VLLMServerGenerator:
         self.adapter_dir = adapter_dir
         self.current = base_model       # model name to request; becomes the LoRA name after first sync
         self._prev_adapter: tuple[str, str] | None = None
+        self._n_sync = 0        # sync counter: names stay unique when a step is synced twice (e.g. after BC at step 0)
         # adapter names must be unique per server: a sweep reuses one server across runs (and resumed runs
         # restart at an old step), and vLLM refuses to load a name that is still loaded from an earlier run
         self.tag = uuid.uuid4().hex[:8]
@@ -128,7 +129,8 @@ class VLLMServerGenerator:
         Full fine-tuning: save the full checkpoint -> in-place ``reload_weights`` -> reset the prefix cache."""
         if not hasattr(policy.model, "peft_config"):
             return self._sync_full(policy, step)
-        name = f"policy_{self.tag}_step{step}"
+        self._n_sync += 1
+        name = f"policy_{self.tag}_step{step}_{self._n_sync}"
         path = os.path.abspath(os.path.join(self.adapter_dir, name))
         policy.model.save_pretrained(path)
         _post(f"{self.url}/v1/load_lora_adapter", {"lora_name": name, "lora_path": path})
@@ -146,11 +148,12 @@ class VLLMServerGenerator:
         """Full-weight sync through vLLM's dev endpoints (server needs ``VLLM_SERVER_DEV_MODE=1``;
         ``scripts/launch_vllm.sh`` sets it). The checkpoint is written in HF format, i.e. exactly what vLLM
         loads at startup, then reloaded in place on every worker. Cached prefixes and image embeddings were computed
-        with the old weights, so the prefix and encoder caches are reset too. Step 0 is the base model the server
-        already has."""
-        if step == 0:
+        with the old weights, so the prefix and encoder caches are reset too. The first sync at step 0 is skipped: the
+        server already serves those base weights. Any later step-0 sync (after behaviour cloning) reloads."""
+        self._n_sync += 1
+        if step == 0 and self._n_sync == 1:
             return
-        path = os.path.abspath(os.path.join(self.adapter_dir, f"full_{self.tag}_step{step}"))
+        path = os.path.abspath(os.path.join(self.adapter_dir, f"full_{self.tag}_step{step}_{self._n_sync}"))
         if hasattr(policy, "save"):
             policy.save(path, processor=False)
         else:

@@ -100,11 +100,22 @@ def test_sync_hot_swaps_lora(server, tmp_path):
     g.sync(pol, 1)
     paths = [p for p, _ in _Handler.log]
     assert paths == ["/v1/load_lora_adapter", "/v1/load_lora_adapter", "/v1/unload_lora_adapter"]
-    s0, s1 = f"policy_{g.tag}_step0", f"policy_{g.tag}_step1"
+    s0, s1 = f"policy_{g.tag}_step0_1", f"policy_{g.tag}_step1_2"
     assert _Handler.log[1][1]["lora_name"] == s1 and _Handler.log[2][1]["lora_name"] == s0
     assert g.current == s1
     assert not (tmp_path / s0).exists() and (tmp_path / s1).exists()
     assert g.generate([_conv()[:2]])[0].startswith(f"{s1}|")
+
+
+def test_syncing_the_same_step_twice_loads_a_new_adapter(server, tmp_path):
+    """Behaviour cloning syncs at step 0 right after the initial step-0 sync: vLLM rejects a name it already has."""
+    g = VLLMServerGenerator(server, "base", str(tmp_path))
+    pol = _FakePeft()
+    g.sync(pol, 0)
+    g.sync(pol, 0)
+    names = [b["lora_name"] for p, b in _Handler.log if p == "/v1/load_lora_adapter"]
+    assert len(names) == 2 and len(set(names)) == 2 and g.current == names[-1]
+    assert (tmp_path / names[-1]).exists() and not (tmp_path / names[0]).exists()
 
 
 def test_adapter_names_unique_across_generators(server, tmp_path):
@@ -139,12 +150,22 @@ def test_full_weight_sync_reloads_in_place(server, tmp_path):
     g.sync(pol, 1)
     g.sync(pol, 2)
     assert [p for p, _ in _Handler.log] == ["/collective_rpc", "/reset_prefix_cache", "/reset_encoder_cache"] * 2
-    p1, p2 = (f"{tmp_path}/full_{g.tag}_step{s}" for s in (1, 2))
+    p1, p2 = (f"{tmp_path}/full_{g.tag}_step{s}_{s + 1}" for s in (1, 2))
     assert _Handler.log[0][1] == {"method": "reload_weights", "kwargs": {"weights_path": p1}}
     assert _Handler.log[3][1]["kwargs"]["weights_path"] == p2
     assert pol.saved == [(p1, False), (p2, False)]       # weights only, no processor files
     assert not os.path.exists(p1) and os.path.exists(p2)  # only the served checkpoint is kept
     assert g.current == "base" and g.generate([_conv()[:2]])[0].startswith("base|")
+
+
+def test_full_sync_after_behaviour_cloning_reloads_at_step_0(server, tmp_path):
+    """Only the first step-0 sync is skipped (base weights); a second one (cloned weights) must reach the server."""
+    g = VLLMServerGenerator(server, "base", str(tmp_path))
+    pol = _FullPolicy()
+    g.sync(pol, 0)
+    assert _Handler.log == []
+    g.sync(pol, 0)
+    assert [p for p, _ in _Handler.log][0] == "/collective_rpc" and len(pol.saved) == 1
 
 
 def test_chat_template_kwargs_forwarded_only_when_set(server):
