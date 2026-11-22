@@ -329,6 +329,10 @@
       (training 37.5, held-out 11x11 26.6, 15x15 34.4), 0.3% invalid (64 x 16 seeds at 35: 29.7 / 30.2 / 29.7%).
       RAM: trainer RSS grows with episode length in the 2048-episode runs (42 and 36 GB now, from ~30); ~88 GB
       available, guard at 30 GB.
+      Finished at step 40: final eval **32.3%** (training 40.6, held-out 11x11 25.0, 15x15 31.2), 0.6% invalid; rollouts
+      34%, invalid 12%, grad norm 0.05. Mean eval over steps 30-40: **32.5%** vs 29.7 / 29.0 / 30.6% for the three
+      64 x 16 seeds. A 2-3 point edge, consistent across the last three evals but from one seed.
+    * Next on GPU0: **seed 1 of 128 x 16** to check whether the 2048-episode edge replicates.
     * 256M `simple` (lr=5e-6, 128 tokens, noop) started 07:13: step-0 eval **1.6%**, eval invalid 82%.
       Steps 1-3: 1-2 groups with signal, rollout invalid 93%, success ~0%: **dropped after step 3**. 256M cannot
       bootstrap the `<action>` JSON format from scratch (500M could: 9-16 groups at steps 1-4).
