@@ -40,7 +40,7 @@ Each GRPO group is 8 rollouts from the same start (same goal position and seed).
 | model | eval, held-out / train | how |
 |---|---|---|
 | **Qwen3.5-4B** (LoRA on MLPs, lr 1e-5) | 0 (step 15) → **0.94 / 0.91** (95) → 0.78 / 0.88 (200) | RL only. Held-out plateaus at 0.5–0.78 after step 95 while training positions reach 0.97 |
-| **Qwen3-VL-4B** (LoRA) | 0.28 / 0.28 after BC → 0.66 / 0.81 (30) → **0.75–0.78 / 0.91–1.00** (70–80) | BC then RL. RL alone: 0 (always dx = dy = 0) |
+| **Qwen3-VL-4B** (LoRA) | 0.28 / 0.28 after BC → 0.66 / 0.81 (30) → **0.59–0.78 / 0.88–1.00** (70–100) | BC then RL. RL alone: 0 (always dx = dy = 0) |
 | Qwen3-VL-2B (full FT, lr 2e-6) | 0 → 0.22 / 0.22 (40) → 0.38 / 0.53 (100) | RL only, T = 1.6 (stuck at T = 1.2) |
 | Gemma 4 E2B (full FT, lr 1e-6) | 0.09 / 0.09 after BC → 0.16–0.22 / 0.19–0.25 (15–25) | BC then RL. RL only at T = 1.6: 0.1–0.2 |
 
