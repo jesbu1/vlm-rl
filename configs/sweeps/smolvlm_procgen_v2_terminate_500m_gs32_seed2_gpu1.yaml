@@ -1,0 +1,34 @@
+# smolvlm-procgen-v2, GPU 1: seed-2 replicate of the group_size-32 run (seeds 0 and 1 done). The best recipe (SmolVLM2-500M compact_rel, 192 tokens + parse_last,
+# on_invalid=terminate, lr=5e-6) with **group_size 32** (64 groups x 32 = 2048 episodes/step). Same episode budget
+# as the 128 x 16 run on GPU1, spent on more samples per start state instead of more start states: better
+# per-group advantage estimates and more groups with signal early, vs more layout diversity per update.
+# Mean eval over steps 30-40: seed 0 32.5% (64 x 16: 29.7%), seed 1 31.1% (64 x 16: 29.0%); seed 2 pairs with the 64 x 16 seed-2 run (30.6%).
+group: smolvlm-procgen-v2
+project: vlm-rl-pointmaze
+train_gpu: 1
+vllm_gpu: 1
+vllm_port: 8012
+vllm_gpu_util: 0.35
+overrides:
+  - experiment=pointmaze_procgen
+  - eval_on_invalid=noop
+  - reward=success
+  - steps=40
+  - groups_per_step=64
+  - max_resample_rounds=3
+  - micro_batch_size=16
+  - eval_every=5
+  - eval_episodes=64
+  - wandb_entity=tri
+  - "wandb_tags='pointmaze,procgen,smolvlm2-500m,fft,sweep'"
+grid:
+  group_size: [32]   # in the grid so the run name (and out_dir) differ from the 16-sample runs
+  on_invalid: [terminate]   # in the grid so the run name (and out_dir) differ from the noop run
+  policy: [smolvlm2_500m]   # in the grid so the run name (and out_dir) differ from the 256M runs in this group
+  env_kwargs.prompt_style: [compact_rel]
+  lr: [5.0e-6]
+  max_new_tokens: [192]
+  env_kwargs.parse_last: [true]
+  seed: [2]
+vllm_args:
+  HuggingFaceTB/SmolVLM2-500M-Video-Instruct: [--max-model-len, "8192", --mm-processor-kwargs, '{"do_image_splitting": false}', --api-server-count, "4", --max-num-seqs, "1024", --mm-processor-cache-gb, "0"]
