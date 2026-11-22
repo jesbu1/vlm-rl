@@ -349,6 +349,8 @@
     * Next on GPU1: **group_size 32 seed 2 + `kl_coef=0.05`** (k3 KL to the pretrained model), paired with the run
       above: does a KL anchor stop the late greedy-eval drop?
       Started 11:03. Step-0 eval **12.5%**, 56% invalid (no-KL seed-2 run: 11.5%, 54%).
+      Steps 1-5: rollout invalid 85% -> 73% (no KL: 85% -> 75%), 30 groups with signal, KL 0.001 -> 0.019 per token.
+      Step-5 eval **6.8%**, 71% invalid (no KL: 9.9%, 66%). Same training pace so far; the eval gap is within noise.
     * 500M **`compact` (absolute goal) + terminate** (GPU0, started 07:32): step-0 eval **1.0%**, **78% invalid**
       (compact_rel at step 0: 7.8-11.5%, ~52% invalid). The absolute-coordinate prompt starts with far fewer valid
       replies; the queue's step-3 signal check decides whether terminate can learn from it.
