@@ -34,7 +34,10 @@ Each GRPO group is 8 rollouts from the same start (same goal position and seed).
 
 | run | eval, held-out / train | notes |
 |---|---|---|
-| **Qwen3.5-4B LoRA (MLPs), lr 1e-5** | 0 (steps 0–15) → 0.47 / 0.78 (60) → **0.94 / 0.91 (95)** → 0.75 / 0.91 (130) → 0.5–0.7 (135–150) | rollouts ~0.7 from step 100 on: plateau. Greedy eval is jumpy (32 episodes). Live to step 200 |
+| **Qwen3.5-4B LoRA (MLPs), lr 1e-5** | 0 (steps 0–15) → 0.47 / 0.78 (60) → **0.94 / 0.91 (95)** → 0.75 / 0.91 (130) → 0.53–0.72 / 0.81–0.97 (135–185) | plateau on held-out positions while training positions keep rising; rollouts ~0.78. Greedy eval is jumpy (32 episodes) |
+| Qwen3-VL-2B full FT, lr 2e-6, T=1.6 | 0 → 0.22 / 0.22 (40) → 0.19 / 0.34 (60) | slowly learning; rollouts 0.35 |
+| Gemma 4 E2B full FT, lr 1e-6, T=1.6 | 0 → 0.19 / 0.22 (30) → 0.09–0.16 (35–50) | learned some, then slipped |
+| Qwen3-VL-4B LoRA, T=2.0, lr 5e-6 | 0 | always answers dx = dy = 0 (never moves sideways), so every rollout ties |
 | same, lr 2e-5 | 0 → 0.34 / 0.50 (25) → 0.03 / 0.12 (40) | one update sharpened the policy, then it degraded |
 | same, lr 2e-5 + KL 0.05 | 0 throughout | KL too strong: held near the base model |
 | Qwen3-VL-2B full FT, lr 5e-6 | 0 → 0.31 / 0.25 (10), flat after | became deterministic: every group tied |
@@ -45,8 +48,11 @@ Each GRPO group is 8 rollouts from the same start (same goal position and seed).
   to 0.25 and Qwen3-VL-2B's from 0.11 to 0.23 (eval 0.16). Qwen3-VL-4B still sharpened to −0.009 with no success, and
   is retried at T=2.0 with lr 5e-6.
 * **Warm starts from the reach adapter:**
-  * ML10: training rollouts at 0.25 (from scratch at most 0.16); eval 0.10–0.15 on its training tasks, 0 on held-out
-    tasks.
-  * Push: the reach policy is sharp (log-prob −0.07), so push rollouts start near-identical. At T=1.6 there is still no
-    success at step 20.
+  * ML10: eval on its training tasks rises to 0.17 (step 70; from scratch at most 0.12), and the 5 held-out tasks
+    reach 0.02 (steps 65–80), the first nonzero held-out-task score.
+  * Push: 0 through step 50 even at T=1.6. The policy repeats one fixed move every turn
+    (`{"dx": 0, "dy": 1.5, "dz": -1.5, "grip": "close"}`) whatever the image shows.
+* **What blocks push and the weaker models is discovery, not the reward.** They almost never sample the needed motion
+  (move sideways, go to the puck first). The proposed next step is a behaviour-cloning warm start from Metaworld's
+  scripted experts, which solve push 100% and ML10's training tasks 75% through this exact protocol.
 * **Zero-shot is ~0 for every model**, and push has not learned from scratch either.
