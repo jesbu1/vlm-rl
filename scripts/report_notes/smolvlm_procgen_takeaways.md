@@ -323,7 +323,9 @@
       size of the eval noise and the final evals are noisy.
     * Next on GPU1: **seed 2 of group_size 32**, paired with the 64 x 16 seed-2 run (30.6% over steps 30-40), as a
       third seed for the group_size-32 edge.
-      Started 02:26. Step-0 eval **11.5%** (seed-2 eval set; the 64 x 16 seed-2 run started from the same weights).
+      Started 02:26. Step-0 eval **11.5%** (64 x 16 seed 2: 11.5%; same eval set and weights).
+      Steps 1-5: rollout invalid 85% -> 75%, 25 groups with signal at step 5. Step-5 eval **9.9%**, 66% invalid
+      (64 x 16 seed 2 at 5: 6.8%, 78% invalid).
     * 500M **`compact` (absolute goal) + terminate** (GPU0, started 07:32): step-0 eval **1.0%**, **78% invalid**
       (compact_rel at step 0: 7.8-11.5%, ~52% invalid). The absolute-coordinate prompt starts with far fewer valid
       replies; the queue's step-3 signal check decides whether terminate can learn from it.
