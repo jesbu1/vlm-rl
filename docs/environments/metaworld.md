@@ -65,7 +65,19 @@ Metaworld has no language annotations: `metaworld.py::task_text` returns one ins
 
 `metaworld.py::oracle_action` turns Metaworld's scripted expert for each task into one of our actions: the target it
 steers toward (recorded from its `move(hand, to_xyz)` call) and the sign of its grab effort. Driven **through the text
-protocol** (format -> parse -> execute), 15 turns, 2-3 episodes per task:
+protocol** (format -> parse -> execute), 15 turns.
+
+**Controller gain** (`env_kwargs.gain`, default 0.5). Each simulator step commands `clip(gain · (target − hand) [cm],
+−1, 1)`. Runs before 2026-11-22 used 1.0, which runs at full speed until 1 cm from the waypoint, overshoots, and lifts
+the hand while it drags an object (the puck slips out). Expert success, 8 episodes per task (30 for push):
+
+| | gain 1.0 | gain 0.5 |
+|---|---|---|
+| ML1 push, training positions | 0.63 | **0.97** (in 5.9 turns instead of 9.4) |
+| ML10 training tasks | 0.85 | **0.91** (push 0.62 → 0.88, pick-place 0.75 → 1.0, basketball 0.62 → 0.88; door-open 0.88 → 0.62) |
+| ML10 held-out tasks | 0.42 | **0.72** (shelf-place 0 → 0.75, sweep-into 0 → 0.62) |
+
+At gain 1.0, 2-3 episodes per task (an earlier, smaller sample):
 
 | benchmark | split | expert success | weakest tasks |
 |---|---|---|---|

@@ -102,8 +102,13 @@ def test_scripted_expert_solves_push_through_the_text_protocol(renderable):
         if r.info["success"]:                       # Metaworld's dense reward at the final state, for pref_mw
             assert r.obs.extras["mw_progress"] > 5.0
             assert r.obs.extras["mw_obj_dist"] <= 0.05    # puck within push's TARGET_RADIUS, for pref_mw_obj
-    assert wins >= 2
+    assert wins == 3                                # gain 0.5 (1.0 overshoots: expert push success 0.63)
     env.close()
+
+
+def test_controller_gain_reaches_the_env():
+    assert M.make_metaworld(benchmark="ML1:push-v3").make_vec_env().gain == 0.5
+    assert M.make_metaworld(benchmark="ML1:push-v3", gain=1.0).make_vec_env().gain == 1.0
 
 
 def test_factory_via_registry():

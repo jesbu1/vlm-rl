@@ -131,7 +131,7 @@ class MetaWorldVecEnv:
 
     def __init__(self, bench_name: str, seed: int = 0, image_size: int = 224, camera: str = "corner",
                  max_delta: float = 10.0, max_substeps: int = 40, pos_tol: float = 0.5, blocked_window: int = 6,
-                 blocked_eps: float = 0.05, gain: float = 1.0, grip_steps: int = 12,
+                 blocked_eps: float = 0.05, gain: float = 0.5, grip_steps: int = 12,
                  render_size: tuple[int, int] = (640, 480), crop: str = "center"):
         """Lengths in cm. ``max_delta``: longest hand move per action; ``max_substeps``: simulator steps per turn.
         Frames are rendered at ``render_size`` (width, height) and cropped to ``image_size`` square:
@@ -441,6 +441,10 @@ class MetaWorldConfig:
     camera: str = "corner"
     max_delta: float = 10.0
     max_substeps: int = 40
+    # waypoint controller: per-step command = clip(gain * (target - hand) [cm], -1, 1). 0.5 slows down from 2 cm out;
+    # 1.0 (the default before 2026-11-22) ran at full speed to 1 cm, overshot and lifted the hand while dragging an
+    # object: scripted-expert success push 0.63 -> 0.97, ML10 training tasks 0.85 -> 0.91, held-out tasks 0.42 -> 0.72
+    gain: float = 0.5
     max_turns: int = 15
     seed: int = 0
 
@@ -450,7 +454,7 @@ def make_metaworld(cfg: MetaWorldConfig | None = None, **kw) -> EnvBundle:
     return EnvBundle(
         make_vec_env=lambda: MetaWorldVecEnv(cfg.benchmark, cfg.seed, cfg.image_size, cfg.camera, cfg.max_delta,
                                              cfg.max_substeps, render_size=(cfg.render_width, cfg.render_height),
-                                             crop=cfg.crop),
+                                             crop=cfg.crop, gain=cfg.gain),
         interface=MetaWorldTextInterface(cfg.max_delta, cfg.prompt_style, cfg.include_state),
         train_sampler=TaskSampler(cfg.benchmark, "train", cfg.seed),
         eval_sampler=TaskSampler(cfg.benchmark, cfg.eval_split, cfg.seed),
