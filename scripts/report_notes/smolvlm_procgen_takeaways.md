@@ -333,6 +333,9 @@
       34%, invalid 12%, grad norm 0.05. Mean eval over steps 30-40: **32.5%** vs 29.7 / 29.0 / 30.6% for the three
       64 x 16 seeds. A 2-3 point edge, consistent across the last three evals but from one seed.
     * Next on GPU0: **seed 1 of 128 x 16** to check whether the 2048-episode edge replicates.
+      Started 16:50. Step-0 eval 8.3% (59% invalid; seed-1 eval set, so compare with the 64 x 16 seed-1 run: 7.3%).
+      Steps 1-5: rollout invalid 82% -> 75%, grad norm 0.77 -> 0.37, 49 groups with signal at step 5. Step-5 eval
+      **9.9%**, 66% invalid (64 x 16 seed 1 at 5: 5.7%).
     * 256M `simple` (lr=5e-6, 128 tokens, noop) started 07:13: step-0 eval **1.6%**, eval invalid 82%.
       Steps 1-3: 1-2 groups with signal, rollout invalid 93%, success ~0%: **dropped after step 3**. 256M cannot
       bootstrap the `<action>` JSON format from scratch (500M could: 9-16 groups at steps 1-4).
