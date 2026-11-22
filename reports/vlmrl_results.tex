@@ -47,8 +47,13 @@
   cloned policy doubles (Figs.~\ref{fig:expert}, \ref{fig:clones}).
 \item \textbf{Preference rewards need care with local optima.} Ranking push rollouts by Metaworld's dense reward taught the
   policy to grip the puck and hold still. Ranking by the object's progress first fixed it (Fig.~\ref{fig:prefreward}).
+\item \textbf{Generalization needs more varied data, not more RL.} Cloned on ML1's 50 push positions, the policy
+  memorizes them (0.94 training, 0.28 held-out). Cloned on 450 positions (10 benchmark seeds) it scores 0.62 / 0.69: no gap
+  (Fig.~\ref{fig:clones}).
+\item \textbf{ML10 needs proportionally more cloning}: 0.10 / 0.38 / 0.52 on its training tasks after 30 / 100 / 200 steps,
+  and RL then improves it (0.27 $\to$ 0.48 in 40 steps). Its 5 held-out tasks stay at $\approx$0.
 \item \textbf{What did not work:} RL alone on push (0 in every run), DAgger with the scripted experts (made clones worse),
-  and generalizing to held-out push positions or held-out ML10 tasks (push $\approx$0.28; ML10 held-out tasks $\approx$0).
+  and held-out ML10 \emph{tasks} ($\approx$0 in every run).
 \item \textbf{Greedy evals are noisy}: the same push clone scored 0.12, 0.16 and 0.31 on held-out positions in three
   runs. Differences below $\sim$0.15 on one 32-episode eval are not meaningful.
 \end{itemize}
@@ -265,8 +270,12 @@ the clone has memorized the 50 positions. ML1 push trains on only 50 puck/goal c
 An ablation outside the ML1 protocol clones on 450 positions (the training positions of benchmark seeds 0--9). This
 needed care: \emph{seed 1's 50 training positions are exactly seed 0's 50 held-out positions}, so any training position within
 1 cm of a held-out one is dropped. The remaining positions sit closer to the held-out ones (median nearest distance 2.2 cm
-instead of 3.8 cm), which has to be kept in mind when reading the result. At the time of writing it is still training;
-the clone's fit is $-0.20$ after 83 of 100 steps, i.e.\ it is not memorizing.
+instead of 3.8 cm), which has to be kept in mind when reading the result.
+
+\textbf{Result: the gap closes.} The 450-position clone scores 0.62 on training positions and \textbf{0.69 on held-out
+positions} (from 0.28), with a fit of $-0.155$ instead of $-0.003$: it can no longer memorize, so it learns the task.
+Denser coverage alone would not explain a jump from a 0.66 gap to none. RL from this clone starts at 0.45--0.60 rollout
+success (Fig.~\ref{fig:pushrl}).
 
 \subsection{RL from the clones}
 \begin{figure}[h]
@@ -276,7 +285,7 @@ the clone's fit is $-0.20$ after 83 of 100 steps, i.e.\ it is not memorizing.
 \end{figure}
 At gain 0.5, RL improves the 30-step clone: training rollouts rise from 0.22 (steps 1--5) to 0.36 (steps 36--45); at
 gain 1.0 they never left $\sim$0.10. From the memorized 100-step clones, rollouts stay at 0.8--0.9 and held-out does not
-improve: Qwen3.5-4B drifts from $\sim$0.26 to $\sim$0.14 over 25 steps, Qwen3-VL-4B stays at 0.2--0.4
+improve: Qwen3.5-4B drifts from $\sim$0.26 to $\sim$0.08 over 35 steps, Qwen3-VL-4B stays at 0.2--0.35
 (Fig.~\ref{fig:pushrl}). RL on the 50 training positions sharpens the memorized behaviour rather than generalizing it.
 
 \textbf{Temperature for RL from a clone.} Unlike reach from scratch, a clone already varies its moves, and sampling
@@ -285,7 +294,8 @@ noise in the digits spoils precise pushes. From the same DART clone, mean rollou
 
 \takeaway{Before blaming the model, run the scripted expert through your own action interface: our controller capped the
 expert at 0.63. Cloning then gets training positions to $>$0.9, but with 50 configurations the model memorizes them;
-held-out push needs more varied data, not more RL on the same positions.}
+cloning on 450 positions closes the held-out gap (0.28 $\to$ 0.69). Generalization comes from varied data, not from
+more RL on the same positions.}
 
 %=====================================================================================================================
 \section{ML10: a wider task distribution}
@@ -295,14 +305,42 @@ held-out push needs more varied data, not more RL on the same positions.}
 \label{fig:ml10}
 \end{figure}
 RL alone reaches 0.10--0.12 on the training tasks; starting from the trained reach adapter, 0.12--0.17, with the first
-held-out-task successes (0.02). Cloning needs many more steps than on one task: after 30 steps the clone scores 0.10, after
-100 steps 0.38 (fit $-0.18$, still not memorized; a 200-step clone is training). The 5 held-out tasks stay near 0 in every
-run: the instructions and objects are new, and 10 training tasks are too few to transfer.
+held-out-task successes (0.02). Cloning needs many more steps than on one task:
+
+\begin{center}\small
+\begin{tabular}{lrr}
+\toprule
+ML10 clone (Qwen3.5-4B, gain 0.5) & Training tasks & Fit (log-prob) \\
+\midrule
+30 BC steps & 0.10 & $-0.35$ \\
+100 BC steps & 0.38 & $-0.18$ \\
+200 BC steps & 0.52 & $-0.04$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+RL then improves the clone: from the 100-step clone, training-task eval rises from 0.27--0.33 to 0.48 by step 40 (rollouts
+0.29--0.49). The 5 held-out tasks stay near 0 in every run: the instructions and objects are new, and 10 training tasks
+are too few to transfer.
 
 \takeaway{Multi-task cloning scales with the number of tasks: budget proportionally more expert data. Held-out
 \emph{tasks} (as opposed to held-out positions) did not work at all at this scale.}
 
 %=====================================================================================================================
+\section{The recipe for ML10 and ML45 (running)}
+Everything that worked is generic: nothing in it is written per task.
+\begin{enumerate}
+\item Controller gain 0.5 (one environment setting).
+\item Behaviour cloning on Metaworld's own scripted experts, driven through the text protocol, with the number of
+  steps scaled to the number of tasks.
+\item Training variations from 10 benchmark seeds (\code{env\_kwargs.train\_seeds=10}, 500 per task). ML10/ML45's
+  held-out tasks are other task classes, so extra variations of the training tasks cannot leak into them.
+\item RL with \code{pref\_mw\_obj} at temperature 1.0 (it uses only quantities every Metaworld task reports).
+\end{enumerate}
+It is packaged as one sweep (\code{configs/sweeps/metaworld\_recipe.yaml}) for ML10 (200 cloning steps) and ML45 (400).
+ML45's scripted experts, at gain 0.5 through the same protocol, succeed 0.82 on its 45 training tasks (handle-pull-side,
+lever-pull and stick-push at 0) and 0.97 on its 5 held-out tasks: the ceiling for this recipe.
+
 \section{Methodology lessons}
 \label{sec:noise}
 \begin{itemize}
@@ -332,7 +370,7 @@ RL alone on push (any start) & 0 & never samples the multi-phase motion \\
 Dense-reward preference on push & RL undid the clone & local optimum: grip the puck and hold still \\
 DAgger with scripted experts & clone 0.20 $\to$ 0.00 & threshold experts give visually identical states opposite labels \\
 DART with 2 cm noise & worse clone & the noisy expert itself succeeds only 0.20 \\
-More cloning on 50 push positions & held-out stays 0.28 & memorizes the training configurations \\
+More cloning on 50 push positions & held-out stays 0.28 & memorizes the training configurations (450 positions: 0.69) \\
 RL from the memorized clone & held-out flat or down & sharpens the memorized behaviour \\
 ML10 held-out tasks & $\approx$0 everywhere & too few training tasks for task transfer \\
 \bottomrule
@@ -340,9 +378,8 @@ ML10 held-out tasks & $\approx$0 everywhere & too few training tasks for task tr
 
 \section{Open questions and next steps}
 \begin{itemize}
-\item Does the 450-position clone generalize to held-out push positions (and is the gain real, given the denser
-  coverage)? If yes, cloning on many random positions, then RL, is the recipe for push.
-\item ML10 with 200 cloning steps: does the training-task score keep rising toward the expert's 0.91?
+\item ML10 / ML45 with the full recipe: how close do the training tasks get to the experts' 0.91 / 0.82, and do 45
+  training tasks give any transfer to held-out tasks (10 gave none)?
 \item Reach plateaus at 0.6--0.8 on held-out positions while training positions reach 0.9--1.0: more positions (as for push)
   should narrow that gap.
 \item A larger eval (128+ episodes) or pooled evals would make step-to-step comparisons meaningful.
