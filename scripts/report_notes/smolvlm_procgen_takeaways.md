@@ -417,6 +417,8 @@
       appeared (steps 35-40). It may need ~80 steps to answer the question.
       Steps 21-25: rollout invalid 56% -> 54%, rollouts 3-6%, grad norm ~0.11. Step-25 eval **16.7%** (training 23.4,
       held-out 11x11 10.9, 15x15 15.6), 59% invalid (lr=5e-6 at 12-13 steps' equivalent: ~20%).
+      Steps 26-30: rollout invalid 52% -> 49%, rollouts 5-7%, grad norm ~0.1. Step-30 eval **20.3%** (training 23.4,
+      held-out 11x11 14.1, 15x15 23.4), 49% invalid (lr=5e-6 at 15: 24.5%).
     * 256M `simple` (lr=5e-6, 128 tokens, noop) started 07:13: step-0 eval **1.6%**, eval invalid 82%.
       Steps 1-3: 1-2 groups with signal, rollout invalid 93%, success ~0%: **dropped after step 3**. 256M cannot
       bootstrap the `<action>` JSON format from scratch (500M could: 9-16 groups at steps 1-4).
