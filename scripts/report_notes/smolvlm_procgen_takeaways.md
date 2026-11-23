@@ -579,6 +579,9 @@
       Steps 1-5: rollout invalid flat at ~94%, 3-5 groups with signal, log-prob ~-5. Step-5 eval **12.5%** (training
       12.5, held-out 11x11 14.1, 15x15 10.9), 54% invalid (T=1.0 seed 1: 5.7%). **The 30% jump at step 5 does not
       replicate** with seed 1, so the seed-0 jump (twice, with and without KL) looks seed-specific.
+      Steps 6-10: rollout invalid still 91-94%, 0-4 groups with signal (one step with none), log-prob ~-5. Step-10 eval
+      **5.7%**, 66% invalid (T=1.0 seed 1: 10.9%). Seed 1 at T=1.2 is barely bootstrapping the format: hot sampling
+      leaves too few valid replies to learn from. It will be stopped at step 15 unless signal picks up.
     * 256M `simple` (lr=5e-6, 128 tokens, noop) started 07:13: step-0 eval **1.6%**, eval invalid 82%.
       Steps 1-3: 1-2 groups with signal, rollout invalid 93%, success ~0%: **dropped after step 3**. 256M cannot
       bootstrap the `<action>` JSON format from scratch (500M could: 9-16 groups at steps 1-4).
