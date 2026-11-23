@@ -575,6 +575,7 @@
       * 64 x 32, seed 0, one run.
     * Next on GPU0 (from 03:01, by hand, no auto-abort): **T=1.2, seed 1** (default recipe otherwise). An independent
       replication of the T=1.2 fast start.
+      Step-0 eval **7.3%**, 58% invalid (normal for seed 1).
     * 256M `simple` (lr=5e-6, 128 tokens, noop) started 07:13: step-0 eval **1.6%**, eval invalid 82%.
       Steps 1-3: 1-2 groups with signal, rollout invalid 93%, success ~0%: **dropped after step 3**. 256M cannot
       bootstrap the `<action>` JSON format from scratch (500M could: 9-16 groups at steps 1-4).
