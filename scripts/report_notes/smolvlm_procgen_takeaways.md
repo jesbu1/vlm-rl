@@ -441,6 +441,12 @@
       Step-25 eval **25.5%**, with per-set scores identical to step 20 (31.2 / 20.3 / 25.0), so the greedy policy has frozen
       (default at step 25: 31.8%). The hotter sampling made the policy collapse onto near-deterministic replies, which
       cancels out the temperature, so the GRPO signal is drying up.
+      Steps 26-30: rollouts 27-39%, log-prob flat at -0.09, 32-45 groups with signal. Step-30 eval **25.5%**: same per-set
+      scores for the third eval running. **Stopped at step 30** (02:33) since the greedy policy hadn't changed in 10 steps.
+      **Verdict: T=1.2 speeds up the first 5-10 steps (30.7% at step 5 vs 14.6%), then collapses the policy onto
+      near-deterministic replies and freezes greedy eval ~5 points below the default** (25.5 vs ~30%). One seed.
+    * Next on GPU1 (from 02:35, launched by hand without auto-abort): **T=1.2 + `kl_coef=0.05`**. Does a KL anchor keep the
+      fast start and prevent the sharpening?
     * 500M **`compact` (absolute goal) + terminate** (GPU0, started 07:32): step-0 eval **1.0%**, **78% invalid**
       (compact_rel at step 0: 7.8-11.5%, ~52% invalid). The absolute-coordinate prompt starts with far fewer valid
       replies; the queue's step-3 signal check decides whether terminate can learn from it.

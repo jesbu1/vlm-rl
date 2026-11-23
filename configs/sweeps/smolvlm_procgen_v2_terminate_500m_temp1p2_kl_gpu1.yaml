@@ -1,0 +1,36 @@
+# smolvlm-procgen-v2, GPU 1: temperature 1.2 + a KL anchor. The temperature=1.2 run (same recipe, no KL) jumped to 30.7%
+# greedy eval at step 5 (default: 14.6%). Its mean log-prob then sharpened from -4.5 to -0.09 by step 25, and its greedy
+# eval froze at 25.5% for steps 20-30 (default: ~30%). It was stopped at step 30. This adds kl_coef=0.05 (per-token k3 KL to
+# the pretrained model), which held the log-prob near the pretrained level in earlier runs. Question: does the anchor keep
+# the fast start without the collapse? Otherwise the same as the default recipe (SmolVLM2-500M compact_rel, 192 tokens +
+# parse_last, on_invalid=terminate, lr=5e-6, 64 x 16, seed 0).
+group: smolvlm-procgen-v2
+project: vlm-rl-pointmaze
+train_gpu: 1
+vllm_gpu: 1
+vllm_port: 8012
+vllm_gpu_util: 0.35
+overrides:
+  - experiment=pointmaze_procgen
+  - eval_on_invalid=noop
+  - reward=success
+  - steps=40
+  - groups_per_step=64
+  - group_size=16
+  - max_resample_rounds=3
+  - micro_batch_size=16
+  - eval_every=5
+  - eval_episodes=64
+  - wandb_entity=tri
+  - "wandb_tags='pointmaze,procgen,smolvlm2-500m,fft,sweep'"
+grid:
+  on_invalid: [terminate]
+  policy: [smolvlm2_500m]
+  env_kwargs.prompt_style: [compact_rel]
+  lr: [5.0e-6]
+  max_new_tokens: [192]
+  env_kwargs.parse_last: [true]
+  temperature: [1.2]
+  kl_coef: [0.05]   # in the grid so the run name (and out_dir) differ from the no-KL temperature=1.2 run
+vllm_args:
+  HuggingFaceTB/SmolVLM2-500M-Video-Instruct: [--max-model-len, "8192", --mm-processor-kwargs, '{"do_image_splitting": false}', --api-server-count, "4", --max-num-seqs, "1024", --mm-processor-cache-gb, "0"]
