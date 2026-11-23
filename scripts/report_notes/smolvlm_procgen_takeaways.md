@@ -447,6 +447,7 @@
       near-deterministic replies and freezes greedy eval ~5 points below the default** (25.5 vs ~30%). One seed.
     * Next on GPU1 (from 02:35, launched by hand without auto-abort): **T=1.2 + `kl_coef=0.05`**. Does a KL anchor keep the
       fast start and prevent the sharpening?
+      Step-0 eval **11.5%**, 54% invalid (normal).
     * 500M **`compact` (absolute goal) + terminate** (GPU0, started 07:32): step-0 eval **1.0%**, **78% invalid**
       (compact_rel at step 0: 7.8-11.5%, ~52% invalid). The absolute-coordinate prompt starts with far fewer valid
       replies; the queue's step-3 signal check decides whether terminate can learn from it.
