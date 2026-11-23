@@ -126,3 +126,6 @@ Each GRPO group is 8 rollouts from the same start (same goal position and seed).
 * **RL does not move ML45** over 40 steps (training tasks 0.53–0.61, held-out 0.08–0.14, either lr), and ML10's RL gain
   flattens at 0.60–0.71. More cloning is the lever: live are 800 BC steps on ML45 and 400 on ML10 (from the recipe clones),
   then RL at lr 2e-6.
+* **More cloning beats RL on ML10:** the 400-step recipe clone scores 0.69 on the training tasks (200 steps: 0.54), as much
+  as the best RL run; over 100 RL steps, lr 1e-5 peaked at 0.71 then fell to 0.54 while lr 2e-6 held 0.64. ML45 RL at lr 2e-6:
+  training tasks 0.57 → 0.63, held-out flat (0.08–0.14). 800-step ML45 clone training.
