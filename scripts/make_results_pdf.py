@@ -61,6 +61,7 @@ RUNS = {
     "rc_q35_ml10_rl2e6": (MW, "group:metaworld-recipe-q35-ml10-rl2e-6"),
     "rc_q35_ml45_rl2e6": (MW, "group:metaworld-recipe-q35-ml45-rl2e-6"),
     "rc_q35_ml45_bc800": (MW, "group:metaworld-recipe-q35-ml45-bc800"), "rc_q35_ml10_bc400": (MW, "group:metaworld-recipe-q35-ml10-bc400"),
+    "rc_q35_ml10_bc800": (MW, "group:metaworld-recipe-q35-ml10-bc800"),
     # RL from good clones: lower lr / only above-average rollouts (adv_min=0); baselines p5_seeds10, m5_bc200 (lr 1e-5)
     "rl_push_lr": (MW, "group:metaworld-rlfix-push450-lr2e-6"), "rl_push_pos": (MW, "group:metaworld-rlfix-push450-posadv"),
     "rl_ml10_lr": (MW, "group:metaworld-rlfix-ml10-lr2e-6"), "rl_ml10_pos": (MW, "group:metaworld-rlfix-ml10-posadv"),
@@ -493,7 +494,7 @@ def fig_recipe(D):
     runs = [("rc_q35_ml10", "ML10, Qwen3.5-4B, RL lr 1e-5"), ("rc_q35_ml10_rl2e6", "ML10, Qwen3.5-4B, RL lr 2e-6"),
             ("rc_q35_ml45", "ML45, Qwen3.5-4B, RL lr 1e-5"), ("rc_q35_ml45_rl2e6", "ML45, Qwen3.5-4B, RL lr 2e-6"),
             ("rc_q3vl4b_ml45", "ML45, Qwen3-VL-4B, RL lr 1e-5"), ("rc_q35_ml45_bc800", "ML45, Qwen3.5-4B, BC 800, RL lr 2e-6"),
-            ("rc_q35_ml10_bc400", "ML10, Qwen3.5-4B, BC 400, RL lr 2e-6")]
+            ("rc_q35_ml10_bc400", "ML10, Qwen3.5-4B, BC 400, RL lr 2e-6"), ("rc_q35_ml10_bc800", "ML10, Qwen3.5-4B, BC 800, RL lr 2e-6")]
     runs = [(i, k, n) for i, (k, n) in enumerate(runs) if k in D and series(D[k], "eval/train_tasks/success")[0]]
     fig, axes = plt.subplots(1, 2, figsize=(7.2, 2.6))
     for ax, key, title in ((axes[0], "eval/train_tasks/success", "Training tasks (3-eval mean)"),
