@@ -576,6 +576,9 @@
     * Next on GPU0 (from 03:01, by hand, no auto-abort): **T=1.2, seed 1** (default recipe otherwise). An independent
       replication of the T=1.2 fast start.
       Step-0 eval **7.3%**, 58% invalid (normal for seed 1).
+      Steps 1-5: rollout invalid flat at ~94%, 3-5 groups with signal, log-prob ~-5. Step-5 eval **12.5%** (training
+      12.5, held-out 11x11 14.1, 15x15 10.9), 54% invalid (T=1.0 seed 1: 5.7%). **The 30% jump at step 5 does not
+      replicate** with seed 1, so the seed-0 jump (twice, with and without KL) looks seed-specific.
     * 256M `simple` (lr=5e-6, 128 tokens, noop) started 07:13: step-0 eval **1.6%**, eval invalid 82%.
       Steps 1-3: 1-2 groups with signal, rollout invalid 93%, success ~0%: **dropped after step 3**. 256M cannot
       bootstrap the `<action>` JSON format from scratch (500M could: 9-16 groups at steps 1-4).
