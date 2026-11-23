@@ -926,6 +926,14 @@
     Steps 31-35: rollouts 28-33%, invalid 13% -> 7%, 58-64 groups with signal, log-prob -0.91 -> -0.85. Step-35 eval
     **35.9%** (training 39.1, held-out 11x11 32.8, 15x15 35.9), 0% invalid (token_mean: 28.6%). This is the highest single
     greedy eval of any 64 x 16 run (previous best 34.4%, 128 x 16 seed 1 at step 25), and it is strong on both held-out sets.
+    Steps 36-40: rollouts 38-42%, 0% invalid. Step-40 eval **34.9%** (training 43.8, held-out 11x11 31.2, 15x15 29.7),
+    0% invalid. Finished.
+    * **Verdict: a modest gain over token_mean, one seed.** Mean over steps 30-40 is **33.7%** vs 29.7% (token_mean, seed 0),
+      about +4 points. Each eval has ~+-3 points of noise, so this is suggestive, not settled.
+    * traj_mean is slower early (27% vs 32% at step 20), then keeps climbing where token_mean plateaus. Log-prob stayed
+      steady (~-0.85), with no sharpening.
+    * It is well below BC + RL (44.3% at step 20). GPU0 now runs a seed-1 replicate of BC + RL
+      (`smolvlm_procgen_v2_terminate_500m_bc30_seed1_gpu0.yaml`). BC + traj_mean is the next candidate.
   * BC run: RL steps take ~10 min, since the clone's valid replies run full 20-turn episodes. Rollouts 23-28% at steps 1-3.
   * The two T=0.8 runs are cut short (40 -> 25 and 20 steps) to free the GPUs. Their pattern is already clear on both
     seeds: a faster start, then greedy eval dips while rollouts climb.
