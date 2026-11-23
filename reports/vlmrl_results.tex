@@ -293,8 +293,35 @@ improve: Qwen3.5-4B drifts from $\sim$0.26 to $\sim$0.08 over 35 steps, Qwen3-VL
 \textbf{RL from the good 450-position clone does not help either, so far.} Training rollouts stay flat (0.54 over steps
 1--5, 0.53 over steps 31--40) while the sampled replies get more deterministic (mean log-prob of sampled tokens $-0.19
 \to -0.14$), and held-out positions fall steadily: 0.69, 0.62, 0.53, 0.47, 0.44, 0.53, 0.34, 0.31 at steps 0--35. RL
-sharpens the policy on what it samples instead of improving it. Being tested: a 5$\times$ lower learning rate, and
-reinforcing only above-average rollouts (\code{adv\_min=0}).
+sharpens the policy on what it samples instead of improving it.
+
+\textbf{Lower learning rate, or positive-only advantages?}
+\begin{figure}[h]
+\centering\includegraphics[width=\linewidth]{figures/rl_fixes.pdf}
+\caption{RL from the 450-position push clone and the 200-step ML10 clone at three settings (thin: each eval; thick:
+3-eval mean).}
+\label{fig:rlfixes}
+\end{figure}
+From the same two clones, RL at a 5$\times$ lower learning rate (2e-6), and RL reinforcing only above-average rollouts
+(\code{adv\_min=0}, so it never pushes probability away from a sampled move), compared with lr 1e-5
+(Fig.~\ref{fig:rlfixes}). Pooled over the evals at steps 5--15:
+
+\begin{center}\small
+\begin{tabular}{lrr}
+\toprule
+RL setting & Push, held-out positions & ML10, training tasks \\
+\midrule
+clone (step 0) & 0.62--0.69 & 0.52--0.54 \\
+lr 1e-5 & 0.54 & 0.45 \\
+lr 2e-6 & 0.50 & 0.57 \\
+lr 1e-5, \code{adv\_min=0} & 0.48 & 0.46 (0.34 at steps 20--30) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Nothing preserves held-out push. Positive-only advantages are worse on ML10: in a group where every rollout fails, the
+above-average failures are still reinforced (rollouts 0.44 $\to$ 0.30). The lower learning rate is the only setting
+slightly above the ML10 clone, about two standard errors, not conclusive.
 
 \textbf{Temperature for RL from a clone.} Unlike reach from scratch, a clone already varies its moves, and sampling
 noise in the digits spoils precise pushes. From the same DART clone, mean rollout success over the first 9 steps was
@@ -346,7 +373,8 @@ Everything that worked is generic: nothing in it is written per task.
   steps scaled to the number of tasks.
 \item Training variations from 10 benchmark seeds (\code{env\_kwargs.train\_seeds=10}, 500 per task). ML10/ML45's
   held-out tasks are other task classes, so extra variations of the training tasks cannot leak into them.
-\item RL with \code{pref\_mw\_obj} at temperature 1.0 (it uses only quantities every Metaworld task reports).
+\item RL with \code{pref\_mw\_obj} at temperature 1.0 (it uses only quantities every Metaworld task reports). This
+  step is optional so far: from good clones RL has kept ML10 level and lowered held-out push (Fig.~\ref{fig:rlfixes}). The recipe runs use lr 1e-5; their saved clones also get RL at lr 2e-6 for comparison.
 \end{enumerate}
 It is packaged as one sweep (\code{configs/sweeps/metaworld\_recipe.yaml}) for ML10 (200 cloning steps) and ML45 (400).
 ML45's scripted experts, at gain 0.5 through the same protocol, succeed 0.82 on its 45 training tasks (handle-pull-side,
