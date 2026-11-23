@@ -319,9 +319,11 @@ lr 1e-5, \code{adv\_min=0} & 0.48 & 0.46 (0.34 at steps 20--30) \\
 \end{tabular}
 \end{center}
 
-Nothing preserves held-out push. Positive-only advantages are worse on ML10: in a group where every rollout fails, the
-above-average failures are still reinforced (rollouts 0.44 $\to$ 0.30). The lower learning rate is the only setting
-slightly above the ML10 clone, about two standard errors, not conclusive.
+Positive-only advantages are worse on ML10: in a group where every rollout fails, the above-average failures are still
+reinforced (rollouts 0.44 $\to$ 0.30). The lower learning rate holds up better the longer it runs: pooled over steps
+20--30, held-out push is 0.56 at lr 2e-6 against 0.44 at lr 1e-5 (clone 0.62), and ML10's training tasks stay at 0.55
+(steps 5--25) against 0.45--0.54. At lr 2e-6, RL roughly keeps a good clone instead of eroding it; it has not yet
+clearly improved one.
 
 \textbf{Temperature for RL from a clone.} Unlike reach from scratch, a clone already varies its moves, and sampling
 noise in the digits spoils precise pushes. From the same DART clone, mean rollout success over the first 9 steps was
@@ -377,6 +379,11 @@ Everything that worked is generic: nothing in it is written per task.
   step is optional so far: from good clones RL has kept ML10 level and lowered held-out push (Fig.~\ref{fig:rlfixes}). The recipe runs use lr 1e-5; their saved clones also get RL at lr 2e-6 for comparison.
 \end{enumerate}
 It is packaged as one sweep (\code{configs/sweeps/metaworld\_recipe.yaml}) for ML10 (200 cloning steps) and ML45 (400).
+
+\textbf{ML10 clone from the recipe:} 0.54 on the training tasks and 0.02 on the held-out tasks, with a fit of $-0.24$.
+The 200-step clone on the benchmark's own 50 variations per task scored 0.52 at a fit of $-0.04$, on the same eval
+variations it had trained on; the recipe's clone matches it without memorizing them. RL from it runs at lr 1e-5 and at
+lr 2e-6.
 ML45's scripted experts, at gain 0.5 through the same protocol, succeed 0.82 on its 45 training tasks (handle-pull-side,
 lever-pull and stick-push at 0) and 0.97 on its 5 held-out tasks: the ceiling for this recipe.
 

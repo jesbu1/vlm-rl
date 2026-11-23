@@ -111,3 +111,6 @@ Each GRPO group is 8 rollouts from the same start (same goal position and seed).
   Nothing preserves held-out push; positive-only advantages hurt ML10 (above-average *failures* get reinforced). lr 2e-6
   is the only setting slightly above the ML10 clone (~2 standard errors). So the recipe is BC-first: the clone's quality,
   set by how much expert data it saw, is what moves ML10; the recipe's RL phase will also be run at lr 2e-6.
+* **Recipe, ML10 clone** (BC 200 steps on 500 variations per task): 0.54 on the training tasks, 0.02 held-out; RL from it
+  at lr 1e-5 and lr 2e-6 is live. With more steps, lr 2e-6 holds clones better (held-out push 0.56 vs 0.44 at lr 1e-5,
+  steps 20–30; clone 0.62).
