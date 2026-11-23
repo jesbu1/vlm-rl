@@ -496,6 +496,11 @@
       * So the trained policy's success lives in its sampling distribution, and its argmax reply is worse. This is the
         clearest case yet for a sampled eval (awaiting approval).
       Steps 21-22: rollout invalid creeping up (5% -> 12%), rollouts 32-33%.
+      Step-25 eval **23.4%** (training 20.3, held-out 11x11 23.4, 15x15 26.6), 0% invalid (T=1.0: 31.8%). Rollouts 31-39%,
+      invalid 4-5%, log-prob -0.5. **Stopped after the step-25 eval** (09:06) to free GPU1 for the BC run.
+      **T=0.8 seed 0, in short:** greedy eval was the fastest to ~30% (32.3% at step 10), then fell to 21-24% for steps 15-25,
+      below T=1.0 (25-32%). Its T=0.8 rollouts are the best of any run (31-43%), so the sampled-vs-greedy gap reached
+      ~15 points.
     * 500M **`compact` (absolute goal) + terminate** (GPU0, started 07:32): step-0 eval **1.0%**, **78% invalid**
       (compact_rel at step 0: 7.8-11.5%, ~52% invalid). The absolute-coordinate prompt starts with far fewer valid
       replies; the queue's step-3 signal check decides whether terminate can learn from it.
