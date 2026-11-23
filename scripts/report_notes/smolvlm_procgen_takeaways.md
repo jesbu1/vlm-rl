@@ -428,6 +428,9 @@
       noise or a lucky early update. The queue's collapse rule (rollout invalid > 85% two steps running) would have killed
       this run at step 7, so its monitor was stopped (22:28). That also killed the run, which was restarted by hand from
       the step-5 checkpoint with no auto-abort.
+      Resumed 22:29. Steps 6-10: rollout invalid **88% -> 50%** (default: 75% -> 64%), groups with signal 8 -> 44, rollouts
+      0.3% -> 6.6%, mean log-prob -4.7 -> -2.6. Step-10 eval **27.6%** (training 32.8, held-out 11x11 23.4, 15x15 26.6),
+      0% invalid (default at step 10: 19.3%). Two evals ahead of the default, so the early jump looks real.
     * 500M **`compact` (absolute goal) + terminate** (GPU0, started 07:32): step-0 eval **1.0%**, **78% invalid**
       (compact_rel at step 0: 7.8-11.5%, ~52% invalid). The absolute-coordinate prompt starts with far fewer valid
       replies; the queue's step-3 signal check decides whether terminate can learn from it.
