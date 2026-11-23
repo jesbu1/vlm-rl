@@ -746,4 +746,6 @@ def make_pointmaze(cfg: PointMazeConfig | None = None, **kw) -> EnvBundle:
         train_sampler=train_sampler or sampler(cfg.start_states, "train"),
         eval_sampler=eval_sampler or sampler(cfg.eval_start_states, cfg.eval_split),
         max_turns=cfg.max_turns,
+        # behaviour cloning (bc_steps): the BFS shortest-path oracle, from the slot's own maze, ball and goal
+        expert=lambda env, k: oracle_delta(env.maze_map_of(k), env._qpos[k][:2], env._goals[k], cfg.max_delta),
     )

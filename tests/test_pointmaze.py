@@ -499,3 +499,15 @@ def test_procgen_experiment_eval_sets_build_and_are_solvable(rng):
         env.close()
     assert seen["id_layouts"] <= {f"gen11x11s{i}" for i in range(64)}
     assert not seen["ood_layouts"] & seen["id_layouts"] and all(m.startswith("gen15x15") for m in seen["ood_larger"])
+
+
+def test_procgen_expert_solves_episodes_through_the_text_protocol(rng):
+    """bc_steps needs EnvBundle.expert: the BFS oracle, written as the reply the model would give and parsed back,
+    reaches the goal on procedural mazes."""
+    from vlmrl.rollout import expert_rollout
+    b = make_pointmaze(maze="gen11x11", train_mazes=4, eval_mazes=2, max_delta=3.0, max_turns=20, min_goal_dist=3.0,
+                       prompt_style="compact_rel", image_size=32)
+    trajs = expert_rollout(b.make_vec_env(), b.interface, b.expert, b.train_sampler.sample(8, rng), list(range(8)),
+                           b.max_turns)
+    assert all(t.success for t in trajs)
+    assert all(b.interface.parse_action(t.turns[0].response) is not None for t in trajs)
