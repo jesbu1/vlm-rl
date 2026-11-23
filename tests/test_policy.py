@@ -271,6 +271,25 @@ def test_exact_generated_ids_are_trained_as_generated(tiny_vlm, umaze, rng):
 
 
 @pytest.mark.slow
+def test_generated_image_token_id_is_not_counted_as_an_image(tiny_vlm, umaze, rng):
+    """Regression: SmolVLM2 at T=1.2 sampled the <image> placeholder as a raw token id. Spliced into the batch, the
+    forward pass counted 1025 image tokens for 1024 image features and raised. The id is replaced by padding and left
+    untrained; the rest of the reply is trained as generated."""
+    assert tiny_vlm.media_ids
+    t = _traj_with_texts(umaze, rng, ['{"dx": 1, "dy": 0}'])
+    t.advantage = 1.0
+    s = to_samples([t], 1)[0]
+    body = tiny_vlm.tokenizer('{"dx": 1, "dy": 0}', add_special_tokens=False)["input_ids"]
+    img = next(iter(tiny_vlm.media_ids))
+    gen = body[:2] + [img] + body[2:] + [sorted(tiny_vlm.stop_ids)[0]]
+    b = tiny_vlm.build_batch([Sample(s.messages, s.train_msg_idx, 1.0, gen_ids=gen)])
+    trained = b["input_ids"][0][b["loss_mask"][0].bool()].tolist()
+    assert img not in trained and trained == [i for i in gen if i != img]
+    logp, m = tiny_vlm.token_logprobs(b)                                   # raised before the fix
+    assert torch.isfinite(logp[m.bool()]).all()
+
+
+@pytest.mark.slow
 def test_fp32_frozen_keeps_frozen_params_fp32():
     from conftest import TINY_VLM
     from vlmrl.policy import HFPolicy

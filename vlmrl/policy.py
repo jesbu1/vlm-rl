@@ -135,6 +135,29 @@ class HFPolicy:
         self.chat_template_kwargs = dict(chat_template_kwargs or {})
         self._prefix_checked = False
         self.stop_ids = self._stop_token_ids()
+        self.media_ids = self._media_token_ids()
+
+    # Placeholder tokens the model's forward pass counts as image / video slots.
+    _MEDIA_TOKEN_STRINGS = ("<image>", "<video>", "<|image_pad|>", "<|video_pad|>", "<image_soft_token>", "<|image|>")
+    _MEDIA_CONFIG_KEYS = ("image_token_id", "image_token_index", "video_token_id", "video_token_index")
+
+    def _media_token_ids(self) -> set[int]:
+        """Ids of the image / video placeholder tokens. A sampled reply can contain one as a raw id (SmolVLM2 at
+        T=1.2 did). Spliced into the batch, the forward pass then counts one image slot more than there are
+        images and raises "Image features and image tokens do not match"."""
+        ids, unk = set(), getattr(self.tokenizer, "unk_token_id", None)
+        for s in self._MEDIA_TOKEN_STRINGS:
+            i = self.tokenizer.convert_tokens_to_ids(s)
+            if isinstance(i, int) and i != unk and i >= 0:
+                ids.add(i)
+        cfgs = [getattr(self.model, "config", None)]
+        cfgs.append(getattr(cfgs[0], "text_config", None))
+        for c in cfgs:
+            for k in self._MEDIA_CONFIG_KEYS:
+                v = getattr(c, k, None) if c is not None else None
+                if isinstance(v, int) and v >= 0:
+                    ids.add(v)
+        return ids
 
     def _stop_token_ids(self) -> set[int]:
         """Token ids generation stops at (generation_config eos ids + the tokenizer's eos). The model's reply ends
@@ -308,6 +331,12 @@ class HFPolicy:
                 if k == "attention_mask":
                     out[k][b, l:l + len(g)] = 1
             loss_mask[b, l:l + len(g)] = 1
+            # a generated image/video placeholder id: replace it with padding and leave it untrained (see
+            # _media_token_ids); the rest of the reply is trained as generated
+            for j, t in enumerate(s.gen_ids):
+                if t in self.media_ids:
+                    ids[b, l + j] = pad
+                    loss_mask[b, l + j] = 0
         enc.update(out, input_ids=ids)
         enc["loss_mask"] = loss_mask
         enc["advantages"] = torch.tensor([s.advantage for s in samples], dtype=torch.float32)
