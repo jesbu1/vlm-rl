@@ -934,6 +934,8 @@
       steady (~-0.85), with no sharpening.
     * It is well below BC + RL (44.3% at step 20). GPU0 now runs a seed-1 replicate of BC + RL
       (`smolvlm_procgen_v2_terminate_500m_bc30_seed1_gpu0.yaml`). BC + traj_mean is the next candidate.
+  * **BC-30 seed 1 (GPU0, started 15:30):** the clone's step-0 eval is **13.5%** (training 12.5, held-out 11x11 14.1,
+    15x15 14.1), 0% invalid. The seed-0 clone scored 10.9%, so the clone reproduces.
   * BC run: RL steps take ~10 min, since the clone's valid replies run full 20-turn episodes. Rollouts 23-28% at steps 1-3.
   * The two T=0.8 runs are cut short (40 -> 25 and 20 steps) to free the GPUs. Their pattern is already clear on both
     seeds: a faster start, then greedy eval dips while rollouts climb.
