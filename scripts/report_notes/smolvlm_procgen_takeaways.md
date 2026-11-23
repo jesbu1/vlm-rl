@@ -431,6 +431,9 @@
       Resumed 22:29. Steps 6-10: rollout invalid **88% -> 50%** (default: 75% -> 64%), groups with signal 8 -> 44, rollouts
       0.3% -> 6.6%, mean log-prob -4.7 -> -2.6. Step-10 eval **27.6%** (training 32.8, held-out 11x11 23.4, 15x15 26.6),
       0% invalid (default at step 10: 19.3%). Two evals ahead of the default, so the early jump looks real.
+      Steps 11-15: rollouts **11% -> 33%** at T=1.2, invalid 39% -> 14%, 54-62 groups with signal, log-prob -2.4 -> -1.5.
+      Step-15 eval **26.0%** (training 31.2, held-out 11x11 21.9, 15x15 25.0), 0% invalid (default: 25.0%). The greedy eval
+      lead is gone; sampled rollouts are far ahead of the default at this step.
     * 500M **`compact` (absolute goal) + terminate** (GPU0, started 07:32): step-0 eval **1.0%**, **78% invalid**
       (compact_rel at step 0: 7.8-11.5%, ~52% invalid). The absolute-coordinate prompt starts with far fewer valid
       replies; the queue's step-3 signal check decides whether terminate can learn from it.
