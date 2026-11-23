@@ -591,6 +591,8 @@
       Steps 11-15: signal picked up: rollout invalid 89% -> 69%, 6 -> 18 groups with signal. Step-15 eval **25.0%**
       (training 28.1, held-out 11x11 20.3, 15x15 26.6), 0% invalid (T=1.0 seed 1: 14.1%). Kept running. The jump came
       10 steps later than for seed 0, but it came: once a few groups get the format right, greedy eval jumps fast at T=1.2.
+      Steps 16-20: rollout invalid 66% -> 49%, 21-43 groups with signal, rollouts 1-4%, log-prob ~-3.3. Step-20 eval
+      **25.5%** (training 29.7, held-out 11x11 21.9, 15x15 25.0), 0% invalid (T=1.0 seed 1: 25.0%). Level with T=1.0 now.
     * 256M `simple` (lr=5e-6, 128 tokens, noop) started 07:13: step-0 eval **1.6%**, eval invalid 82%.
       Steps 1-3: 1-2 groups with signal, rollout invalid 93%, success ~0%: **dropped after step 3**. 256M cannot
       bootstrap the `<action>` JSON format from scratch (500M could: 9-16 groups at steps 1-4).
