@@ -475,6 +475,8 @@
       held-out 11x11 21.4 vs 27.6, 15x15 25.5 vs 25.5). KL does stop the sharpening seen without it (log-prob stays at
       about -3.5). The cost: 2/3 of T=1.2 rollouts stay invalid and terminated, so rollouts never pass ~6% and learning
       stalls. Seed 0, one run.
+    * Next on GPU1 (from 04:19, via the queue): **training `temperature=0.8`** (default recipe, seed 0). The other side of
+      the temperature axis: fewer junk replies, less exploration. Step-0 eval **9.9%** (greedy, as in every run).
     * 500M **`compact` (absolute goal) + terminate** (GPU0, started 07:32): step-0 eval **1.0%**, **78% invalid**
       (compact_rel at step 0: 7.8-11.5%, ~52% invalid). The absolute-coordinate prompt starts with far fewer valid
       replies; the queue's step-3 signal check decides whether terminate can learn from it.
