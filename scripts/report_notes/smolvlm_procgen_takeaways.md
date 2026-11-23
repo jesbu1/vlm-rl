@@ -898,6 +898,8 @@
       (training 14.1, held-out 11x11 15.6, 15x15 18.8), 0% invalid (RL-only at step 5: 14.6%). Greedy eval lags rollouts by
       ~17 points. ~16 min/step.
     * Steps 6-9: rollouts 30-38%, groups with signal 59 -> 53, log-prob -0.16 -> -0.13 (slowly sharpening).
+    * Step-10 eval **18.8%** (training 23.4, held-out 11x11 17.2, 15x15 15.6), 0% invalid (RL-only at step 10: 19.3%).
+      Rollouts 38%. Greedy eval tracks RL-only while sampled rollouts are ~2x higher. BC has not lifted greedy performance.
   * **traj_mean (GPU0, started 09:53):** step-0 eval **9.4%**, 57% invalid (normal).
     Steps 1-5: rollout invalid 85% -> 70% (token_mean: 86% -> 78%), 9-26 groups with signal. Step-5 eval **14.6%**
     (training 20.3, held-out 11x11 9.4, 15x15 14.1), 75% invalid (token_mean at step 5: 14.6%).
