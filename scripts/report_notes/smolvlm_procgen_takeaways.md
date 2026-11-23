@@ -645,6 +645,9 @@
       Step-0 eval **8.3%**, 58% invalid (normal for seed 1).
       Steps 1-5: rollout invalid 81% -> 66%, 16-31 groups with signal (T=1.0 seed 1: far fewer), rollouts 1-3%. Step-5
       eval **14.1%** (training 15.6, held-out 11x11 18.8, 15x15 7.8), 49% invalid (T=1.0 seed 1: 5.7%; T=1.2 seed 1: 12.5%).
+      Steps 6-10: rollouts 4.5% -> 24%, invalid 62% -> 21%, 35-56 groups with signal, log-prob -0.76 -> -0.24 (the same
+      fast rise as seed 0). Step-10 eval **22.4%** (training 25.0, held-out 11x11 21.9, 15x15 20.3), 0% invalid (T=1.0 seed
+      1: 10.9%; T=1.2 seed 1: 5.7%).
     * 256M `simple` (lr=5e-6, 128 tokens, noop) started 07:13: step-0 eval **1.6%**, eval invalid 82%.
       Steps 1-3: 1-2 groups with signal, rollout invalid 93%, success ~0%: **dropped after step 3**. 256M cannot
       bootstrap the `<action>` JSON format from scratch (500M could: 9-16 groups at steps 1-4).
