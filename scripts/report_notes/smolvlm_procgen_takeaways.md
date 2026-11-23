@@ -482,6 +482,10 @@
       (T=1.0: 14.6%). Much more signal per step, same greedy eval so far.
       Steps 6-9: rollouts **4% -> 32%**, invalid 56% -> 13%, 43-61 groups with signal, log-prob -0.7 -> -0.3. Fastest
       rollout rise of any run; T=1.0 rollouts were still ~2% at step 9.
+      Step-10 eval **32.3%** (training 37.5, held-out 11x11 26.6, 15x15 32.8), 0% invalid (T=1.0 at step 10: 19.3%; it
+      first reached ~32% at step 20). All 64 groups with signal, rollouts 32%, invalid 9%. **T=0.8 reaches the ~30% plateau in
+      half the steps.** Steps are slower (~13 min vs ~5: more valid replies, so longer episodes). Watch for the T=1.2-style
+      freeze: log-prob is already at -0.26.
     * 500M **`compact` (absolute goal) + terminate** (GPU0, started 07:32): step-0 eval **1.0%**, **78% invalid**
       (compact_rel at step 0: 7.8-11.5%, ~52% invalid). The absolute-coordinate prompt starts with far fewer valid
       replies; the queue's step-3 signal check decides whether terminate can learn from it.
