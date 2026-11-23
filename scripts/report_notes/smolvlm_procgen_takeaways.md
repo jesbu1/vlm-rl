@@ -562,6 +562,15 @@
       not clear overfitting. Rollouts still rising (21% -> 32% over steps 60-75) while greedy eval stays ~29-32%.
       Step 80: eval **32.3%** (training 42.2, held-out 11x11 25.0, 15x15 29.7), 5% invalid; rollouts 32-42%, invalid 10%.
       Step 85: eval **31.8%** (training 35.9, held-out 11x11 31.2, 15x15 28.1), 7% invalid; rollouts 31-37%, invalid 9%.
+      Step 90: eval **33.3%** (training 39.1, held-out 11x11 29.7, 15x15 31.2), 5% invalid; rollouts 28-40%, invalid 7%.
+      **Verdict:** lr=2.5e-6 reaches the same plateau as lr=5e-6 in about twice the updates, and goes no higher.
+      * Mean over steps 60-90: **31.3%** (training 38.4, held-out 11x11 24.8, 15x15 30.8). lr=5e-6 gs32 seed 0, steps
+        30-40: 32.5%.
+      * **No late drop** in 90 steps: every eval from step 60 on is 28.6-33.3%.
+      * Halving the lr removes neither the plateau nor the gap between sampled rollouts (28-42%) and greedy eval.
+      * 64 x 32, seed 0, one run.
+    * Next on GPU0 (from 03:01, by hand, no auto-abort): **T=1.2, seed 1** (default recipe otherwise). An independent
+      replication of the T=1.2 fast start.
     * 256M `simple` (lr=5e-6, 128 tokens, noop) started 07:13: step-0 eval **1.6%**, eval invalid 82%.
       Steps 1-3: 1-2 groups with signal, rollout invalid 93%, success ~0%: **dropped after step 3**. 256M cannot
       bootstrap the `<action>` JSON format from scratch (500M could: 9-16 groups at steps 1-4).
