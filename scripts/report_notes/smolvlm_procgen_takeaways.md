@@ -451,6 +451,10 @@
       Steps 1-5: rollout invalid 94% -> 87%, only 1-6 groups with signal, KL 0.001 -> 0.05. Step-5 eval **30.2%** (training
       37.5, held-out 11x11 29.7, 15x15 23.4), 6% invalid: **the fast start repeats** (no-KL T=1.2: 30.7%; T=1.0: 14.6%).
       The two runs share seed 0 and the KL term is still small, so this is not an independent replication.
+      Steps 6-10: KL 0.07 -> 0.12, mean log-prob **held at about -4** (no-KL T=1.2: -4.7 -> -2.6), rollout invalid
+      83% -> 75% (no-KL: 88% -> 50%), 8-17 groups with signal, rollouts ~1%. Step-10 eval **28.1%** (training 32.8,
+      held-out 11x11 25.0, 15x15 26.6), 0% invalid (no-KL T=1.2: 27.6%). KL is stopping the sharpening; the cost is
+      fewer valid rollouts.
     * 500M **`compact` (absolute goal) + terminate** (GPU0, started 07:32): step-0 eval **1.0%**, **78% invalid**
       (compact_rel at step 0: 7.8-11.5%, ~52% invalid). The absolute-coordinate prompt starts with far fewer valid
       replies; the queue's step-3 signal check decides whether terminate can learn from it.
