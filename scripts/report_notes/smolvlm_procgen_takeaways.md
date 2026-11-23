@@ -448,6 +448,9 @@
     * Next on GPU1 (from 02:35, launched by hand without auto-abort): **T=1.2 + `kl_coef=0.05`**. Does a KL anchor keep the
       fast start and prevent the sharpening?
       Step-0 eval **11.5%**, 54% invalid (normal).
+      Steps 1-5: rollout invalid 94% -> 87%, only 1-6 groups with signal, KL 0.001 -> 0.05. Step-5 eval **30.2%** (training
+      37.5, held-out 11x11 29.7, 15x15 23.4), 6% invalid: **the fast start repeats** (no-KL T=1.2: 30.7%; T=1.0: 14.6%).
+      The two runs share seed 0 and the KL term is still small, so this is not an independent replication.
     * 500M **`compact` (absolute goal) + terminate** (GPU0, started 07:32): step-0 eval **1.0%**, **78% invalid**
       (compact_rel at step 0: 7.8-11.5%, ~52% invalid). The absolute-coordinate prompt starts with far fewer valid
       replies; the queue's step-3 signal check decides whether terminate can learn from it.
