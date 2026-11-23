@@ -421,6 +421,7 @@
   * Script: scratchpad `echo_baseline.py` (not committed).
     * Next on GPU1 (from 22:20): **training `temperature=1.2`** (default recipe, seed 0; eval stays greedy). Do hotter
       rollouts propose more wall escapes for GRPO to reinforce, or just more invalid replies?
+      Step-0 eval (greedy, so unaffected by the training temperature) **9.9%**, 57% invalid.
     * 500M **`compact` (absolute goal) + terminate** (GPU0, started 07:32): step-0 eval **1.0%**, **78% invalid**
       (compact_rel at step 0: 7.8-11.5%, ~52% invalid). The absolute-coordinate prompt starts with far fewer valid
       replies; the queue's step-3 signal check decides whether terminate can learn from it.
