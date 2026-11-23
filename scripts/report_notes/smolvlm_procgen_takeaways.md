@@ -477,6 +477,9 @@
       stalls. Seed 0, one run.
     * Next on GPU1 (from 04:19, via the queue): **training `temperature=0.8`** (default recipe, seed 0). The other side of
       the temperature axis: fewer junk replies, less exploration. Step-0 eval **9.9%** (greedy, as in every run).
+      Steps 1-5: rollout invalid 81% -> 62% (T=1.0: 86% -> 78%), **14-38 groups with signal** (T=1.0: 6-15), rollouts
+      1-4.5%, log-prob -0.9 -> -0.7. Step-5 eval **15.1%** (training 23.4, held-out 11x11 7.8, 15x15 14.1), 52% invalid
+      (T=1.0: 14.6%). Much more signal per step, same greedy eval so far.
     * 500M **`compact` (absolute goal) + terminate** (GPU0, started 07:32): step-0 eval **1.0%**, **78% invalid**
       (compact_rel at step 0: 7.8-11.5%, ~52% invalid). The absolute-coordinate prompt starts with far fewer valid
       replies; the queue's step-3 signal check decides whether terminate can learn from it.
@@ -617,6 +620,7 @@
       * Hotter sampling makes such tokens likelier.
       * Not fixed (code change; awaiting approval). The wrapper's next pass resumes from the step-26 checkpoint with fresh
         rollouts.
+      * Resumed from step 26 (pass 2, 04:24).
     * 256M `simple` (lr=5e-6, 128 tokens, noop) started 07:13: step-0 eval **1.6%**, eval invalid 82%.
       Steps 1-3: 1-2 groups with signal, rollout invalid 93%, success ~0%: **dropped after step 3**. 256M cannot
       bootstrap the `<action>` JSON format from scratch (500M could: 9-16 groups at steps 1-4).
