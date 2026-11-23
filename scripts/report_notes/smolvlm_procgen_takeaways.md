@@ -455,6 +455,10 @@
       83% -> 75% (no-KL: 88% -> 50%), 8-17 groups with signal, rollouts ~1%. Step-10 eval **28.1%** (training 32.8,
       held-out 11x11 25.0, 15x15 26.6), 0% invalid (no-KL T=1.2: 27.6%). KL is stopping the sharpening; the cost is
       fewer valid rollouts.
+      Steps 11-15: rollout invalid ~72-74%, 19-26 groups with signal, rollouts ~1%, KL ~0.1, log-prob -3.7 to -4.1.
+      Step-15 eval **24.0%** (training 31.2, held-out 11x11 17.2, 15x15 23.4), 0% invalid (no-KL T=1.2: 26.0%;
+      T=1.0: 25.0%). Learning has stalled: the KL anchor keeps the policy
+      hot, so 3/4 of T=1.2 rollouts stay invalid and terminated.
     * 500M **`compact` (absolute goal) + terminate** (GPU0, started 07:32): step-0 eval **1.0%**, **78% invalid**
       (compact_rel at step 0: 7.8-11.5%, ~52% invalid). The absolute-coordinate prompt starts with far fewer valid
       replies; the queue's step-3 signal check decides whether terminate can learn from it.
