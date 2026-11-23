@@ -386,6 +386,8 @@
       15x15 32.8), 27% invalid (64 layouts: 32.3%, held-out 11x11 29.7). Rollouts lag the 64-layout run.
       Steps 21-25: rollout invalid 46% -> 37%, rollouts 7-13%. Step-25 eval **30.2%** (training 29.7, held-out 11x11 25.0,
       15x15 35.9), 12% invalid (64 layouts: 31.8%, held-out 11x11 26.6). Caught up on eval despite lower rollouts.
+      Steps 26-30: rollout invalid 39% -> 32%, rollouts 10-13%. Step-30 eval **31.8%** (training 37.5, held-out 11x11 28.1,
+      15x15 29.7), 4% invalid (64 layouts: 29.2%, held-out 11x11 26.6).
     * 500M **`compact` (absolute goal) + terminate** (GPU0, started 07:32): step-0 eval **1.0%**, **78% invalid**
       (compact_rel at step 0: 7.8-11.5%, ~52% invalid). The absolute-coordinate prompt starts with far fewer valid
       replies; the queue's step-3 signal check decides whether terminate can learn from it.
