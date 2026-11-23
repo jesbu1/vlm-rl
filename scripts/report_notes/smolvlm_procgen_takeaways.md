@@ -459,6 +459,9 @@
       Step-15 eval **24.0%** (training 31.2, held-out 11x11 17.2, 15x15 23.4), 0% invalid (no-KL T=1.2: 26.0%;
       T=1.0: 25.0%). Learning has stalled: the KL anchor keeps the policy
       hot, so 3/4 of T=1.2 rollouts stay invalid and terminated.
+      Steps 16-20: rollout invalid 71% -> 55%, 28-42 groups with signal, rollouts 2-5%, KL 0.12 -> 0.19, log-prob -3.5 ->
+      -2.7. Step-20 eval **19.3%** (training 18.8, held-out 11x11 18.8, 15x15 20.3), 0% invalid (no-KL T=1.2: 25.5%; T=1.0:
+      32.3%). Greedy eval has fallen at every eval since step 5 (30.2 -> 28.1 -> 24.0 -> 19.3) while rollouts recover.
     * 500M **`compact` (absolute goal) + terminate** (GPU0, started 07:32): step-0 eval **1.0%**, **78% invalid**
       (compact_rel at step 0: 7.8-11.5%, ~52% invalid). The absolute-coordinate prompt starts with far fewer valid
       replies; the queue's step-3 signal check decides whether terminate can learn from it.
