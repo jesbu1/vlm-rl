@@ -480,6 +480,8 @@
       Steps 1-5: rollout invalid 81% -> 62% (T=1.0: 86% -> 78%), **14-38 groups with signal** (T=1.0: 6-15), rollouts
       1-4.5%, log-prob -0.9 -> -0.7. Step-5 eval **15.1%** (training 23.4, held-out 11x11 7.8, 15x15 14.1), 52% invalid
       (T=1.0: 14.6%). Much more signal per step, same greedy eval so far.
+      Steps 6-9: rollouts **4% -> 32%**, invalid 56% -> 13%, 43-61 groups with signal, log-prob -0.7 -> -0.3. Fastest
+      rollout rise of any run; T=1.0 rollouts were still ~2% at step 9.
     * 500M **`compact` (absolute goal) + terminate** (GPU0, started 07:32): step-0 eval **1.0%**, **78% invalid**
       (compact_rel at step 0: 7.8-11.5%, ~52% invalid). The absolute-coordinate prompt starts with far fewer valid
       replies; the queue's step-3 signal check decides whether terminate can learn from it.
@@ -621,6 +623,8 @@
       * Not fixed (code change; awaiting approval). The wrapper's next pass resumes from the step-26 checkpoint with fresh
         rollouts.
       * Resumed from step 26 (pass 2, 04:24).
+      Steps 26-30: rollout invalid 34% -> 26%, 54-60 groups with signal, rollouts 9-17%, log-prob ~-3.0 (no sharpening).
+      Step-30 eval **26.6%** (training 29.7, held-out 11x11 23.4, 15x15 26.6), 0% invalid (T=1.0 seed 1: 26.6%).
     * 256M `simple` (lr=5e-6, 128 tokens, noop) started 07:13: step-0 eval **1.6%**, eval invalid 82%.
       Steps 1-3: 1-2 groups with signal, rollout invalid 93%, success ~0%: **dropped after step 3**. 256M cannot
       bootstrap the `<action>` JSON format from scratch (500M could: 9-16 groups at steps 1-4).
