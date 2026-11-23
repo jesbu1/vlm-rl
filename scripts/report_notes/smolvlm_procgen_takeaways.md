@@ -376,6 +376,8 @@
       11x11 27.6%, 15x15 25.5%.
       Started 18:08. Step-0 eval **11.5%** (training 12.5, held-out 11x11 9.4, 15x15 12.5), 53% invalid (same pretrained
       model; within noise of the other runs' step-0 evals).
+      Steps 1-5: rollout invalid 86% -> 76%, 9-21 groups with signal, ~2 min/step. Step-5 eval **14.1%** (training 17.2,
+      held-out 11x11 9.4, 15x15 15.6), 52% invalid. Normal start.
     * 500M **`compact` (absolute goal) + terminate** (GPU0, started 07:32): step-0 eval **1.0%**, **78% invalid**
       (compact_rel at step 0: 7.8-11.5%, ~52% invalid). The absolute-coordinate prompt starts with far fewer valid
       replies; the queue's step-3 signal check decides whether terminate can learn from it.
