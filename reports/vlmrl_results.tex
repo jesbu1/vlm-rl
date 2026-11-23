@@ -52,9 +52,9 @@
   (Fig.~\ref{fig:clones}).
 \item \textbf{ML10 needs proportionally more cloning}: 0.10 / 0.38 / 0.52 on its training tasks after 30 / 100 / 200 steps.
   Its 5 held-out tasks stay at $\approx$0.
-\item \textbf{RL from a good clone has not improved it yet.} From the 450-position push clone, rollouts stay flat while
-  held-out positions fall (0.69 $\to$ 0.31 by step 35); from the 200-step ML10 clone, everything stays level. A lower
-  learning rate and positive-only advantages are being tested.
+\item \textbf{RL from a good clone needs a low learning rate and refines rather than generalizes.} At lr 1e-5 it erodes
+  held-out push (0.69 $\to$ 0.31 by step 35); at lr 2e-6 it keeps the clone and slowly lifts the training distribution
+  (ML10 rollouts 0.49 $\to$ 0.64 over 50 steps), but not held-out positions or tasks. Positive-only advantages hurt.
 \item \textbf{What did not work:} RL alone on push (0 in every run), DAgger with the scripted experts (made clones worse),
   and held-out ML10 \emph{tasks} ($\approx$0 in every run).
 \item \textbf{Greedy evals are noisy}: the same push clone scored 0.12, 0.16 and 0.31 on held-out positions in three
@@ -322,8 +322,11 @@ lr 1e-5, \code{adv\_min=0} & 0.48 & 0.46 (0.34 at steps 20--30) \\
 Positive-only advantages are worse on ML10: in a group where every rollout fails, the above-average failures are still
 reinforced (rollouts 0.44 $\to$ 0.30). The lower learning rate holds up better the longer it runs: pooled over steps
 20--30, held-out push is 0.56 at lr 2e-6 against 0.44 at lr 1e-5 (clone 0.62), and ML10's training tasks stay at 0.55
-(steps 5--25) against 0.45--0.54. At lr 2e-6, RL roughly keeps a good clone instead of eroding it; it has not yet
-clearly improved one.
+(steps 5--25) against 0.45--0.54. Over 50--60 steps at lr 2e-6, RL slowly improves what it trains on: ML10 rollouts rise
+from 0.49 (steps 1--10) to 0.64 (steps 41--50), push rollouts from 0.53 to 0.66 (steps 51--60). Greedy evals move less (ML10
+training tasks 0.54 $\to$ 0.56--0.59, push training positions 0.62 $\to$ 0.73), and held-out push stays slightly below the
+clone (0.51--0.57 against 0.62). At lr 2e-6 RL refines a good clone on its training distribution; it does not add
+generalization.
 
 \textbf{Temperature for RL from a clone.} Unlike reach from scratch, a clone already varies its moves, and sampling
 noise in the digits spoils precise pushes. From the same DART clone, mean rollout success over the first 9 steps was
@@ -382,8 +385,9 @@ It is packaged as one sweep (\code{configs/sweeps/metaworld\_recipe.yaml}) for M
 
 \textbf{ML10 clone from the recipe:} 0.54 on the training tasks and 0.02 on the held-out tasks, with a fit of $-0.24$.
 The 200-step clone on the benchmark's own 50 variations per task scored 0.52 at a fit of $-0.04$, on the same eval
-variations it had trained on; the recipe's clone matches it without memorizing them. RL from it runs at lr 1e-5 and at
-lr 2e-6.
+variations it had trained on; the recipe's clone matches it without memorizing them. RL from it, 20 steps in: training
+tasks 0.56 (lr 1e-5) and 0.62 (lr 2e-6), pooled over steps 5--20; the same clone's step-0 evals were 0.54 and 0.60, so the
+two are not yet distinguishable.
 ML45's scripted experts, at gain 0.5 through the same protocol, succeed 0.82 on its 45 training tasks (handle-pull-side,
 lever-pull and stick-push at 0) and 0.97 on its 5 held-out tasks: the ceiling for this recipe.
 
