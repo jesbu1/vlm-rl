@@ -894,6 +894,9 @@
     * That matches the oscillation in the transcripts. Greedy decoding repeats the same pair of moves forever; sampling
       breaks the loop.
     * Together with the T=0.8 runs, this is now the strongest evidence that greedy eval understates these policies.
+    * RL steps 1-5: rollouts 23% -> 33%, invalid ~0.2%, 56-60 groups with signal, log-prob ~-0.18. Step-5 eval **16.1%**
+      (training 14.1, held-out 11x11 15.6, 15x15 18.8), 0% invalid (RL-only at step 5: 14.6%). Greedy eval lags rollouts by
+      ~17 points. ~16 min/step.
   * **traj_mean (GPU0, started 09:53):** step-0 eval **9.4%**, 57% invalid (normal).
     Steps 1-5: rollout invalid 85% -> 70% (token_mean: 86% -> 78%), 9-26 groups with signal. Step-5 eval **14.6%**
     (training 20.3, held-out 11x11 9.4, 15x15 14.1), 75% invalid (token_mean at step 5: 14.6%).
