@@ -902,6 +902,7 @@
       Rollouts 38%. Greedy eval tracks RL-only while sampled rollouts are ~2x higher. BC has not lifted greedy performance.
     * Steps 11-15: rollouts 39-45% (highest of any run so far), 0% invalid, log-prob ~-0.16. Step-15 eval **28.6%** (training
       34.4, held-out 11x11 21.9, 15x15 29.7), 0% invalid (RL-only at step 15: 25.0%).
+    * Steps 16-18: rollouts 45-51%, log-prob -0.18 -> -0.22.
   * **traj_mean (GPU0, started 09:53):** step-0 eval **9.4%**, 57% invalid (normal).
     Steps 1-5: rollout invalid 85% -> 70% (token_mean: 86% -> 78%), 9-26 groups with signal. Step-5 eval **14.6%**
     (training 20.3, held-out 11x11 9.4, 15x15 14.1), 75% invalid (token_mean at step 5: 14.6%).
@@ -915,6 +916,9 @@
     held-out 11x11 20.3, 15x15 31.2), 1% invalid (token_mean: 31.8%).
     Steps 26-30: rollouts 20% -> 27%, invalid 23% -> 14%, 56-63 groups with signal. Step-30 eval **30.2%** (training 39.1,
     held-out 11x11 25.0, 15x15 26.6), 0.5% invalid (token_mean: 29.2%).
+    Steps 31-35: rollouts 28-33%, invalid 13% -> 7%, 58-64 groups with signal, log-prob -0.91 -> -0.85. Step-35 eval
+    **35.9%** (training 39.1, held-out 11x11 32.8, 15x15 35.9), 0% invalid (token_mean: 28.6%). This is the highest single
+    greedy eval of any 64 x 16 run (previous best 34.4%, 128 x 16 seed 1 at step 25), and it is strong on both held-out sets.
   * BC run: RL steps take ~10 min, since the clone's valid replies run full 20-turn episodes. Rollouts 23-28% at steps 1-3.
   * The two T=0.8 runs are cut short (40 -> 25 and 20 steps) to free the GPUs. Their pattern is already clear on both
     seeds: a faster start, then greedy eval dips while rollouts climb.
