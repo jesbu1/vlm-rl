@@ -511,3 +511,11 @@ def test_behaviour_clone_trains_on_expert_transcripts(tmp_path):
                   policy=FakePolicy(random_generate(0)), bundle=b)
     m3 = tr3.behaviour_clone()                        # 1 expert step, then 2 steps on the clone's own episodes
     assert 0.0 <= m3["bc/expert_success"] <= 1.0 and 0.0 <= m3["bc/dagger_success"] <= 1.0
+
+
+def test_adv_min_floors_advantages(tmp_path):
+    ranks = lambda groups: [[float(i) for i in range(len(g))] for g in groups]      # spread within each group
+    tr = _trainer(tmp_path, random_generate(0), reward_fn=ranks, adv_min=0.0, filter_groups=False)
+    groups, _, _ = tr.collect()
+    advs = [t.advantage for g in groups for t in g]
+    assert min(advs) >= 0.0 and max(advs) > 0.0
