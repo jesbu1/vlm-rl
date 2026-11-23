@@ -634,6 +634,14 @@
       Step-30 eval **26.6%** (training 29.7, held-out 11x11 23.4, 15x15 26.6), 0% invalid (T=1.0 seed 1: 26.6%).
       Steps 31-35: rollouts 14-22%, invalid 25% -> 20%, 59-64 groups with signal, log-prob -3.3 -> -3.6. Step-35 eval
       **27.6%** (training 29.7, held-out 11x11 29.7, 15x15 23.4), 0% invalid (T=1.0 seed 1: 30.2%).
+      Step-40 eval **29.2%** (training 29.7, held-out 11x11 28.1, 15x15 29.7), 0% invalid; rollouts 21-24%. Finished 06:48.
+      Mean over steps 30-40: **27.8%** vs **29.0%** at T=1.0 seed 1 (training 29.7 vs 30.2, held-out 11x11 27.1 vs 26.6,
+      15x15 26.6 vs 30.2).
+      **Verdict on T=1.2 (2 seeds + KL): no gain over T=1.0.**
+      * Seed 0 froze at 25.5% (vs 29.7%); seed 1 is level (27.8 vs 29.0%); T=1.2 + KL (seed 0) is 25.3%.
+      * The early-jump timing differs by seed (step 5 for seed 0, step 15 for seed 1).
+      * Costs: very sparse signal at the start, the sharpening collapse on seed 0, and one crash from a sampled `<image>` token.
+    * Next on GPU0 (from 06:50, via the queue): **T=0.8, seed 1**, a replicate of the T=0.8 run.
     * 256M `simple` (lr=5e-6, 128 tokens, noop) started 07:13: step-0 eval **1.6%**, eval invalid 82%.
       Steps 1-3: 1-2 groups with signal, rollout invalid 93%, success ~0%: **dropped after step 3**. 256M cannot
       bootstrap the `<action>` JSON format from scratch (500M could: 9-16 groups at steps 1-4).
