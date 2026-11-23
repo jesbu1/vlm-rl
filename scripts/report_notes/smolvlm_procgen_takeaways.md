@@ -466,6 +466,8 @@
       **Extended to 90 steps** (resumes from the step-60 checkpoint; no code change): 90 here ~= 45 at lr=5e-6.
       Resumed 14:02. Steps 61-64: rollouts 20-25%, invalid 20-22%, grad norm ~0.05; ~20 min/step, so step 90 lands ~00:30.
       Step 65: eval **32.3%** (training 40.6, held-out 11x11 20.3, 15x15 35.9), 8% invalid; rollouts 24%, invalid 19%.
+      Step 70: eval **30.2%** (training 43.8, held-out 11x11 17.2, 15x15 29.7), 8% invalid; rollouts 21-26%, invalid 16%.
+      Training-layout success keeps rising (35.9 -> 40.6 -> 43.8) while held-out 11x11 falls (26.6 -> 20.3 -> 17.2): possible overfitting to the training layouts.
     * 256M `simple` (lr=5e-6, 128 tokens, noop) started 07:13: step-0 eval **1.6%**, eval invalid 82%.
       Steps 1-3: 1-2 groups with signal, rollout invalid 93%, success ~0%: **dropped after step 3**. 256M cannot
       bootstrap the `<action>` JSON format from scratch (500M could: 9-16 groups at steps 1-4).
