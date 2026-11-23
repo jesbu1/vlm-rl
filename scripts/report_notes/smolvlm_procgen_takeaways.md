@@ -469,6 +469,12 @@
       eval **26.6%** (26.6 on all three sets), 0% invalid (T=1.0: 29.2%; no-KL T=1.2: 25.5%).
       Steps 31-35: rollout invalid 70% -> 58%, 24-41 groups with signal, rollouts 2-5%. Step-35 eval **26.6%** (training
       32.8, held-out 11x11 20.3, 15x15 26.6), 0% invalid (T=1.0: 28.6%).
+      Step-40 eval **22.9%** (training 28.1, held-out 11x11 17.2, 15x15 23.4), 0% invalid; rollouts 2-3%, invalid 66-68%.
+      Finished 04:18; the vLLM EngineDeadError in its log is teardown after a clean exit.
+      **Verdict: T=1.2 + KL is worse than T=1.0.** Mean over steps 30-40: **25.3%** vs **29.7%** (training 29.2 vs 35.9,
+      held-out 11x11 21.4 vs 27.6, 15x15 25.5 vs 25.5). KL does stop the sharpening seen without it (log-prob stays at
+      about -3.5). The cost: 2/3 of T=1.2 rollouts stay invalid and terminated, so rollouts never pass ~6% and learning
+      stalls. Seed 0, one run.
     * 500M **`compact` (absolute goal) + terminate** (GPU0, started 07:32): step-0 eval **1.0%**, **78% invalid**
       (compact_rel at step 0: 7.8-11.5%, ~52% invalid). The absolute-coordinate prompt starts with far fewer valid
       replies; the queue's step-3 signal check decides whether terminate can learn from it.
