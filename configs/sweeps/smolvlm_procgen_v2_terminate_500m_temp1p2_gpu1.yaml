@@ -1,0 +1,36 @@
+# smolvlm-procgen-v2, GPU 1: does more rollout exploration help? Same as the default recipe
+# (smolvlm_procgen_v2_terminate_500m_lr5e6_gpu1.yaml: SmolVLM2-500M compact_rel, 192 tokens + parse_last,
+# on_invalid=terminate, lr=5e-6, 64 x 16, seed 0) but samples training rollouts at **temperature 1.2** (default 1.0;
+# eval stays greedy). Motivation: a scripted "echo the relative goal" policy gets 18% on the eval sets and "echo, but a
+# random 3-cell axis move on 30% of turns" gets 37.5% (CPU baselines), so wall-escape moves off the straight line are
+# what pay. Hotter sampling proposes more of them; the risk is more invalid replies (terminated episodes).
+# Baseline (seed 0, steps 30-40 mean): 29.7% overall, training 35.9, held-out 11x11 27.6, 15x15 25.5.
+group: smolvlm-procgen-v2
+project: vlm-rl-pointmaze
+train_gpu: 1
+vllm_gpu: 1
+vllm_port: 8012
+vllm_gpu_util: 0.35
+overrides:
+  - experiment=pointmaze_procgen
+  - eval_on_invalid=noop
+  - reward=success
+  - steps=40
+  - groups_per_step=64
+  - group_size=16
+  - max_resample_rounds=3
+  - micro_batch_size=16
+  - eval_every=5
+  - eval_episodes=64
+  - wandb_entity=tri
+  - "wandb_tags='pointmaze,procgen,smolvlm2-500m,fft,sweep'"
+grid:
+  on_invalid: [terminate]
+  policy: [smolvlm2_500m]
+  env_kwargs.prompt_style: [compact_rel]
+  lr: [5.0e-6]
+  max_new_tokens: [192]
+  env_kwargs.parse_last: [true]
+  temperature: [1.2]   # in the grid so the run name (and out_dir) differ from the default run
+vllm_args:
+  HuggingFaceTB/SmolVLM2-500M-Video-Instruct: [--max-model-len, "8192", --mm-processor-kwargs, '{"do_image_splitting": false}', --api-server-count, "4", --max-num-seqs, "1024", --mm-processor-cache-gb, "0"]

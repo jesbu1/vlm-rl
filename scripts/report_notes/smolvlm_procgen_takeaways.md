@@ -402,6 +402,25 @@
       pretrained model never answers in JSON: it writes prose ("The correct path is: - Move right to the green circle ...")
       and then repeats "The correct move is:". The coordinate text is what anchors the JSON format, so the queue's
       early-abort rule (< 6 groups with signal in steps 1-3) will probably stop this run.
+      **Aborted at step 5** by that rule: 0 groups with signal, rollout invalid 97%, eval 0%. Reading ball and goal from the
+      image cannot be tested this way without a format warm-up (SFT/BC, still awaiting approval).
+* **Scripted baselines (CPU, no model; 192 episodes per eval set, same env settings).** Overall is the mean of the three sets.
+
+  | Policy | Training layouts | Held-out 11x11 | Held-out 15x15 | Overall |
+  |---|---|---|---|---|
+  | random move in [-3, 3]^2 | 9.4 | 11.5 | 7.3 | **9.4** |
+  | echo the relative goal (straight line, clipped to 3) | 18.8 | 21.4 | 14.6 | **18.2** |
+  | echo, but a random 3-cell axis move on 30% of turns | 38.0 | 34.9 | 39.6 | **37.5** |
+
+  * The untrained model's ~8-12% step-0 eval matches random moves.
+  * Trained greedy policies (~29-32%) sit between echo and echo+jitter. Sampled rollouts late in long runs (32-42%) are at
+    the echo+jitter level.
+  * A likely reading (not verified on transcripts): RL mostly teaches "echo the offset" plus some wall escapes. T=1
+    sampling supplies extra random escapes, which greedy decoding lacks. That would explain why sampled rollouts keep
+    rising while greedy eval plateaus at ~30%. A sampled eval (awaiting approval) would test this directly.
+  * Script: scratchpad `echo_baseline.py` (not committed).
+    * Next on GPU1 (from 22:20): **training `temperature=1.2`** (default recipe, seed 0; eval stays greedy). Do hotter
+      rollouts propose more wall escapes for GRPO to reinforce, or just more invalid replies?
     * 500M **`compact` (absolute goal) + terminate** (GPU0, started 07:32): step-0 eval **1.0%**, **78% invalid**
       (compact_rel at step 0: 7.8-11.5%, ~52% invalid). The absolute-coordinate prompt starts with far fewer valid
       replies; the queue's step-3 signal check decides whether terminate can learn from it.
