@@ -390,6 +390,14 @@
       15x15 29.7), 4% invalid (64 layouts: 29.2%, held-out 11x11 26.6).
       Steps 31-35: rollout invalid 29% -> 26%, rollouts 16-22%. Step-35 eval **28.6%** (training 31.2, held-out 11x11 23.4,
       15x15 31.2), 3% invalid (64 layouts: 28.6%, held-out 11x11 26.6).
+      Step-40 eval **27.6%** (training 32.8, held-out 11x11 20.3, 15x15 29.7), 1% invalid (64 layouts: 31.2%); rollouts
+      20-21%, invalid 20% (64 layouts: 25-29%, 15%). **Verdict: more layouts change nothing measurable.** Steps 30-40 mean
+      **29.3%** vs **29.7%** (training 33.9 vs 35.9, held-out 11x11 24.0 vs 27.6, 15x15 30.2 vs 25.5): the 11x11 and 15x15
+      differences go opposite ways and are within noise. The 64-layout policy is not memorizing layouts, so layout
+      diversity is not what caps it at ~30%. Rollouts were slower to rise (the training set no longer repeats).
+    * Next on GPU1 (from 22:10): **`env_kwargs.include_state=false`** (default recipe, seed 0). The per-turn text drops the
+      ball position and relative goal and keeps only "Move:", so both must be read from the image. Tests how much of the
+      ~30% comes from the image vs the relative-goal text.
     * 500M **`compact` (absolute goal) + terminate** (GPU0, started 07:32): step-0 eval **1.0%**, **78% invalid**
       (compact_rel at step 0: 7.8-11.5%, ~52% invalid). The absolute-coordinate prompt starts with far fewer valid
       replies; the queue's step-3 signal check decides whether terminate can learn from it.

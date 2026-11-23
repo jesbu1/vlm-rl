@@ -1,0 +1,36 @@
+# smolvlm-procgen-v2, GPU 1: how much does the policy use the image? Same as the default recipe
+# (smolvlm_procgen_v2_terminate_500m_lr5e6_gpu1.yaml: SmolVLM2-500M compact_rel, 192 tokens + parse_last,
+# on_invalid=terminate, lr=5e-6, 64 x 16, seed 0, 64 training layouts) but with **env_kwargs.include_state=false**: the
+# per-turn text drops "Ball: x=.., y=.. Goal: x=.., y=.. from the ball." and keeps only "Move:", so ball and goal must be
+# read from the 336x336 top-down image. If success stays near the default recipe's ~30%, the image carries the task; if
+# it falls toward the ~10% step-0 level, the learned policy mostly follows the relative-goal text.
+# Baseline (seed 0, steps 30-40 mean): 29.7% overall, training 35.9, held-out 11x11 27.6, 15x15 25.5.
+group: smolvlm-procgen-v2
+project: vlm-rl-pointmaze
+train_gpu: 1
+vllm_gpu: 1
+vllm_port: 8012
+vllm_gpu_util: 0.35
+overrides:
+  - experiment=pointmaze_procgen
+  - eval_on_invalid=noop
+  - reward=success
+  - steps=40
+  - groups_per_step=64
+  - group_size=16
+  - max_resample_rounds=3
+  - micro_batch_size=16
+  - eval_every=5
+  - eval_episodes=64
+  - wandb_entity=tri
+  - "wandb_tags='pointmaze,procgen,smolvlm2-500m,fft,sweep'"
+grid:
+  on_invalid: [terminate]
+  policy: [smolvlm2_500m]
+  env_kwargs.prompt_style: [compact_rel]
+  lr: [5.0e-6]
+  max_new_tokens: [192]
+  env_kwargs.parse_last: [true]
+  env_kwargs.include_state: [false]   # in the grid so the run name (and out_dir) differ from the default run
+vllm_args:
+  HuggingFaceTB/SmolVLM2-500M-Video-Instruct: [--max-model-len, "8192", --mm-processor-kwargs, '{"do_image_splitting": false}', --api-server-count, "4", --max-num-seqs, "1024", --mm-processor-cache-gb, "0"]
