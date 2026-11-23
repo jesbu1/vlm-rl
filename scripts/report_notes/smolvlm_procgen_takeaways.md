@@ -897,6 +897,7 @@
     * RL steps 1-5: rollouts 23% -> 33%, invalid ~0.2%, 56-60 groups with signal, log-prob ~-0.18. Step-5 eval **16.1%**
       (training 14.1, held-out 11x11 15.6, 15x15 18.8), 0% invalid (RL-only at step 5: 14.6%). Greedy eval lags rollouts by
       ~17 points. ~16 min/step.
+    * Steps 6-7: rollouts 34-38%.
   * **traj_mean (GPU0, started 09:53):** step-0 eval **9.4%**, 57% invalid (normal).
     Steps 1-5: rollout invalid 85% -> 70% (token_mean: 86% -> 78%), 9-26 groups with signal. Step-5 eval **14.6%**
     (training 20.3, held-out 11x11 9.4, 15x15 14.1), 75% invalid (token_mean at step 5: 14.6%).
@@ -904,6 +905,8 @@
     held-out 11x11 14.1, 15x15 15.6), 17% invalid (token_mean: 19.3%). Same pace so far.
     Steps 11-15: rollout invalid 59% -> 53%, 39-49 groups with signal, rollouts 4-8%. Step-15 eval **23.4%** (training
     29.7, held-out 11x11 17.2, 15x15 23.4), 16% invalid (token_mean: 25.0%).
+    Steps 16-20: rollout invalid 51% -> 38%, rollouts 6-13%, log-prob ~-1.1 (steady, no sharpening). Step-20 eval **27.1%**
+    (training 35.9, held-out 11x11 20.3, 15x15 25.0), 7% invalid (token_mean: 32.3%).
   * BC run: RL steps take ~10 min, since the clone's valid replies run full 20-turn episodes. Rollouts 23-28% at steps 1-3.
   * The two T=0.8 runs are cut short (40 -> 25 and 20 steps) to free the GPUs. Their pattern is already clear on both
     seeds: a faster start, then greedy eval dips while rollouts climb.
