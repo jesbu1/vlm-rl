@@ -874,5 +874,14 @@
     run's step-25 eval; the step-0 eval is the clone.
   * GPU0: **`loss_agg=traj_mean`** (`smolvlm_procgen_v2_terminate_500m_trajmean_gpu0.yaml`). Starts after the T=0.8
     seed-1 run's step-20 eval.
+  * **BC-30 result (GPU1, started 09:06):** 30 BC steps took about 10 min, with the expert at 1.00 every step. The fit
+    went from log-prob -1.08 to -0.165 per token (not memorized).
+    * **The clone scores 10.9%** at step 0, no better than the untrained model (8-12%). Every episode ran to max turns,
+      but with **0% invalid replies** (untrained: ~55%).
+    * The transcripts show it copies the oracle's style (moves of up to 2-3 cells to cell centres), not its routing. It
+      oscillates between two cells (`{"x": -2.00, "y": 0.00}` / `{"x": 0.40, "y": -0.00}` for 10 turns).
+    * The oracle's moves follow BFS paths around walls that are visible only in the image. 30 steps of cloning don't
+      teach the 500M model to read them. This is the same vision bottleneck as the include_state=false run.
+    * The clone still gives RL a format-clean start, so RL continues from it (40 steps).
   * The two T=0.8 runs are cut short (40 -> 25 and 20 steps) to free the GPUs. Their pattern is already clear on both
     seeds: a faster start, then greedy eval dips while rollouts climb.
