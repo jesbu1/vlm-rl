@@ -384,6 +384,8 @@
       25.0, held-out 11x11 15.6, 15x15 23.4), 45% invalid (64 layouts: 25.0%, held-out 11x11 20.3).
       Steps 16-20: rollout invalid 55% -> 49%, rollouts 5-7%. Step-20 eval **26.0%** (training 25.0, held-out 11x11 20.3,
       15x15 32.8), 27% invalid (64 layouts: 32.3%, held-out 11x11 29.7). Rollouts lag the 64-layout run.
+      Steps 21-25: rollout invalid 46% -> 37%, rollouts 7-13%. Step-25 eval **30.2%** (training 29.7, held-out 11x11 25.0,
+      15x15 35.9), 12% invalid (64 layouts: 31.8%, held-out 11x11 26.6). Caught up on eval despite lower rollouts.
     * 500M **`compact` (absolute goal) + terminate** (GPU0, started 07:32): step-0 eval **1.0%**, **78% invalid**
       (compact_rel at step 0: 7.8-11.5%, ~52% invalid). The absolute-coordinate prompt starts with far fewer valid
       replies; the queue's step-3 signal check decides whether terminate can learn from it.
@@ -486,6 +488,9 @@
       Step 65: eval **32.3%** (training 40.6, held-out 11x11 20.3, 15x15 35.9), 8% invalid; rollouts 24%, invalid 19%.
       Step 70: eval **30.2%** (training 43.8, held-out 11x11 17.2, 15x15 29.7), 8% invalid; rollouts 21-26%, invalid 16%.
       Training-layout success keeps rising (35.9 -> 40.6 -> 43.8) while held-out 11x11 falls (26.6 -> 20.3 -> 17.2): possible overfitting to the training layouts.
+      Step 75: eval **28.6%** (training 31.2, held-out 11x11 23.4, 15x15 31.2), 6% invalid; rollouts 32%, invalid 12%.
+      Training-layout eval fell back 43.8 -> 31.2, so the step 60-70 split was mostly per-set noise (64 episodes each),
+      not clear overfitting. Rollouts still rising (21% -> 32% over steps 60-75) while greedy eval stays ~29-32%.
     * 256M `simple` (lr=5e-6, 128 tokens, noop) started 07:13: step-0 eval **1.6%**, eval invalid 82%.
       Steps 1-3: 1-2 groups with signal, rollout invalid 93%, success ~0%: **dropped after step 3**. 256M cannot
       bootstrap the `<action>` JSON format from scratch (500M could: 9-16 groups at steps 1-4).
