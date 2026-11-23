@@ -486,6 +486,32 @@ def fig_rl_fixes(D):
     save(fig, "rl_fixes.pdf")
 
 
+def fig_recipe(D):
+    """The generic recipe on ML10 and ML45: training- and held-out-task evals after cloning (step 0) and during RL."""
+    import matplotlib.pyplot as plt
+    runs = [("rc_q35_ml10", "ML10, Qwen3.5-4B, RL lr 1e-5"), ("rc_q35_ml10_rl2e6", "ML10, Qwen3.5-4B, RL lr 2e-6"),
+            ("rc_q35_ml45", "ML45, Qwen3.5-4B, RL lr 1e-5"), ("rc_q35_ml45_rl2e6", "ML45, Qwen3.5-4B, RL lr 2e-6"),
+            ("rc_q3vl4b_ml45", "ML45, Qwen3-VL-4B, RL lr 1e-5")]
+    runs = [(i, k, n) for i, (k, n) in enumerate(runs) if k in D and series(D[k], "eval/train_tasks/success")[0]]
+    fig, axes = plt.subplots(1, 2, figsize=(7.2, 2.6))
+    for ax, key, title in ((axes[0], "eval/train_tasks/success", "Training tasks (3-eval mean)"),
+                           (axes[1], "eval/heldout_tasks/success", "Held-out tasks (3-eval mean)")):
+        ends = []
+        for i, k, name in runs:
+            xs, ys = series(D[k], key)
+            line(ax, xs, smooth(ys, 3), C[i], name, raw=(xs, ys), marker="o" if len(xs) == 1 else None)
+            ends.append((xs[-1], smooth(ys, 3)[-1], f"{smooth(ys, 3)[-1]:.2f}", C[i]))
+        ax.set_title(title)
+        ax.set_xlabel("RL step (0 = the clone)")
+        ax.set_ylim(0, 0.9 if "train" in key else 0.3)
+        end_labels(ax, ends, xpad=1.5)
+    axes[0].set_ylabel("Eval success")
+    h, l = axes[0].get_legend_handles_labels()
+    fig.legend(h, l, loc="lower center", ncol=3, bbox_to_anchor=(0.5, -0.14))
+    fig.tight_layout(w_pad=4)
+    save(fig, "recipe.pdf")
+
+
 # ----------------------------------------------------------------------------- tables
 
 def tex_escape(s):
@@ -531,7 +557,7 @@ def build():
     D = load()
     style()
     for fn in (fig_maze_procgen, fig_maze_fixed, fig_reach_models, fig_reach_exploration, fig_push_reward,
-               fig_push_clones, fig_push_rl, fig_ml10, fig_rl_fixes):
+               fig_push_clones, fig_push_rl, fig_ml10, fig_rl_fixes, fig_recipe):
         fn(D)
     fig_expert_gain()
     write_tables(D)
@@ -559,7 +585,7 @@ if __name__ == "__main__":
         D = load()
         style()
         for fn in (fig_maze_procgen, fig_maze_fixed, fig_reach_models, fig_reach_exploration, fig_push_reward,
-                   fig_push_clones, fig_push_rl, fig_ml10, fig_rl_fixes):
+                   fig_push_clones, fig_push_rl, fig_ml10, fig_rl_fixes, fig_recipe):
             fn(D)
         fig_expert_gain()
         write_tables(D)
