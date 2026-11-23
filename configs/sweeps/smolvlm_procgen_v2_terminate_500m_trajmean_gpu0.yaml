@@ -1,0 +1,34 @@
+# smolvlm-procgen-v2, GPU 0: per-trajectory loss weighting. Same as the default recipe (SmolVLM2-500M compact_rel, 192
+# tokens + parse_last, on_invalid=terminate, lr=5e-6, 64 x 16, T=1.0, seed 0) but loss_agg=traj_mean: every trajectory
+# carries the same total weight, its tokens averaged within it. The default token_mean (PEAR) lets a 20-turn failure
+# outweigh a 5-turn success. The other agent's summary (scripts/report_notes/summary.md) lists this as fixing "most of"
+# that bias on Metaworld. Baseline (token_mean, seed 0): 29.7% mean over steps 30-40.
+group: smolvlm-procgen-v2
+project: vlm-rl-pointmaze
+train_gpu: 0
+vllm_gpu: 0
+vllm_port: 8011
+vllm_gpu_util: 0.35
+overrides:
+  - experiment=pointmaze_procgen
+  - eval_on_invalid=noop
+  - reward=success
+  - steps=40
+  - groups_per_step=64
+  - group_size=16
+  - max_resample_rounds=3
+  - micro_batch_size=16
+  - eval_every=5
+  - eval_episodes=64
+  - wandb_entity=tri
+  - "wandb_tags='pointmaze,procgen,smolvlm2-500m,fft,sweep'"
+grid:
+  on_invalid: [terminate]
+  policy: [smolvlm2_500m]
+  env_kwargs.prompt_style: [compact_rel]
+  lr: [5.0e-6]
+  max_new_tokens: [192]
+  env_kwargs.parse_last: [true]
+  loss_agg: [traj_mean]   # in the grid so the run name (and out_dir) differ from the token_mean run
+vllm_args:
+  HuggingFaceTB/SmolVLM2-500M-Video-Instruct: [--max-model-len, "8192", --mm-processor-kwargs, '{"do_image_splitting": false}', --api-server-count, "4", --max-num-seqs, "1024", --mm-processor-cache-gb, "0"]

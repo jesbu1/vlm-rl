@@ -637,6 +637,9 @@
       * Not fixed (code change; awaiting approval). The wrapper's next pass resumes from the step-26 checkpoint with fresh
         rollouts.
       * Resumed from step 26 (pass 2, 04:24).
+      * **Fixed in 70be652**: `HFPolicy._build_exact` replaces any generated image/video placeholder id with padding and
+        leaves it untrained. Reproduced without the fix ("tokens: 65, features: 64" on the tiny test VLM); slow
+        regression test added.
       Steps 26-30: rollout invalid 34% -> 26%, 54-60 groups with signal, rollouts 9-17%, log-prob ~-3.0 (no sharpening).
       Step-30 eval **26.6%** (training 29.7, held-out 11x11 23.4, 15x15 26.6), 0% invalid (T=1.0 seed 1: 26.6%).
       Steps 31-35: rollouts 14-22%, invalid 25% -> 20%, 59-64 groups with signal, log-prob -3.3 -> -3.6. Step-35 eval
@@ -839,3 +842,23 @@
 * One seed per config; 64 episodes per eval set.
 * Stopped runs show as "crashed" in wandb because they were killed on purpose to free GPUs. The `compact` lr=1e-5 run
   also hit a real bug at step 17 (a reply containing a literal `<image>`), since fixed.
+
+**Next: what the Metaworld work suggests for mazes** (from `scripts/report_notes/metaworld.md` and `summary.md`, 2026-11-23)
+* **Metaworld findings that apply here:**
+  * BC on scripted experts first, then RL. "RL refines a good clone; it does not add generalization". BC fixed every
+    model whose rollouts were too near-deterministic to explore.
+  * Per-trajectory loss weighting (`loss_agg=traj_mean`) fixes most of the token-mean bias, where long failed episodes
+    outweigh short successes. Every maze run so far used token_mean, and failures here are 20-turn episodes.
+  * Rollout temperature 0.8-1.0 beats 1.2. This matches the maze results above.
+  * lr 2e-6 holds a policy better than 1e-5. Here lr=2.5e-6 reached the same plateau as 5e-6, so this is not the lever.
+  * Larger models do better on these same procgen mazes: Qwen3-VL-2B 0.48 / 0.31 / 0.33 at step 40 (training / held-out
+    11x11 / 15x15) vs ~0.36 / 0.28 / 0.26 for SmolVLM2-500M.
+* **The maze BFS oracle is now a BC expert** (c4d1a3e, `EnvBundle.expert`). Through the `compact_rel` protocol it solves
+  100% of training / held-out 11x11 / held-out 15x15 episodes in 5.9 / 6.6 / 7.7 turns. Fast test added.
+* **Runs (each changes one thing vs the default recipe, seed 0):**
+  * GPU1: **`bc_steps=30` then RL** (`smolvlm_procgen_v2_terminate_500m_bc30_gpu1.yaml`). Starts after the T=0.8 seed-0
+    run's step-25 eval; the step-0 eval is the clone.
+  * GPU0: **`loss_agg=traj_mean`** (`smolvlm_procgen_v2_terminate_500m_trajmean_gpu0.yaml`). Starts after the T=0.8
+    seed-1 run's step-20 eval.
+  * The two T=0.8 runs are cut short (40 -> 25 and 20 steps) to free the GPUs. Their pattern is already clear on both
+    seeds: a faster start, then greedy eval dips while rollouts climb.
