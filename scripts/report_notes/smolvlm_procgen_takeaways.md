@@ -437,6 +437,10 @@
       Steps 16-20: rollouts 30-38%, invalid 11% -> 3%, mean log-prob **-1.2 -> -0.31** (sharpening fast; default sits
       at ~-1.0), groups with signal 62 -> 52. Step-20 eval **25.5%** (training 31.2, held-out 11x11 20.3, 15x15 25.0),
       0% invalid (default: 32.3%). Greedy eval has drifted down since step 5 while T=1.2 rollouts sit at ~35%.
+      Steps 21-25: rollouts 29-37%, invalid 2% -> 0.6%, mean log-prob **-0.21 -> -0.09**, groups with signal **49 -> 29**.
+      Step-25 eval **25.5%**, with per-set scores identical to step 20 (31.2 / 20.3 / 25.0), so the greedy policy has frozen
+      (default at step 25: 31.8%). The hotter sampling made the policy collapse onto near-deterministic replies, which
+      cancels out the temperature, so the GRPO signal is drying up.
     * 500M **`compact` (absolute goal) + terminate** (GPU0, started 07:32): step-0 eval **1.0%**, **78% invalid**
       (compact_rel at step 0: 7.8-11.5%, ~52% invalid). The absolute-coordinate prompt starts with far fewer valid
       replies; the queue's step-3 signal check decides whether terminate can learn from it.
