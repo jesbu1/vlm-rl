@@ -462,6 +462,7 @@
       Steps 16-20: rollout invalid 71% -> 55%, 28-42 groups with signal, rollouts 2-5%, KL 0.12 -> 0.19, log-prob -3.5 ->
       -2.7. Step-20 eval **19.3%** (training 18.8, held-out 11x11 18.8, 15x15 20.3), 0% invalid (no-KL T=1.2: 25.5%; T=1.0:
       32.3%). Greedy eval has fallen at every eval since step 5 (30.2 -> 28.1 -> 24.0 -> 19.3) while rollouts recover.
+      Steps 21-23: rollout invalid rising again (61% -> 74%), groups with signal 40 -> 31.
     * 500M **`compact` (absolute goal) + terminate** (GPU0, started 07:32): step-0 eval **1.0%**, **78% invalid**
       (compact_rel at step 0: 7.8-11.5%, ~52% invalid). The absolute-coordinate prompt starts with far fewer valid
       replies; the queue's step-3 signal check decides whether terminate can learn from it.
@@ -585,6 +586,9 @@
       Steps 6-10: rollout invalid still 91-94%, 0-4 groups with signal (one step with none), log-prob ~-5. Step-10 eval
       **5.7%**, 66% invalid (T=1.0 seed 1: 10.9%). Seed 1 at T=1.2 is barely bootstrapping the format: hot sampling
       leaves too few valid replies to learn from. It will be stopped at step 15 unless signal picks up.
+      Steps 11-15: signal picked up: rollout invalid 89% -> 69%, 6 -> 18 groups with signal. Step-15 eval **25.0%**
+      (training 28.1, held-out 11x11 20.3, 15x15 26.6), 0% invalid (T=1.0 seed 1: 14.1%). Kept running. The jump came
+      10 steps later than for seed 0, but it came: once a few groups get the format right, greedy eval jumps fast at T=1.2.
     * 256M `simple` (lr=5e-6, 128 tokens, noop) started 07:13: step-0 eval **1.6%**, eval invalid 82%.
       Steps 1-3: 1-2 groups with signal, rollout invalid 93%, success ~0%: **dropped after step 3**. 256M cannot
       bootstrap the `<action>` JSON format from scratch (500M could: 9-16 groups at steps 1-4).
