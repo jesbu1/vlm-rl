@@ -467,6 +467,8 @@
       partly noise (T=1.0 at step 25: 31.8%).
       Steps 26-30: rollout invalid 53% -> 70% (oscillating), 33-43 groups with signal, rollouts 3-6%, KL 0.13-0.20. Step-30
       eval **26.6%** (26.6 on all three sets), 0% invalid (T=1.0: 29.2%; no-KL T=1.2: 25.5%).
+      Steps 31-35: rollout invalid 70% -> 58%, 24-41 groups with signal, rollouts 2-5%. Step-35 eval **26.6%** (training
+      32.8, held-out 11x11 20.3, 15x15 26.6), 0% invalid (T=1.0: 28.6%).
     * 500M **`compact` (absolute goal) + terminate** (GPU0, started 07:32): step-0 eval **1.0%**, **78% invalid**
       (compact_rel at step 0: 7.8-11.5%, ~52% invalid). The absolute-coordinate prompt starts with far fewer valid
       replies; the queue's step-3 signal check decides whether terminate can learn from it.
