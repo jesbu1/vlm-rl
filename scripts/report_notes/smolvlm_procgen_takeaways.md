@@ -642,6 +642,7 @@
       * The early-jump timing differs by seed (step 5 for seed 0, step 15 for seed 1).
       * Costs: very sparse signal at the start, the sharpening collapse on seed 0, and one crash from a sampled `<image>` token.
     * Next on GPU0 (from 06:50, via the queue): **T=0.8, seed 1**, a replicate of the T=0.8 run.
+      Step-0 eval **8.3%**, 58% invalid (normal for seed 1).
     * 256M `simple` (lr=5e-6, 128 tokens, noop) started 07:13: step-0 eval **1.6%**, eval invalid 82%.
       Steps 1-3: 1-2 groups with signal, rollout invalid 93%, success ~0%: **dropped after step 3**. 256M cannot
       bootstrap the `<action>` JSON format from scratch (500M could: 9-16 groups at steps 1-4).
