@@ -123,3 +123,6 @@ Each GRPO group is 8 rollouts from the same start (same goal position and seed).
 * **ML10 recipe RL improves the clone** at both learning rates: training tasks 0.68 (lr 1e-5) / 0.66 (lr 2e-6) pooled over
   steps 30–50, against 0.57 for the clone; held-out tasks stay ~0.02. **ML45 with Qwen3-VL-4B:** 0.57 training, 0.04
   held-out (Qwen3.5-4B: 0.57 / 0.10–0.14 over six evals), so Qwen3.5-4B transfers better.
+* **RL does not move ML45** over 40 steps (training tasks 0.53–0.61, held-out 0.08–0.14, either lr), and ML10's RL gain
+  flattens at 0.60–0.71. More cloning is the lever: live are 800 BC steps on ML45 and 400 on ML10 (from the recipe clones),
+  then RL at lr 2e-6.
