@@ -902,7 +902,14 @@
       Rollouts 38%. Greedy eval tracks RL-only while sampled rollouts are ~2x higher. BC has not lifted greedy performance.
     * Steps 11-15: rollouts 39-45% (highest of any run so far), 0% invalid, log-prob ~-0.16. Step-15 eval **28.6%** (training
       34.4, held-out 11x11 21.9, 15x15 29.7), 0% invalid (RL-only at step 15: 25.0%).
-    * Steps 16-18: rollouts 45-51%, log-prob -0.18 -> -0.22.
+    * Steps 16-20: rollouts 45-58%, 0% invalid, log-prob -0.15 to -0.22.
+    * **Step-20 eval 44.3%** (training 46.9, **held-out 11x11 43.8**, 15x15 42.2), 0% invalid. RL-only at step 20: 32.3%.
+      * This is the best eval of any SmolVLM run by ~10 points.
+      * It is above the scripted "echo + 30% random escapes" policy (37.5%), so it is no longer explained by echoing the
+        offset.
+      * On held-out layouts it beats the other agent's Qwen3-VL-2B at step 40 (0.31 / 0.33 on 11x11 / 15x15).
+      * Single eval, one seed. The clone itself scored 10.9%, so RL from the clone is doing the work. Cloning seems to have
+        given RL a policy whose sampled moves follow the oracle's routing, so successes can be reinforced.
   * **traj_mean (GPU0, started 09:53):** step-0 eval **9.4%**, 57% invalid (normal).
     Steps 1-5: rollout invalid 85% -> 70% (token_mean: 86% -> 78%), 9-26 groups with signal. Step-5 eval **14.6%**
     (training 20.3, held-out 11x11 9.4, 15x15 14.1), 75% invalid (token_mean at step 5: 14.6%).
