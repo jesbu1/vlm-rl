@@ -55,6 +55,8 @@
 \item \textbf{RL from a good clone needs a low learning rate and refines rather than generalizes.} At lr 1e-5 it erodes
   held-out push (0.69 $\to$ 0.31 by step 35); at lr 2e-6 it keeps the clone and slowly lifts the training distribution
   (ML10 rollouts 0.49 $\to$ 0.64 over 50 steps), but not held-out positions or tasks. Positive-only advantages hurt.
+\item \textbf{Cloning longer trades transfer for fit.} ML45 at 400 / 800 cloning steps: 0.57 / 0.73 on the training tasks,
+  0.12 / 0.056 on the held-out tasks (pooled, $p\approx0.01$).
 \item \textbf{ML45 gives the first transfer to held-out tasks.} The generic recipe's ML45 clone (Qwen3.5-4B, 400 cloning
   steps) scores 0.57 on its 45 training tasks and \textbf{0.14 on its 5 held-out tasks}, zero-shot (7/50 episodes; 95\%
   interval 0.07--0.26). With 10 training tasks (ML10) held-out tasks stayed at 0.00--0.02 in every run.
@@ -423,15 +425,17 @@ Recipe clone (Qwen3.5-4B) & Training tasks & Held-out tasks & Fit \\
 ML10, 200 BC steps & 0.54 & 0.02 & $-0.24$ \\
 ML10, 400 BC steps & \textbf{0.69} & 0.00 & $-0.19$ \\
 ML45, 400 BC steps & 0.57 & 0.12 (pooled, 6 evals) & $-0.19$ \\
-ML45, 800 BC steps & \textbf{0.73} & 0.06 (3/50) & $-0.17$ \\
+ML45, 800 BC steps & \textbf{0.73} & 0.056 (14/250, 5 evals) & $-0.17$ \\
 \bottomrule
 \end{tabular}
 \end{center}
 
 Doubling the cloning lifts the training tasks by 0.15 on both benchmarks, as much as or more than RL ever did, and ML45's
-800-step clone (0.73) comes close to its experts' 0.82. Held-out tasks do not follow: ML45's 0.06 after 800 steps is
-below the 400-step clone's pooled 0.12 (one 50-episode eval; its RL phase will add evals). RL from the 400-step ML10
-clone keeps it at 0.60--0.65 (steps 15--35).
+800-step clone (0.73) comes close to its experts' 0.82. \textbf{Held-out tasks go the other way}: pooled over five evals,
+the 800-step ML45 clone transfers 0.056 (14/250) against the 400-step clone's 0.12 (36/300; $p\approx0.01$). Cloning
+longer fits the training tasks at the cost of transfer, so the checkpoint that transfers best is not the one that scores
+best on the training tasks. RL from either clone leaves both numbers where cloning put them (ML10 400-step clone: 0.62--0.73
+over 60 RL steps, against 0.69).
 ML45's scripted experts, at gain 0.5 through the same protocol, succeed 0.82 on its 45 training tasks (handle-pull-side,
 lever-pull and stick-push at 0) and 0.97 on its 5 held-out tasks: the ceiling for this recipe.
 
@@ -474,8 +478,9 @@ ML10 held-out tasks & $\approx$0 everywhere & too few training tasks for task tr
 \section{Open questions and next steps}
 \begin{itemize}
 \item Training tasks: solved by scaling the cloning (ML45 0.73 against an expert ceiling of 0.82; ML10 0.69, an
-  800-step clone is training). Held-out tasks: ML45 transfers a little (0.06--0.14) and neither RL nor more cloning raises
-  it; a short adaptation phase on each held-out task (the benchmark's own protocol) is the obvious next experiment.
+  800-step clone is training). Held-out tasks: ML45 transfers a little, best at 400 cloning steps (0.12), less at 800
+  (0.056); RL does not raise it. A short adaptation phase on each held-out task (the benchmark's own protocol) is the
+  obvious next experiment.
 \item The standard ML10/ML45 protocol allows a short adaptation phase on each held-out task; a few RL steps there (the
   object-first reward gives a signal before any success) need no new code.
 \item Reach plateaus at 0.6--0.8 on held-out positions while training positions reach 0.9--1.0: more positions (as for push)

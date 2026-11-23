@@ -132,3 +132,5 @@ Each GRPO group is 8 rollouts from the same start (same goal position and seed).
 * **800-step ML45 clone: 0.73 on the training tasks** (400 steps: 0.57; expert ceiling 0.82) but 0.06 on the held-out ones
   (400 steps: 0.12 pooled). More cloning keeps improving the training tasks on both benchmarks; held-out transfer does not
   follow.
+* **Cloning longer trades transfer for fit (ML45):** 400 / 800 BC steps give 0.57 / 0.70 on the training tasks and
+  0.12 / 0.056 on the held-out tasks (pooled over 5–6 evals; p ≈ 0.01). RL leaves both where cloning put them.
