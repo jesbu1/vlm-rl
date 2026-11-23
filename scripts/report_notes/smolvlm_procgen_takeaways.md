@@ -608,6 +608,15 @@
       Steps 21-25: rollout invalid 47% -> 37%, 45-60 groups with signal, rollouts 5-11%, log-prob ~-3.0 (no sharpening
       yet; seed 0 was at -0.2 by step 21). Step-25 eval **27.6%** (training 26.6, held-out 11x11 28.1, 15x15 28.1), 0%
       invalid (T=1.0 seed 1: 25.0%).
+      **Crashed at step 27** (04:23):
+      * Error: `ValueError: Image features and image tokens do not match, tokens: 1025, features: 1024` in the training
+        forward pass.
+      * Likely cause: the update splices vLLM's generated token ids (`gen_ids`) into the batch, so a sampled `<image>`
+        special-token id reaches the model as an extra image slot. The text-level `scrub_media_tokens` fix (1ae1d2e) does
+        not cover it.
+      * Hotter sampling makes such tokens likelier.
+      * Not fixed (code change; awaiting approval). The wrapper's next pass resumes from the step-26 checkpoint with fresh
+        rollouts.
     * 256M `simple` (lr=5e-6, 128 tokens, noop) started 07:13: step-0 eval **1.6%**, eval invalid 82%.
       Steps 1-3: 1-2 groups with signal, rollout invalid 93%, success ~0%: **dropped after step 3**. 256M cannot
       bootstrap the `<action>` JSON format from scratch (500M could: 9-16 groups at steps 1-4).
