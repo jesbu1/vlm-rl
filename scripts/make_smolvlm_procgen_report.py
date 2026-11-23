@@ -67,12 +67,16 @@ METAWORLD_PUSH = [("gain 0.5: Qwen3.5-4B, BC (30 steps) then RL", "metaworld-g05
                   ("gain 0.5: Qwen3.5-4B, BC (100 steps) then RL", "metaworld-g05-q35-push-bc100", None),
                   ("gain 0.5: Qwen3-VL-4B, BC (100 steps) then RL", "metaworld-g05-q3vl4b-push-bc100", None),
                   ("gain 0.5: Qwen3.5-4B, 450 training positions (10 seeds), BC (100) then RL", "metaworld-g05-q35-push-seeds10", None),
+                  ("450-position clone, RL lr 2e-6", "metaworld-rlfix-push450-lr2e-6", None),
+                  ("450-position clone, RL adv_min=0 (positive only)", "metaworld-rlfix-push450-posadv", None),
                   ("gain 1.0: Qwen3.5-4B, BC then RL, pref_mw (RL undoes BC)", "metaworld-bc2-q35-push", None),
                   ("gain 1.0: Qwen3.5-4B, BC then RL, pref_mw_obj", "metaworld-bc3-q35-push", None)]
 METAWORLD_ML45 = [("recipe: Qwen3.5-4B, BC 400 then RL (train_seeds=10)", "metaworld-recipe-q35-ml45", None),
                   ("recipe: Qwen3-VL-4B, BC 400 then RL (train_seeds=10)", "metaworld-recipe-q3vl4b-ml45", None)]
 METAWORLD_ML10 = [("recipe: Qwen3.5-4B, BC 200 then RL (train_seeds=10)", "metaworld-recipe-q35-ml10", None),
                   ("gain 0.5: Qwen3.5-4B, BC (200 steps) then RL", "metaworld-g05-q35-ml10-bc200", None),
+                  ("200-step clone, RL lr 2e-6", "metaworld-rlfix-ml10-lr2e-6", None),
+                  ("200-step clone, RL adv_min=0 (positive only)", "metaworld-rlfix-ml10-posadv", None),
                   ("gain 0.5: Qwen3.5-4B, BC (100 steps) then RL", "metaworld-g05-q35-ml10-bc100", None),
                   ("gain 0.5: Qwen3.5-4B, BC (30 steps) then RL", "metaworld-g05-q35-ml10", None),
                   ("gain 1.0: Qwen3.5-4B, RL only", "metaworld-q35-v3-lr1e-5", ["147bb6b9"]),
