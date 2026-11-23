@@ -495,6 +495,7 @@
       Step 75: eval **28.6%** (training 31.2, held-out 11x11 23.4, 15x15 31.2), 6% invalid; rollouts 32%, invalid 12%.
       Training-layout eval fell back 43.8 -> 31.2, so the step 60-70 split was mostly per-set noise (64 episodes each),
       not clear overfitting. Rollouts still rising (21% -> 32% over steps 60-75) while greedy eval stays ~29-32%.
+      Step 80: eval **32.3%** (training 42.2, held-out 11x11 25.0, 15x15 29.7), 5% invalid; rollouts 32-42%, invalid 10%.
     * 256M `simple` (lr=5e-6, 128 tokens, noop) started 07:13: step-0 eval **1.6%**, eval invalid 82%.
       Steps 1-3: 1-2 groups with signal, rollout invalid 93%, success ~0%: **dropped after step 3**. 256M cannot
       bootstrap the `<action>` JSON format from scratch (500M could: 9-16 groups at steps 1-4).
