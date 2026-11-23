@@ -19,7 +19,8 @@
   cloned push policy (it learned to hold the puck still); ranking by the puck's progress first fixed that.
 * **ML45 transfers to new tasks.** The generic recipe (controller gain 0.5, cloning Metaworld's scripted experts on
   500 variations per task, then RL) gives 0.57 on ML45's 45 training tasks and 0.14 on its 5 held-out tasks, zero-shot;
-  ML10 (10 training tasks) reaches 0.54–0.71 on its training tasks but ~0 on its held-out tasks.
+  ML10 (10 training tasks) reaches 0.54–0.71 on its training tasks but ~0 on its held-out tasks. Training tasks scale with
+  cloning: ML45 0.57 → 0.73 at 400 → 800 steps (expert ceiling 0.82), ML10 0.54 → 0.69 at 200 → 400.
 * **Most "collapses" were bugs**, all fixed:
   * Trained a template token the model never generates.
   * Re-tokenized replies instead of the sampled ids.
