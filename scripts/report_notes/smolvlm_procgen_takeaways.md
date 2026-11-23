@@ -422,6 +422,12 @@
     * Next on GPU1 (from 22:20): **training `temperature=1.2`** (default recipe, seed 0; eval stays greedy). Do hotter
       rollouts propose more wall escapes for GRPO to reinforce, or just more invalid replies?
       Step-0 eval (greedy, so unaffected by the training temperature) **9.9%**, 57% invalid.
+      Steps 1-5: rollout invalid **93% -> 89%** (default T=1.0: 86% -> 78%), only 2-7 groups with signal (default: 6-15),
+      rollouts 0.1-0.3%, mean log-prob -4.5 (hot sampling). Yet step-5 greedy eval is **30.7%** (training 39.1, held-out
+      11x11 25.0, 15x15 28.1), 3% invalid (default at step 5: 14.6%; it first reached ~30% at step 20). Single eval; could be
+      noise or a lucky early update. The queue's collapse rule (rollout invalid > 85% two steps running) would have killed
+      this run at step 7, so its monitor was stopped (22:28). That also killed the run, which was restarted by hand from
+      the step-5 checkpoint with no auto-abort.
     * 500M **`compact` (absolute goal) + terminate** (GPU0, started 07:32): step-0 eval **1.0%**, **78% invalid**
       (compact_rel at step 0: 7.8-11.5%, ~52% invalid). The absolute-coordinate prompt starts with far fewer valid
       replies; the queue's step-3 signal check decides whether terminate can learn from it.
