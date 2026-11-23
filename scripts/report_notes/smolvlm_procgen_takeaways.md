@@ -667,6 +667,12 @@
       11x11 26.6, 15x15 17.2), 0% invalid (T=1.0 seed 1: 14.1%).
       * Same shape as seed 0: greedy eval peaks at step 10 and dips at step 15 while T=0.8 rollouts keep rising, so the
         sampled-vs-greedy gap opens to ~14 points by step 15.
+      Steps 16-20: rollouts 34-41%, invalid ~2%, log-prob -0.25 -> -0.30. Step-20 eval **14.1%** (training 10.9, held-out
+      11x11 18.8, 15x15 12.5), 0% invalid (T=1.0 seed 1: 25.0%). Sampled-vs-greedy gap: **~24 points**. **Stopped after
+      the step-20 eval** to free GPU0 for the traj_mean run.
+      **T=0.8, both seeds:** the fastest start (greedy ~22-32% by step 10, rollouts > 30% by step 9). After that greedy
+      eval drops below T=1.0 (seed 0: 21-24% at steps 15-25; seed 1: 14-20% at steps 15-20) while rollouts keep rising.
+      T=0.8 trains the best *sampled* policy so far and a worse *greedy* one.
     * 256M `simple` (lr=5e-6, 128 tokens, noop) started 07:13: step-0 eval **1.6%**, eval invalid 82%.
       Steps 1-3: 1-2 groups with signal, rollout invalid 93%, success ~0%: **dropped after step 3**. 256M cannot
       bootstrap the `<action>` JSON format from scratch (500M could: 9-16 groups at steps 1-4).
@@ -883,5 +889,10 @@
     * The oracle's moves follow BFS paths around walls that are visible only in the image. 30 steps of cloning don't
       teach the 500M model to read them. This is the same vision bottleneck as the include_state=false run.
     * The clone still gives RL a format-clean start, so RL continues from it (40 steps).
+    * **Sampled at T=1.0, the same clone succeeds 27% / 23%** (RL steps 1-2 rollouts, before RL has moved it much), against
+      10.9% greedy. 0.2% invalid, 56-60 groups with signal.
+    * That matches the oscillation in the transcripts. Greedy decoding repeats the same pair of moves forever; sampling
+      breaks the loop.
+    * Together with the T=0.8 runs, this is now the strongest evidence that greedy eval understates these policies.
   * The two T=0.8 runs are cut short (40 -> 25 and 20 steps) to free the GPUs. Their pattern is already clear on both
     seeds: a faster start, then greedy eval dips while rollouts climb.
