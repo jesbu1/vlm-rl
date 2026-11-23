@@ -366,6 +366,14 @@
       Still ~3 points behind, within noise. The test is steps 35-40, where the no-KL run fell to 28.1 / 26.6.
       Steps 31-35: rollouts 15-21% (no KL: ~17-19%), invalid ~30%, KL ~0.045. Step-35 eval **23.4%** (training 25.0,
       held-out 11x11 29.7, 15x15 15.6), 0% invalid (no KL: 28.1%). KL has not improved on no-KL at any step so far.
+      Step-40 eval **22.9%** (training 26.6, held-out 11x11 28.1, 15x15 14.1), 0% invalid (no KL: 26.6%); rollouts 14-20%,
+      invalid stuck at ~30% (no KL: ~25%). **Verdict: KL does not help.** Mean over steps 30-40 **24.3%** vs **28.5%**
+      without KL (training 27.1 vs 30.2, held-out 11x11 29.7 vs 35.4, 15x15 16.1 vs 19.8). The KL run is flatter late
+      (26.6 -> 23.4 -> 22.9) but sits lower throughout, so it trades learning speed for stability rather than fixing the
+      drop. One seed pair; the gap is about the size of eval noise.
+    * Next on GPU1 (from 18:15): **`env_kwargs.train_mazes=1024`** (default recipe, seed 0; 64 layouts -> 1024). Tests
+      whether more layout diversity closes the train/held-out gap. Baseline seed 0, steps 30-40: 29.7% overall, held-out
+      11x11 27.6%, 15x15 25.5%.
     * 500M **`compact` (absolute goal) + terminate** (GPU0, started 07:32): step-0 eval **1.0%**, **78% invalid**
       (compact_rel at step 0: 7.8-11.5%, ~52% invalid). The absolute-coordinate prompt starts with far fewer valid
       replies; the queue's step-3 signal check decides whether terminate can learn from it.
