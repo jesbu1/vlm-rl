@@ -374,6 +374,8 @@
     * Next on GPU1 (from 18:15): **`env_kwargs.train_mazes=1024`** (default recipe, seed 0; 64 layouts -> 1024). Tests
       whether more layout diversity closes the train/held-out gap. Baseline seed 0, steps 30-40: 29.7% overall, held-out
       11x11 27.6%, 15x15 25.5%.
+      Started 18:08. Step-0 eval **11.5%** (training 12.5, held-out 11x11 9.4, 15x15 12.5), 53% invalid (same pretrained
+      model; within noise of the other runs' step-0 evals).
     * 500M **`compact` (absolute goal) + terminate** (GPU0, started 07:32): step-0 eval **1.0%**, **78% invalid**
       (compact_rel at step 0: 7.8-11.5%, ~52% invalid). The absolute-coordinate prompt starts with far fewer valid
       replies; the queue's step-3 signal check decides whether terminate can learn from it.
