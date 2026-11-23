@@ -52,8 +52,9 @@
   (Fig.~\ref{fig:clones}).
 \item \textbf{ML10 needs proportionally more cloning}: 0.10 / 0.38 / 0.52 on its training tasks after 30 / 100 / 200 steps.
   Its 5 held-out tasks stay at $\approx$0.
-\item \textbf{RL from a good clone has not improved it yet}: from the 450-position push clone and the 200-step ML10 clone,
-  RL lowers the evals. A lower learning rate and positive-only advantages are being tested.
+\item \textbf{RL from a good clone has not improved it yet.} From the 450-position push clone, rollouts stay flat while
+  held-out positions fall (0.69 $\to$ 0.31 by step 35); from the 200-step ML10 clone, everything stays level. A lower
+  learning rate and positive-only advantages are being tested.
 \item \textbf{What did not work:} RL alone on push (0 in every run), DAgger with the scripted experts (made clones worse),
   and held-out ML10 \emph{tasks} ($\approx$0 in every run).
 \item \textbf{Greedy evals are noisy}: the same push clone scored 0.12, 0.16 and 0.31 on held-out positions in three
@@ -289,10 +290,11 @@ gain 1.0 they never left $\sim$0.10. From the memorized 100-step clones, rollout
 improve: Qwen3.5-4B drifts from $\sim$0.26 to $\sim$0.08 over 35 steps, Qwen3-VL-4B stays at 0.2--0.35
 (Fig.~\ref{fig:pushrl}). RL on the 50 training positions sharpens the memorized behaviour rather than generalizing it.
 
-\textbf{RL from the good 450-position clone does not help either, so far.} Rollouts stay at 0.47--0.60; training
-positions rise (0.62 $\to$ 0.69--0.81) but held-out positions fall (0.69 $\to$ 0.44--0.62; 83/160 = 0.52 pooled over
-steps 5--25). The same happens on ML10 (Section~\ref{sec:ml10}). Being tested: a 5$\times$ lower learning rate, and
-reinforcing only above-average rollouts (\code{adv\_min=0}), which never pushes probability away from the clone's moves.
+\textbf{RL from the good 450-position clone does not help either, so far.} Training rollouts stay flat (0.54 over steps
+1--5, 0.53 over steps 31--40) while the sampled replies get more deterministic (mean log-prob of sampled tokens $-0.19
+\to -0.14$), and held-out positions fall steadily: 0.69, 0.62, 0.53, 0.47, 0.44, 0.53, 0.34, 0.31 at steps 0--35. RL
+sharpens the policy on what it samples instead of improving it. Being tested: a 5$\times$ lower learning rate, and
+reinforcing only above-average rollouts (\code{adv\_min=0}).
 
 \textbf{Temperature for RL from a clone.} Unlike reach from scratch, a clone already varies its moves, and sampling
 noise in the digits spoils precise pushes. From the same DART clone, mean rollout success over the first 9 steps was
@@ -326,10 +328,10 @@ ML10 clone (Qwen3.5-4B, gain 0.5) & Training tasks & Fit (log-prob) \\
 \end{tabular}
 \end{center}
 
-RL from the 100-step clone first improved it (training tasks 0.27--0.33 $\to$ 0.48 at step 40) and then fell back
-(0.29--0.42, steps 45--60). From the 200-step clone, RL lowered the training-task rollouts from 0.68 to 0.34 within 17
-steps while the policy got less sharp (mean log-prob of sampled tokens $-0.04 \to -0.16$): the many below-average
-rollouts push probability away from the clone's moves. The 5 held-out tasks stay near 0 in every run: the instructions and objects are new, and 10 training tasks
+RL from the 100-step clone moved its eval within noise (0.27--0.48 over 60 steps). From the 200-step clone RL keeps it
+level: training-task eval 0.42--0.56 against the clone's 0.52, rollouts 0.47--0.50 per 10 steps, and the sampled-token
+log-prob unchanged ($-0.155$). At this scale RL adds nothing measurable on top of cloning; the clone's quality, set by how
+much expert data it saw, is what moves ML10. The 5 held-out tasks stay near 0 in every run: the instructions and objects are new, and 10 training tasks
 are too few to transfer.
 
 \takeaway{Multi-task cloning scales with the number of tasks: budget proportionally more expert data. Held-out
@@ -381,7 +383,7 @@ DAgger with scripted experts & clone 0.20 $\to$ 0.00 & threshold experts give vi
 DART with 2 cm noise & worse clone & the noisy expert itself succeeds only 0.20 \\
 More cloning on 50 push positions & held-out stays 0.28 & memorizes the training configurations (450 positions: 0.69) \\
 RL from the memorized clone & held-out flat or down & sharpens the memorized behaviour \\
-RL (lr 1e-5) from good clones & evals fall & below-average rollouts push the policy off the clone \\
+RL (lr 1e-5) from good clones & push held-out falls, ML10 level & sharpens on its own samples \\
 ML10 held-out tasks & $\approx$0 everywhere & too few training tasks for task transfer \\
 \bottomrule
 \end{tabular}\par}

@@ -100,7 +100,7 @@ Each GRPO group is 8 rollouts from the same start (same goal position and seed).
   0.94 / 0.28 to 0.62 / 0.69, training / held-out positions), then RL with `pref_mw_obj` at T = 1.0. ML45's experts
   succeed 0.82 on its training tasks and 0.97 on its held-out tasks through our protocol. Live: ML10 (200 BC steps),
   ML45 (400 BC steps; Qwen3.5-4B and Qwen3-VL-4B).
-* **RL from a good clone has lowered it so far** (lr 1e-5): push 450-position clone held-out 0.69 → ~0.52 (pooled,
-  RL steps 5–25) while training positions rise; ML10 200-step clone rollouts 0.68 → 0.34 in 17 steps, the policy less
-  sharp (mean log-prob −0.04 → −0.16). Below-average rollouts push probability away from the clone's moves. Live: RL
-  from both clones at lr 2e-6, and with `adv_min=0` (only above-average rollouts reinforced).
+* **RL from a good clone has not improved it so far** (lr 1e-5): from the 450-position push clone, rollouts stay
+  flat (~0.53) while held-out positions fall (0.69 → 0.31 by step 35) and the policy sharpens; from the 200-step ML10
+  clone everything stays level (eval 0.42–0.56 vs 0.52). Live: RL from both clones at lr 2e-6, and with `adv_min=0`
+  (only above-average rollouts reinforced).
