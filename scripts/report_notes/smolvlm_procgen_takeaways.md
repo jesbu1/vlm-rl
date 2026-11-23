@@ -398,6 +398,10 @@
     * Next on GPU1 (from 22:10): **`env_kwargs.include_state=false`** (default recipe, seed 0). The per-turn text drops the
       ball position and relative goal and keeps only "Move:", so both must be read from the image. Tests how much of the
       ~30% comes from the image vs the relative-goal text.
+      Step-0 eval **0.0%**, **99.8% invalid** (default recipe: ~8-12%, ~55%). Without the numbers in the turn text the
+      pretrained model never answers in JSON: it writes prose ("The correct path is: - Move right to the green circle ...")
+      and then repeats "The correct move is:". The coordinate text is what anchors the JSON format, so the queue's
+      early-abort rule (< 6 groups with signal in steps 1-3) will probably stop this run.
     * 500M **`compact` (absolute goal) + terminate** (GPU0, started 07:32): step-0 eval **1.0%**, **78% invalid**
       (compact_rel at step 0: 7.8-11.5%, ~52% invalid). The absolute-coordinate prompt starts with far fewer valid
       replies; the queue's step-3 signal check decides whether terminate can learn from it.
