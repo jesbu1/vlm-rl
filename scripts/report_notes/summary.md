@@ -17,6 +17,9 @@
   not on held-out ones (0.28): ML1 has only 50 training positions. ML10 needed more cloning: 0.38 on its
   training tasks after 100 steps (0.10 after 30). Earlier, at the old gain, RL with the dense-reward preference undid the
   cloned push policy (it learned to hold the puck still); ranking by the puck's progress first fixed that.
+* **ML45 transfers to new tasks.** The generic recipe (controller gain 0.5, cloning Metaworld's scripted experts on
+  500 variations per task, then RL) gives 0.57 on ML45's 45 training tasks and 0.14 on its 5 held-out tasks, zero-shot;
+  ML10 (10 training tasks) reaches 0.54–0.71 on its training tasks but ~0 on its held-out tasks.
 * **Most "collapses" were bugs**, all fixed:
   * Trained a template token the model never generates.
   * Re-tokenized replies instead of the sampled ids.

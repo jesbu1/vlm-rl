@@ -59,6 +59,7 @@ RUNS = {
     "rc_q35_ml10": (MW, "group:metaworld-recipe-q35-ml10"), "rc_q35_ml45": (MW, "group:metaworld-recipe-q35-ml45"),
     "rc_q3vl4b_ml45": (MW, "group:metaworld-recipe-q3vl4b-ml45"),
     "rc_q35_ml10_rl2e6": (MW, "group:metaworld-recipe-q35-ml10-rl2e-6"),
+    "rc_q35_ml45_rl2e6": (MW, "group:metaworld-recipe-q35-ml45-rl2e-6"),
     # RL from good clones: lower lr / only above-average rollouts (adv_min=0); baselines p5_seeds10, m5_bc200 (lr 1e-5)
     "rl_push_lr": (MW, "group:metaworld-rlfix-push450-lr2e-6"), "rl_push_pos": (MW, "group:metaworld-rlfix-push450-posadv"),
     "rl_ml10_lr": (MW, "group:metaworld-rlfix-ml10-lr2e-6"), "rl_ml10_pos": (MW, "group:metaworld-rlfix-ml10-posadv"),

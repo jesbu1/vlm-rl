@@ -117,3 +117,6 @@ Each GRPO group is 8 rollouts from the same start (same goal position and seed).
 * **Over 50–60 steps at lr 2e-6, RL slowly improves the training distribution**: ML10 rollouts 0.49 → 0.64 (steps 1–10 →
   41–50), push 0.53 → 0.66; greedy evals move less (ML10 training tasks 0.54 → 0.56–0.59) and held-out push stays slightly
   below the clone (0.51–0.57 vs 0.62). RL refines a good clone; it does not add generalization.
+* **ML45: first transfer to held-out tasks.** The recipe's ML45 clone (Qwen3.5-4B, 400 BC steps) scores 0.57 on the 45
+  training tasks (expert ceiling 0.82) and **0.14 on the 5 held-out tasks**, zero-shot (7/50; ML10's clones: 0.00–0.02).
+  RL from it at lr 1e-5 and 2e-6 is live; the Qwen3-VL-4B ML45 clone is still training.

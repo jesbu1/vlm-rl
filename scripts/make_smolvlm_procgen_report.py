@@ -72,6 +72,7 @@ METAWORLD_PUSH = [("gain 0.5: Qwen3.5-4B, BC (30 steps) then RL", "metaworld-g05
                   ("gain 1.0: Qwen3.5-4B, BC then RL, pref_mw (RL undoes BC)", "metaworld-bc2-q35-push", None),
                   ("gain 1.0: Qwen3.5-4B, BC then RL, pref_mw_obj", "metaworld-bc3-q35-push", None)]
 METAWORLD_ML45 = [("recipe: Qwen3.5-4B, BC 400 then RL (train_seeds=10)", "metaworld-recipe-q35-ml45", None),
+                  ("recipe: Qwen3.5-4B, BC 400, RL lr 2e-6", "metaworld-recipe-q35-ml45-rl2e-6", None),
                   ("recipe: Qwen3-VL-4B, BC 400 then RL (train_seeds=10)", "metaworld-recipe-q3vl4b-ml45", None)]
 METAWORLD_ML10 = [("recipe: Qwen3.5-4B, BC 200 then RL (train_seeds=10)", "metaworld-recipe-q35-ml10", None),
                   ("recipe: Qwen3.5-4B, BC 200, RL lr 2e-6", "metaworld-recipe-q35-ml10-rl2e-6", None),
