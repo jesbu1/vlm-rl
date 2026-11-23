@@ -4,6 +4,8 @@
 # parse_last, on_invalid=terminate, lr=5e-6, 64 x 16, T=1.0, seed 0) plus bc_steps=30: 30 updates on 64 oracle
 # episodes each (the oracle solves 100% in 6-8 turns, written as compact_rel JSON replies), then 40 RL steps. The step-0
 # eval is the clone. Baseline (RL only, seed 0): 29.7% mean over steps 30-40; scripted "echo + random escapes" 37.5%.
+# bc_lr=1e-5: the clone's learning rate for full fine-tuning in reports/vlmrl_results.pdf (Appendix B, Gemma 4 E2B);
+# RL keeps the maze default lr=5e-6.
 group: smolvlm-procgen-v2
 project: vlm-rl-pointmaze
 train_gpu: 1
@@ -19,6 +21,7 @@ overrides:
   - group_size=16
   - max_resample_rounds=3
   - micro_batch_size=16
+  - bc_lr=1e-5
   - eval_every=5
   - eval_episodes=64
   - wandb_entity=tri

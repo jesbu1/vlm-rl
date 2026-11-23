@@ -853,6 +853,15 @@
   * lr 2e-6 holds a policy better than 1e-5. Here lr=2.5e-6 reached the same plateau as 5e-6, so this is not the lever.
   * Larger models do better on these same procgen mazes: Qwen3-VL-2B 0.48 / 0.31 / 0.33 at step 40 (training / held-out
     11x11 / 15x15) vs ~0.36 / 0.28 / 0.26 for SmolVLM2-500M.
+* **From the other agent's results PDF** (`reports/vlmrl_results.pdf`, built 2026-11-22):
+  * §2.2 and Fig. 2: with token_mean, SmolVLM2-2.2B collapses within 5 updates on mazes (replies shrink from 98 to 22 to 5
+    characters, 98% invalid). `traj_mean` fixes it (UMaze 0.97); `traj_mean` + KL 0.05 also steadies medium (0.94).
+  * Fig. 1: SmolVLM2-2.2B on these procgen mazes (`traj_mean`) is at 0.38 / 0.23 / 0.30 at step 40, about the same as
+    500M here.
+  * §8 diagnostics: the step-1 log-prob, its drift (sharpening), and reply length. Sharpening is what preceded the T=1.2
+    seed-0 freeze above.
+  * §5.5 / Fig. 9: RL from a clone holds it at lr 2e-6 and erodes it at 1e-5. Appendix B: full-FT clones use BC lr 1e-5.
+    So the BC run below uses `bc_lr=1e-5` and keeps the maze RL lr of 5e-6. If RL erodes the clone, 2e-6 is next.
 * **The maze BFS oracle is now a BC expert** (c4d1a3e, `EnvBundle.expert`). Through the `compact_rel` protocol it solves
   100% of training / held-out 11x11 / held-out 15x15 episodes in 5.9 / 6.6 / 7.7 turns. Fast test added.
 * **Runs (each changes one thing vs the default recipe, seed 0):**
