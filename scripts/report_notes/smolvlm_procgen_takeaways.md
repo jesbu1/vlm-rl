@@ -957,6 +957,10 @@
     (seed 0 at step 20: 44.3%). **The BC-30 jump replicates:** both seeds are at 41-44% by step 20 (RL-only: 32.3%).
     Steps 21-25: rollouts 48-58%, log-prob -0.16 -> -0.13. Step-25 eval **39.6%** (training 46.9, held-out 11x11 34.4,
     15x15 37.5), 0% invalid (seed 0 at step 25: 40.1%). Same flattening near 40% as seed 0.
+    Steps 26-30: rollouts 46-55%, log-prob -0.12 -> -0.10. Step-30 eval **37.0%** (training 43.8, held-out 11x11 28.1,
+    15x15 39.1), 0% invalid (seed 0 at step 30: 39.1%).
+    * Next on GPU0: BC-30 then RL at lr 2.5e-6 (`smolvlm_procgen_v2_terminate_500m_bc30_lr2p5e6_gpu0.yaml`). The aim is
+      to test whether a gentler RL step avoids the post-step-20 sharpening and plateau.
   * **BC-30 + traj_mean (GPU1, started 19:19, seed 0):** the clone's step-0 eval is **16.7%** (training 20.3, held-out 11x11
     10.9, 15x15 18.8), 0% invalid. `loss_agg` does not touch the BC phase, so this is the same recipe as the seed-0 clone
     (10.9%). The 6-point spread across nominally identical clones is the run-to-run noise (vLLM sampling is not bit-exact).
