@@ -1003,6 +1003,18 @@
       exited 0.)
     * Next on GPU1: BC-30 with DAgger on its last 15 steps (`smolvlm_procgen_v2_terminate_500m_bc30_dagger15_gpu1.yaml`).
       The aim is a better clone: the maze oracle can label any state the clone reaches.
+  * **BC-30 + DAgger-15 (GPU1, started 05:11, seed 0): DAgger made the clone worse.** The clone's step-0 eval is
+    **3.6%** (training 6.2, held-out 11x11 3.1, 15x15 1.6), 0% invalid. Plain clones scored 10.9-16.7%.
+    * During the DAgger steps (16-30), the clone's own sampled success fell from 33% to 14-22%.
+    * The greedy transcripts show why. The clone sends a small move into a wall (e.g. `{"x": 0.40, "y": 0.00}`), the
+      ball doesn't move, and with one frame of context and greedy decoding the same observation gives the same reply,
+      for all 20 turns.
+    * The oracle's labels in the states a weak clone reaches (pressed against walls, off-centre) are small corrective
+      moves. Cloning them taught small, timid moves, which makes the wall-loop more likely. This matches the Metaworld
+      DAgger result in `rollout.py`'s docstring.
+    * Left running to see whether RL recovers from this clone.
+    * The loop also explains the sampled-vs-greedy gap in every run: under greedy decoding, any move that leaves the state
+      unchanged repeats until the episode ends.
   * BC run: RL steps take ~10 min, since the clone's valid replies run full 20-turn episodes. Rollouts 23-28% at steps 1-3.
   * The two T=0.8 runs are cut short (40 -> 25 and 20 steps) to free the GPUs. Their pattern is already clear on both
     seeds: a faster start, then greedy eval dips while rollouts climb.
