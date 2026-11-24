@@ -531,3 +531,26 @@ def test_per_task_success_only_for_multi_task_sets():
     m = per_task_success([a, b, c], "eval/train_tasks")
     assert m == {"eval/train_tasks/task/push-v3/success": 0.5, "eval/train_tasks/task/reach-v3/success": 1.0}
     assert per_task_success([b, c], "eval/x") == {}
+
+
+def test_bc_rationale_prefixes_expert_replies_with_a_generated_reason(tmp_path):
+    import dataclasses
+    seen = []
+
+    def gen(convs):
+        seen.extend(convs)
+        return ['The ball is left of the goal, so move right. {"dx": 9}' for _ in convs]
+    b = dataclasses.replace(_bundle(), expert=lambda env, k: np.array([0.3, 0.0]))
+    cfg = TrainConfig(out_dir=str(tmp_path), groups_per_step=2, group_size=4, eval_every=0, log_samples_every=0,
+                      save_every=0, lr=0.1, bc_steps=1, bc_episodes=2, bc_success_only=False, filter_groups=False,
+                      bc_rationale=True, max_frames=1)
+    tr = Trainer(cfg, policy=FakePolicy(gen), bundle=b)
+    from vlmrl.rollout import expert_rollout
+    trajs = expert_rollout(tr.env, b.interface, b.expert, b.train_sampler.sample(2, np.random.default_rng(0)), [0, 1], 3)
+    label = trajs[0].messages[2]["content"][0]["text"]
+    tr._rationalize(trajs)
+    text = trajs[0].messages[2]["content"][0]["text"]
+    assert text == "The ball is left of the goal, so move right.\n" + label     # reason, then the expert's own move
+    assert trajs[0].turns[0].response == text
+    assert "The right move here is" in seen[0][-1]["content"][-1]["text"]     # the hint shows the expert's move
+    assert tr.behaviour_clone()["bc/steps"] == 1

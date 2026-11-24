@@ -13,6 +13,7 @@ import dataclasses
 import importlib
 import json
 import os
+import re
 import time
 import uuid
 from dataclasses import dataclass, field
@@ -24,7 +25,7 @@ from vlmrl import algo
 from vlmrl.envs.base import EnvBundle
 from vlmrl.policy import HFPolicy
 from vlmrl.rewards import build_reward
-from vlmrl.rollout import RolloutTask, rollout, rollout_pooled, to_samples
+from vlmrl.rollout import RolloutTask, context_view, final_answer, rollout, rollout_pooled, to_samples
 
 
 @dataclass
@@ -83,6 +84,9 @@ class TrainConfig:
     bc_lr: float = 0.0                                  # lr during behaviour cloning (0 = lr)
     bc_dagger_steps: int = 0                            # the last N of bc_steps run the current clone, labelled by the expert (DAgger)
     bc_noise: float = 0.0                               # DART: noise (std, action units: cm on Metaworld) on the expert's executed moves
+    bc_rationale: bool = False                          # prefix each expert reply with a reason written by the rollout model
+    bc_rationale_tokens: int = 96
+    bc_rationale_temperature: float = 0.3
     micro_batch_size: int = 1                           # sequences per forward/backward
     # generation
     max_new_tokens: int = 256
@@ -621,6 +625,8 @@ class Trainer:
                 keep = trajs
             else:
                 keep = [t for t in trajs if t.success] if c.bc_success_only else trajs
+            if c.bc_rationale and keep:
+                self._rationalize(keep)
             for t in keep:
                 t.advantage = 1.0
             last = self.update([keep]) if keep else {"train/skipped": 1.0}
@@ -638,6 +644,40 @@ class Trainer:
             out["bc/dagger_success"] = float(np.mean(succ[n_exp:]))     # the clone's own episodes during DAgger
             out["bc/dagger_last_success"] = succ[-1]
         return out
+
+    RATIONALE_HINT = ("The right move here is {move}. In one or two short sentences, say where the gripper, the object "
+                      "and the goal are in the image and why this move is right for the task. Write only the sentences, "
+                      "no JSON.")
+
+    def _rationalize(self, trajs):
+        """``bc_rationale``: expert data has no reasoning, so cloning it trains answer-only replies. Each expert reply is
+        prefixed with a reason written by the rollout model (the base model or ``init_adapter``: plain cloning does not
+        re-sync it) when shown the observation and the expert's move (STaR-style rationalization). Training then uses the
+        normal prompt, so the clone learns to state where things are and what the task needs before each move. Use with a
+        reasoning prompt style (Metaworld ``compact_rel_reason``: the last ``{...}`` is the move)."""
+        c = self.cfg
+        jobs, convs = [], []
+        for tr in trajs:
+            j = -1
+            for i, m in enumerate(tr.messages):
+                if m["role"] != "assistant":
+                    continue
+                j += 1
+                move = m["content"][0]["text"]
+                ctx = context_view(tr.messages[:i], c.max_images, c.max_frames)
+                hint = {"role": "user", "content": list(ctx[-1]["content"]) +
+                        [{"type": "text", "text": " " + self.RATIONALE_HINT.format(move=move)}]}
+                convs.append(ctx[:-1] + [hint])
+                jobs.append((tr, i, j, move))
+        texts = self.generator.generate(convs, c.bc_rationale_tokens, c.bc_rationale_temperature, c.top_p,
+                                        c.gen_batch_size)
+        for (tr, i, j, move), r in zip(jobs, texts):
+            r = re.sub(r"\{[^{}]*\}", "", final_answer(r, self._thinking) or "")    # a reason only: the move is the expert's
+            r = " ".join(r.split())[:400]
+            text = f"{r}\n{move}" if r else move
+            tr.messages[i] = {"role": "assistant", "content": [{"type": "text", "text": text}]}
+            if j < len(tr.turns):
+                tr.turns[j].response = text
 
     def train(self):
         c = self.cfg
