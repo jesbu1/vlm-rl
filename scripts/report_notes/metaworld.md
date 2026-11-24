@@ -136,3 +136,6 @@ Each GRPO group is 8 rollouts from the same start (same goal position and seed).
   0.12 / 0.056 on the held-out tasks (pooled over 5–6 evals; p ≈ 0.01). RL leaves both where cloning put them.
 * **ML10 cloning saturates:** 0.69 at 400 BC steps, 0.67 at 800 (fit −0.19 → −0.11; experts 0.91). Per-task evals of the
   saved clones are next, to see which tasks stay unsolved.
+* **Reasoning, native thinking:** Qwen3.5-4B with thinking on (4096 tokens, ML45 eval only) scores 0 / 0; 87% of replies
+  are invalid because the reasoning loops and never closes its thinking block (the 400-step clone with thinking: 0.02 / 0).
+  Next: short reasoning in the reply (`compact_rel_reason`, 256 tokens), evals running.

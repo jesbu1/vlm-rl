@@ -442,6 +442,23 @@ over 60 RL steps, against 0.69).
 ML45's scripted experts, at gain 0.5 through the same protocol, succeed 0.82 on its 45 training tasks (handle-pull-side,
 lever-pull and stick-push at 0) and 0.97 on its 5 held-out tasks: the ceiling for this recipe.
 
+\section{Reasoning for generalization (in progress)}
+\label{sec:reasoning}
+Held-out tasks need the policy to work out what a new instruction asks for, which is what reasoning should help with.
+The obstacle: everything that works so far is cloned from Metaworld's scripted experts, whose data has no reasoning
+(image in, move out), so cloning trains direct answers.
+
+\textbf{Native thinking does not produce actions.} Qwen3.5-4B with its thinking mode on (4096 tokens per reply, eval only
+on ML45): 0.00 on the training and the held-out tasks; 87\% of replies are invalid and episodes end after 1.3 turns. The
+reasoning is sensible (it finds the bins, the cube and the gripper and plans a move) but it loops (``Wait, I think I'm
+just stuck in a loop'') and is cut off before it closes the thinking block. The 400-step ML45 clone with thinking on does
+no better (0.02 / 0.00, against 0.57 / 0.12 without). Without thinking the base model gives valid moves every turn but no
+successes. Native thinking would need a hard token budget.
+
+\textbf{Bounded reasoning in the reply} (\code{prompt\_style=compact\_rel\_reason}): one or two sentences about where the
+gripper, the object and the goal are, then the JSON move; the last \code{\{...\}} is parsed. Evals of the base model and
+the 400-step clone with this prompt are running; RL with it is the next step if the replies are valid.
+
 \section{Methodology lessons}
 \label{sec:noise}
 \begin{itemize}
