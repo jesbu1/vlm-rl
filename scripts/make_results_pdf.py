@@ -68,6 +68,7 @@ RUNS = {
     # cloning with reasons (bc_rationale, prompt_style compact_rel_reason), then RL with reasoning
     "rb_ml10": (MW, "group:metaworld-reasonbc-q35-ml10"), "rb_ml45": (MW, "group:metaworld-reasonbc-q35-ml45"),
     "rr_ml10": (MW, "group:metaworld-rlreason-q35-ml10"),     # RL only with reasoning, from the base model
+    "rb2_ml10": (MW, "group:metaworld-reasonbc2-q35-ml10"), "rb2_ml45": (MW, "group:metaworld-reasonbc2-q35-ml45"),
     # RL from good clones: lower lr / only above-average rollouts (adv_min=0); baselines p5_seeds10, m5_bc200 (lr 1e-5)
     "rl_push_lr": (MW, "group:metaworld-rlfix-push450-lr2e-6"), "rl_push_pos": (MW, "group:metaworld-rlfix-push450-posadv"),
     "rl_ml10_lr": (MW, "group:metaworld-rlfix-ml10-lr2e-6"), "rl_ml10_pos": (MW, "group:metaworld-rlfix-ml10-posadv"),

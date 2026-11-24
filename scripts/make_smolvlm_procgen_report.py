@@ -71,12 +71,14 @@ METAWORLD_PUSH = [("gain 0.5: Qwen3.5-4B, BC (30 steps) then RL", "metaworld-g05
                   ("450-position clone, RL adv_min=0 (positive only)", "metaworld-rlfix-push450-posadv", None),
                   ("gain 1.0: Qwen3.5-4B, BC then RL, pref_mw (RL undoes BC)", "metaworld-bc2-q35-push", None),
                   ("gain 1.0: Qwen3.5-4B, BC then RL, pref_mw_obj", "metaworld-bc3-q35-push", None)]
-METAWORLD_ML45 = [("reasoning: BC with reasons (400) then RL with reasoning", "metaworld-reasonbc-q35-ml45", None),
+METAWORLD_ML45 = [("reasoning v2: BC with one-sentence reasons (400) then RL", "metaworld-reasonbc2-q35-ml45", None),
+                  ("reasoning v1: BC with reasons (400) then RL", "metaworld-reasonbc-q35-ml45", None),
                   ("recipe: Qwen3.5-4B, BC 400 then RL (train_seeds=10)", "metaworld-recipe-q35-ml45", None),
                   ("recipe: Qwen3.5-4B, BC 400, RL lr 2e-6", "metaworld-recipe-q35-ml45-rl2e-6", None),
                   ("recipe: Qwen3.5-4B, BC 800, RL lr 2e-6", "metaworld-recipe-q35-ml45-bc800", None),
                   ("recipe: Qwen3-VL-4B, BC 400 then RL (train_seeds=10)", "metaworld-recipe-q3vl4b-ml45", None)]
-METAWORLD_ML10 = [("reasoning: BC with reasons (400) then RL with reasoning", "metaworld-reasonbc-q35-ml10", None),
+METAWORLD_ML10 = [("reasoning v2: BC with one-sentence reasons (400) then RL", "metaworld-reasonbc2-q35-ml10", None),
+                  ("reasoning v1: BC with reasons (400) then RL", "metaworld-reasonbc-q35-ml10", None),
                   ("reasoning: RL only with reasoning, from the base model", "metaworld-rlreason-q35-ml10", None),
                   ("recipe: Qwen3.5-4B, BC 200 then RL (train_seeds=10)", "metaworld-recipe-q35-ml10", None),
                   ("recipe: Qwen3.5-4B, BC 200, RL lr 2e-6", "metaworld-recipe-q35-ml10-rl2e-6", None),
