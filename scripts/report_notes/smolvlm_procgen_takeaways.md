@@ -973,6 +973,8 @@
     (10.9 / 13.5 / 16.7% across three earlier copies).
     RL steps 1-4: rollouts 21-29%, log-prob ~-0.24 (BC-30 at lr 5e-6, seed 0, steps 1-3: 23-28%).
     Step-5 eval **15.1%** (training 20.3, held-out 11x11 7.8, 15x15 17.2), 0% invalid (BC-30 at lr 5e-6 at step 5: 16.1 / 20.3%).
+    Steps 6-10: rollouts 28-33%, log-prob ~-0.22. Step-10 eval **15.6%** (training 14.1, held-out 11x11 15.6, 15x15 17.2),
+    0% invalid (lr 5e-6 at step 10: 18.8 / 21.9%). Slower, as expected at half the step size.
   * **BC-30 + traj_mean (GPU1, started 19:19, seed 0):** the clone's step-0 eval is **16.7%** (training 20.3, held-out 11x11
     10.9, 15x15 18.8), 0% invalid. `loss_agg` does not touch the BC phase, so this is the same recipe as the seed-0 clone
     (10.9%). The 6-point spread across nominally identical clones is the run-to-run noise (vLLM sampling is not bit-exact).
