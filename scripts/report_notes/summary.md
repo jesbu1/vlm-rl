@@ -21,6 +21,8 @@
   500 variations per task, then RL) gives 0.57 on ML45's 45 training tasks and 0.14 on its 5 held-out tasks, zero-shot;
   ML10 (10 training tasks) reaches 0.54–0.71 on its training tasks but ~0 on its held-out tasks. Training tasks scale with
   cloning: ML45 0.57 → 0.73 at 400 → 800 steps (expert ceiling 0.82), ML10 0.54 → 0.69 at 200 → 400.
+* **Reasoning learned by RL transfers.** RL from the base model with one or two sentences of reasoning per move, no
+  cloning: ML10's held-out door-close reaches 0.52 at step 30 (answer-only clones: 0.04).
 * **Most "collapses" were bugs**, all fixed:
   * Trained a template token the model never generates.
   * Re-tokenized replies instead of the sampled ids.

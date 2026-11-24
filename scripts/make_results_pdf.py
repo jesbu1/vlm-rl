@@ -68,6 +68,7 @@ RUNS = {
     # cloning with reasons (bc_rationale, prompt_style compact_rel_reason), then RL with reasoning
     "rb_ml10": (MW, "group:metaworld-reasonbc-q35-ml10"), "rb_ml45": (MW, "group:metaworld-reasonbc-q35-ml45"),
     "rr_ml10": (MW, "group:metaworld-rlreason-q35-ml10"),     # RL only with reasoning, from the base model
+    "rr_ml45": (MW, "group:metaworld-rlreason-q35-ml45"),
     "rb2_ml10": (MW, "group:metaworld-reasonbc2-q35-ml10"), "rb2_ml45": (MW, "group:metaworld-reasonbc2-q35-ml45"),
     # RL from good clones: lower lr / only above-average rollouts (adv_min=0); baselines p5_seeds10, m5_bc200 (lr 1e-5)
     "rl_push_lr": (MW, "group:metaworld-rlfix-push450-lr2e-6"), "rl_push_pos": (MW, "group:metaworld-rlfix-push450-posadv"),
@@ -581,6 +582,39 @@ def fig_pertask(D):
     save(fig, "pertask_heldout.pdf")
 
 
+def fig_reasoning(D):
+    """ML10 with reasoning in every reply: RL only from the base model vs cloning (with and without reasons)."""
+    import matplotlib.pyplot as plt
+    runs = [("rr_ml10", "RL only, with reasoning (from the base model)"), ("rb_ml10", "BC with reasons (400), then RL"),
+            ("rb2_ml10", "BC with one-sentence reasons (400), then RL")]
+    runs = [(i, k, n) for i, (k, n) in enumerate(runs) if k in D and series(D[k], "eval/train_tasks/success")[0]]
+    if not runs:
+        return
+    fig, axes = plt.subplots(1, 3, figsize=(7.2, 2.4))
+    for ax, key, title in ((axes[0], "eval/train_tasks/success", "Training tasks"),
+                           (axes[1], "eval/heldout_tasks/success", "Held-out tasks"),
+                           (axes[2], "eval/heldout_tasks/task/door-close-v3/success", "Held-out: door-close")):
+        ends = []
+        for i, k, name in runs:
+            xs, ys = series(D[k], key)
+            if not xs:
+                continue
+            line(ax, xs, ys, C[i], name, marker="o")
+            ends.append((xs[-1], ys[-1], f"{ys[-1]:.2f}", C[i]))
+        ax.axhline({"eval/train_tasks/success": 0.61, "eval/heldout_tasks/success": 0.02}.get(key, 0.04), color=MUTED,
+                   lw=1.0, zorder=0)
+        ax.set_title(title)
+        ax.set_xlabel("RL step (0 = start)")
+        ax.set_ylim(0, 1.0 if "door" in key or "train" in key else 0.3)
+        end_labels(ax, ends, xpad=2)
+    axes[0].set_ylabel("Eval success")
+    axes[2].text(0.02, 0.96, "gray line: answer-only clone", transform=axes[2].transAxes, fontsize=6.5, color=MUTED, va="top")
+    h, l = axes[0].get_legend_handles_labels()
+    fig.legend(h, l, loc="lower center", ncol=3, bbox_to_anchor=(0.5, -0.12), fontsize=7)
+    fig.tight_layout(w_pad=2)
+    save(fig, "reasoning_ml10.pdf")
+
+
 # ----------------------------------------------------------------------------- tables
 
 def tex_escape(s):
@@ -626,7 +660,7 @@ def build():
     D = load()
     style()
     for fn in (fig_maze_procgen, fig_maze_fixed, fig_reach_models, fig_reach_exploration, fig_push_reward,
-               fig_push_clones, fig_push_rl, fig_ml10, fig_rl_fixes, fig_recipe, fig_pertask):
+               fig_push_clones, fig_push_rl, fig_ml10, fig_rl_fixes, fig_recipe, fig_pertask, fig_reasoning):
         fn(D)
     fig_expert_gain()
     write_tables(D)
@@ -654,7 +688,7 @@ if __name__ == "__main__":
         D = load()
         style()
         for fn in (fig_maze_procgen, fig_maze_fixed, fig_reach_models, fig_reach_exploration, fig_push_reward,
-                   fig_push_clones, fig_push_rl, fig_ml10, fig_rl_fixes, fig_recipe, fig_pertask):
+                   fig_push_clones, fig_push_rl, fig_ml10, fig_rl_fixes, fig_recipe, fig_pertask, fig_reasoning):
             fn(D)
         fig_expert_gain()
         write_tables(D)

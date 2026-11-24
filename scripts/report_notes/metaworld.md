@@ -156,3 +156,6 @@ Each GRPO group is 8 rollouts from the same start (same goal position and seed).
   opposite of training task door-open) 0.04 → 0.17, lever-pull and sweep-into 0 → 0.06. Training tasks 0.51 vs 0.61:
   door-open 0.24 → 0.55 and reach 0.30 → 0.45, but pick-place 0.73 → 0.13, push 0.94 → 0.33. RL-only reasoning (from the
   base model): 0.01 at step 10 (drawer-close 0.21).
+* **RL-learned reasoning transfers.** RL only, from the base model with short reasoning (no cloning): at step 30 ML10's
+  drawer-close is 0.93 and the held-out **door-close 0.52** (answer-only clone 0.04, clone with reasons 0.17); held-out
+  tasks 0.12. Its reasons tie the instruction to the motion ("needs to be pushed shut → move right"). Live on ML45 too.
