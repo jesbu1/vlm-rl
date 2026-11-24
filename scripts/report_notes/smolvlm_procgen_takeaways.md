@@ -1028,7 +1028,11 @@
       vs 15-20% for plain BC30 at step 10. Stopped by hand after this eval (failed run, kept on disk); BC-60 started on GPU1.
   - **BC-60 then RL** (`bc_steps: [60]`, otherwise BC30; GPU1): clone eval **15.6%** (training 21.9, held-out 11x11 14.1,
     15x15 10.9), 0% invalid, BC log-prob -0.10. Inside the 10.9-16.7% spread of the BC30 clones: twice the cloning steps
-    does not give a better clone. RL running.
+    does not give a better clone.
+    Steps 1-5: rollouts 28-34%, log-prob -0.15 -> -0.12 (sharper than BC30's ~-0.2 at the same step). Step-5 eval **18.8%**
+    (training 17.2, held-out 11x11 21.9, 15x15 17.2), 0% invalid; BC30 seeds at step 5: 20.3 / ~16-20%. Same track so far.
+  - **Queued on GPU0: BC30 + KL 0.05 to the clone** (`kl_ref: clone`, new option in cb32f9c; the old `kl_coef` pulled
+    toward the pretrained model, which would undo the clone). Starts when the lr 2.5e-6 run finishes.
     * (A second frame is not the loop fix: `max_frames=2` on 256M, above, swapped wall-loops for copying its own previous
       reply, and collapsed at the same step.)
     * The loop also explains the sampled-vs-greedy gap in every run: under greedy decoding, any move that leaves the state
