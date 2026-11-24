@@ -148,3 +148,7 @@ Each GRPO group is 8 rollouts from the same start (same goal position and seed).
   poorly (0.01 / 0), and the answer-only clone loses its skill under the new prompt (0.12 / 0.06 vs 0.57 / 0.12). Live:
   **cloning with reasons** (`bc_rationale`: the base model writes a reason for each expert move, the clone learns
   "reason, then move"), then RL with reasoning, on ML10 and ML45.
+* **Cloning with reasons, first attempt: worse** (ML45: 0.34 / 0.04 vs 0.57 / 0.12). The base model, asked why each
+  expert move was right, often said it was wrong (the experts' moves exceed the prompt's 10 cm), and the clone learned
+  "the move is incorrect" before each move. Second attempt: one short scene sentence, never judging the move. Also running:
+  RL only with reasoning from the base model on ML10.

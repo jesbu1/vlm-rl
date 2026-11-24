@@ -495,8 +495,17 @@ with its own prompt): it was trained on answer-only replies.
 prefixed with a reason written by the base model when shown the observation and the expert's move (STaR-style
 rationalization); training uses the normal prompt, so the clone learns ``reason, then move''. The test is whether the
 instruction then steers the motion: ML10's drawer-open and door-close (the opposites of its training tasks, 0.05 and
-0.04 for the answer-only clone) and ML45's held-out tasks. Running on ML10 and ML45 (400 cloning steps, then RL with
-reasoning at lr 2e-6).
+0.04 for the answer-only clone) and ML45's held-out tasks.
+
+\textbf{First attempt: worse, because of the reasons.} The ML45 clone with reasons (400 cloning steps) scores 0.34 on the
+training tasks and 0.04 on the held-out ones, against 0.57 / 0.12 for the answer-only clone. Its replies show why: the base
+model, asked why the expert's move was right, often answered that it was \emph{wrong} (``The proposed move is incorrect
+because it attempts to move the gripper far away\ldots''; the experts' moves exceed the prompt's 10 cm and are shortened
+by the environment), and the other reasons were long and generic (``adjust the gripper slightly to align it''). The clone
+learned to say a move is incorrect and then make one. Second attempt (running next): one sentence of at most 25 words about
+where the gripper is relative to the object and the goal and what it has to do, never judging the move; reasons that
+judge it are dropped. Also running: RL only with reasoning from the base model (no cloning) on ML10, the RL-learned
+counterpart.
 
 \section{Methodology lessons}
 \label{sec:noise}
