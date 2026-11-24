@@ -968,6 +968,9 @@
       (-0.2 -> -0.08) and sampled rollouts stay at 47-58%. The extra RL steps make greedy decoding more confident, not better.
     * Next on GPU0: BC-30 then RL at lr 2.5e-6 (`smolvlm_procgen_v2_terminate_500m_bc30_lr2p5e6_gpu0.yaml`). The aim is
       to test whether a gentler RL step avoids the post-step-20 sharpening and plateau.
+  * **BC-30 + lr 2.5e-6 (GPU0, started 01:29, seed 0):** the clone's step-0 eval is **10.9%** (training 17.2, held-out
+    11x11 4.7, 15x15 10.9), 0% invalid. The BC phase is unchanged (bc_lr=1e-5), so this is the same clone as before
+    (10.9 / 13.5 / 16.7% across three earlier copies).
   * **BC-30 + traj_mean (GPU1, started 19:19, seed 0):** the clone's step-0 eval is **16.7%** (training 20.3, held-out 11x11
     10.9, 15x15 18.8), 0% invalid. `loss_agg` does not touch the BC phase, so this is the same recipe as the seed-0 clone
     (10.9%). The 6-point spread across nominally identical clones is the run-to-run noise (vLLM sampling is not bit-exact).
