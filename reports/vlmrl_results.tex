@@ -485,8 +485,18 @@ no better (0.02 / 0.00, against 0.57 / 0.12 without). Without thinking the base 
 successes. Native thinking would need a hard token budget.
 
 \textbf{Bounded reasoning in the reply} (\code{prompt\_style=compact\_rel\_reason}): one or two sentences about where the
-gripper, the object and the goal are, then the JSON move; the last \code{\{...\}} is parsed. Evals of the base model and
-the 400-step clone with this prompt are running; RL with it is the next step if the replies are valid.
+gripper, the object and the goal are, then the JSON move; the last \code{\{...\}} is parsed. Every reply is valid. The base
+model describes scenes correctly (``the gripper is above the red bin, which contains a green cube; the goal is the blue
+bin'') but its moves are timid or wrong: 0.01 on the training tasks, 0 held-out. The 400-step clone under this prompt
+writes short, relevant reasons and expert-like moves, but loses most of its skill (0.12 / 0.06, against 0.57 / 0.12
+with its own prompt): it was trained on answer-only replies.
+
+\textbf{Cloning with reasons} (\code{bc\_rationale}). So the two have to be trained together. Each expert reply is
+prefixed with a reason written by the base model when shown the observation and the expert's move (STaR-style
+rationalization); training uses the normal prompt, so the clone learns ``reason, then move''. The test is whether the
+instruction then steers the motion: ML10's drawer-open and door-close (the opposites of its training tasks, 0.05 and
+0.04 for the answer-only clone) and ML45's held-out tasks. Running on ML10 and ML45 (400 cloning steps, then RL with
+reasoning at lr 2e-6).
 
 \section{Methodology lessons}
 \label{sec:noise}

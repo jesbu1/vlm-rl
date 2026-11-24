@@ -144,3 +144,7 @@ Each GRPO group is 8 rollouts from the same start (same goal position and seed).
   opposites of its training tasks drawer-close and door-open, stay at ~0.05: the policy does the motion it learned for the
   object, not the one the instruction asks for. Some ML45 training-task zeros are the expert's (handle-pull-side,
   lever-pull, stick-push).
+* **Short reasoning** (`compact_rel_reason`): every reply valid; the base model describes scenes correctly but moves
+  poorly (0.01 / 0), and the answer-only clone loses its skill under the new prompt (0.12 / 0.06 vs 0.57 / 0.12). Live:
+  **cloning with reasons** (`bc_rationale`: the base model writes a reason for each expert move, the clone learns
+  "reason, then move"), then RL with reasoning, on ML10 and ML45.
