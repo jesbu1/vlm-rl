@@ -988,6 +988,10 @@
     held-out 11x11 31.2, 15x15 34.4), 0% invalid (BC-30 token_mean at step 25: 40.1 / 39.6%).
     Steps 26-30: rollouts 53-61%, log-prob -0.17 -> -0.13 (now sharpening too). Step-30 eval **36.5%** (training 42.2,
     held-out 11x11 32.8, 15x15 34.4), 0% invalid (BC-30 token_mean at step 30: 39.1 / 37.0%).
+    Steps 31-35: rollouts 51-58%. Step-35 eval **37.0%** (training 43.8, held-out 11x11 32.8, 15x15 34.4), 0% invalid
+    (BC-30 token_mean at step 35: 38.5 / 34.9%).
+    * Next on GPU1: BC-30 with DAgger on its last 15 steps (`smolvlm_procgen_v2_terminate_500m_bc30_dagger15_gpu1.yaml`).
+      The aim is a better clone: the maze oracle can label any state the clone reaches.
   * BC run: RL steps take ~10 min, since the clone's valid replies run full 20-turn episodes. Rollouts 23-28% at steps 1-3.
   * The two T=0.8 runs are cut short (40 -> 25 and 20 steps) to free the GPUs. Their pattern is already clear on both
     seeds: a faster start, then greedy eval dips while rollouts climb.

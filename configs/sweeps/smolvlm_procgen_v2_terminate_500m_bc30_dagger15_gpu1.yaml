@@ -1,0 +1,45 @@
+# smolvlm-procgen-v2, GPU 1: BC-30 with DAgger on the last 15 steps (bc_dagger_steps=15), then RL. One change from the
+# BC-30 seed-0 run (38.7% mean over steps 30-40; 2 seeds 37.6%). The plain clone scores only 10.9-16.7% greedy: it copies
+# the oracle's style on the oracle's own states but goes wrong on the states it reaches itself. In DAgger steps the
+# current clone drives the episodes and the BFS oracle labels every state it reaches. Unlike Metaworld (where DAgger
+# labels from a weak clone's states were inconsistent), the maze oracle's shortest-path move is well defined from any cell.
+# Original note:
+# behaviour cloning on the BFS shortest-path oracle, then RL. This is the other agent's Metaworld
+# finding (scripts/report_notes/metaworld.md): "RL refines a good clone; it does not add generalization", and BC fixes
+# the start when a model rarely samples good moves. Same as the default recipe (SmolVLM2-500M compact_rel, 192 tokens +
+# parse_last, on_invalid=terminate, lr=5e-6, 64 x 16, T=1.0, seed 0) plus bc_steps=30: 30 updates on 64 oracle
+# episodes each (the oracle solves 100% in 6-8 turns, written as compact_rel JSON replies), then 40 RL steps. The step-0
+# eval is the clone. Baseline (RL only, seed 0): 29.7% mean over steps 30-40; scripted "echo + random escapes" 37.5%.
+# bc_lr=1e-5: the clone's learning rate for full fine-tuning in reports/vlmrl_results.pdf (Appendix B, Gemma 4 E2B);
+# RL keeps the maze default lr=5e-6.
+group: smolvlm-procgen-v2
+project: vlm-rl-pointmaze
+train_gpu: 1
+vllm_gpu: 1
+vllm_port: 8012
+vllm_gpu_util: 0.35
+overrides:
+  - experiment=pointmaze_procgen
+  - eval_on_invalid=noop
+  - reward=success
+  - steps=40
+  - groups_per_step=64
+  - group_size=16
+  - max_resample_rounds=3
+  - micro_batch_size=16
+  - bc_lr=1e-5
+  - eval_every=5
+  - eval_episodes=64
+  - wandb_entity=tri
+  - "wandb_tags='pointmaze,procgen,smolvlm2-500m,fft,sweep'"
+grid:
+  on_invalid: [terminate]
+  policy: [smolvlm2_500m]
+  env_kwargs.prompt_style: [compact_rel]
+  lr: [5.0e-6]
+  max_new_tokens: [192]
+  env_kwargs.parse_last: [true]
+  bc_steps: [30]   # in the grid so the run name (and out_dir) differ from the RL-only run
+  bc_dagger_steps: [15]
+vllm_args:
+  HuggingFaceTB/SmolVLM2-500M-Video-Instruct: [--max-model-len, "8192", --mm-processor-kwargs, '{"do_image_splitting": false}', --api-server-count, "4", --max-num-seqs, "1024", --mm-processor-cache-gb, "0"]
