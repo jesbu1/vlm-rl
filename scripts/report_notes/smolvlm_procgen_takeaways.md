@@ -962,6 +962,8 @@
     (10.9%). The 6-point spread across nominally identical clones is the run-to-run noise (vLLM sampling is not bit-exact).
     Steps 1-4: rollouts 27-42%, 56-61 groups with signal, log-prob -0.23 -> -0.19.
     Step-5 eval **21.4%** (training 26.6, held-out 11x11 15.6, 15x15 21.9), 0% invalid (BC-30 token_mean at step 5: 16.1 / 20.3%).
+    Steps 6-10: rollouts 35-47%. Step-10 eval **24.0%** (training 31.2, held-out 11x11 20.3, 15x15 20.3), 0% invalid
+    (BC-30 token_mean at step 10: 18.8 / 21.9%).
   * BC run: RL steps take ~10 min, since the clone's valid replies run full 20-turn episodes. Rollouts 23-28% at steps 1-3.
   * The two T=0.8 runs are cut short (40 -> 25 and 20 steps) to free the GPUs. Their pattern is already clear on both
     seeds: a faster start, then greedy eval dips while rollouts climb.
