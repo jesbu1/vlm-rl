@@ -1040,6 +1040,11 @@
     (training 26.6, held-out 11x11 23.4, 15x15 18.8), 0% invalid; BC30 at step 10: 15-22%. On track, slightly ahead.
   - **Queued on GPU0: BC30 + KL 0.05 to the clone** (`kl_ref: clone`, new option in cb32f9c; the old `kl_coef` pulled
     toward the pretrained model, which would undo the clone). Started on GPU0 at 11:38.
+    * **First attempt invalid (bug):** cloning runs through the same update, so with `kl_coef > 0` it loaded and cached
+      the reference (the pretrained model) during cloning. RL step 1 showed `train/kl` 0.73 (vs ~0.001 at step 1 of the
+      earlier KL-to-pretrained runs), and the clone itself was KL-penalised (clone eval 14.6%, inside the usual range).
+      Fixed in cebb7ca (no KL during cloning; cached reference dropped) with a regression test. Stopped after one RL
+      step; dir kept as `..._kl_ref=clone_badref`. Rerun started on GPU0 at 12:20.
     * (A second frame is not the loop fix: `max_frames=2` on 256M, above, swapped wall-loops for copying its own previous
       reply, and collapsed at the same step.)
     * The loop also explains the sampled-vs-greedy gap in every run: under greedy decoding, any move that leaves the state
