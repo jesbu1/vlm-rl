@@ -24,6 +24,7 @@ no demonstrations.
 - **Hydra configs, a vLLM rollout server (LoRA or full-weight sync), sweeps, wandb** ([training](docs/training/index.md))
 - **Docker image + cloud jobs**: SageMaker via AWS Batch queues, or parallel GPU machines on AWS Batch; multi-run nodes, resumable ([SageMaker](docs/training/sagemaker.md), [AWS Batch](docs/training/batch.md))
 - **Results so far**: what worked and what didn't on PointMaze and Metaworld, with figures from the wandb runs ([PDF](reports/vlmrl_results.pdf); rebuild with `uv run scripts/make_results_pdf.py`)
+- **Picking this up?** Start with [HANDOFF.md](HANDOFF.md): goal, current state, how to run things, what we learned, next steps
 
 ## Quickstart
 
