@@ -204,3 +204,13 @@ def test_reset_uses_the_start_states_benchmark_seed(renderable):
     d2 = env.reset([{**st, "bench_seed": 2}])[0].extras["mw_obj_dist"]
     assert d0 != d2                                  # another seed's task 0: other puck / goal positions
     env.close()
+
+
+def test_compact_rel_reason_reads_the_last_json_only():
+    itf = M.MetaWorldTextInterface(prompt_style="compact_rel_reason")
+    reply = ('The gripper is left of the puck, so dx should be positive (dx=9 would overshoot).\n'
+             '{"dx": 3.0, "dy": -1.5, "dz": 0.0, "grip": "close"}')
+    assert np.allclose(itf.parse_action(reply), [3.0, -1.5, 0.0, -1.0])
+    assert itf.parse_action("Move right by dx=3 and down.") is None           # reasoning without a JSON move: invalid
+    assert "short sentences" in itf.system_prompt({"env_name": "push-v3"})
+    assert np.allclose(itf.parse_action(itf.format_action(np.array([1.0, 2.0, -3.0, 1.0]))), [1.0, 2.0, -3.0, 1.0])

@@ -361,13 +361,16 @@ class MetaWorldTextInterface:
     (for small models). ``"compact_rel"``: ``compact`` without any absolute coordinate, so there is nothing to
     copy: the reply is ``{"dx", "dy", "dz", "grip"}``, the system prompt says which way each axis moves the hand in the
     image, and each turn reports how far the hand actually moved last turn. The goal is only in the image (unlike
-    PointMaze's ``compact_rel``, no goal offset is given)."""
+    PointMaze's ``compact_rel``, no goal offset is given). ``"compact_rel_reason"``: ``compact_rel`` with one or two
+    sentences of reasoning first (where the gripper, the object and the goal are, what to do next), then the JSON move;
+    the last ``{...}`` in the reply is the action, so axis names inside the reasoning are never read as the move."""
 
     SCHEMA = {"hand": ["x", "y", "z"], "gripper": ["opening"]}
 
     def __init__(self, max_delta: float = 10.0, prompt_style: str = "pear", include_state: bool = True):
-        assert prompt_style in ("pear", "compact", "compact_rel"), prompt_style
+        assert prompt_style in ("pear", "compact", "compact_rel", "compact_rel_reason"), prompt_style
         self.max_delta, self.prompt_style, self.include_state = max_delta, prompt_style, include_state
+        self.rel = prompt_style in ("compact_rel", "compact_rel_reason")
 
     def environment_section(self) -> str:
         return (
@@ -387,6 +390,15 @@ class MetaWorldTextInterface:
             from vlmrl.envs import protocol
             return protocol.system_prompt(self.environment_section(), task_text(start_state["env_name"]),
                                           length_unit="centimeters")
+        if self.prompt_style == "compact_rel_reason":
+            return ("You control a robot arm with a gripper above a table, seen from a fixed camera. "
+                    f"Task: {task_text(start_state['env_name'])} "
+                    "Each turn, first write one or two short sentences: where the gripper, the object and the goal "
+                    "are in the image, and what the hand should do next. Then, on the last line, give how far to move "
+                    'the hand, in centimeters, as JSON, for example {"dx": 3.0, "dy": -2.0, "dz": -1.0, "grip": "open"}. '
+                    "These are changes, not positions: in the image, +dx moves the hand to the right, +dy to the left, "
+                    f"both slightly away from the camera; +dz moves it up. At most {self.max_delta:g} cm per turn. "
+                    '"grip": "close" closes the gripper, "open" opens it.')
         if self.prompt_style == "compact_rel":
             return ("You control a robot arm with a gripper above a table, seen from a fixed camera. "
                     f"Task: {task_text(start_state['env_name'])} "
@@ -413,7 +425,7 @@ class MetaWorldTextInterface:
                 parts.append(protocol.format_state(self.SCHEMA, obs.state))
             return ([{"type": "text", "text": "\n".join(parts)}] if parts else []) + [img]
         h = obs.state
-        if self.prompt_style == "compact_rel":
+        if self.rel:
             text = "No valid move last turn. " if parse_error else ""
             if self.include_state:
                 text += f"Gripper: {'open' if h[3] > 0.6 else 'closed'}. "
@@ -430,7 +442,12 @@ class MetaWorldTextInterface:
         if self.prompt_style == "pear":
             from vlmrl.envs import protocol
             return protocol.parse_action(text, self.SCHEMA)
-        pats = _COMPACT_REL if self.prompt_style == "compact_rel" else _COMPACT
+        pats = _COMPACT_REL if self.rel else _COMPACT
+        if self.prompt_style == "compact_rel_reason":
+            objs = re.findall(r"\{[^{}]*\}", text)
+            if not objs:
+                return None
+            text = objs[-1]                 # the move is the last JSON object; the reasoning before it is free text
         vals = [m.group(1) if (m := pats[q].search(text)) else None for q in ("x", "y", "z")]
         g = _COMPACT_GRIP.search(text)
         if all(v is None for v in vals) and not g:
@@ -449,7 +466,7 @@ class MetaWorldTextInterface:
             from vlmrl.envs import protocol
             return protocol.example_action(self.SCHEMA, a)
         grip = "close" if a[3] < 0 else "open"
-        if self.prompt_style == "compact_rel":
+        if self.rel:
             return f'{{"dx": {a[0]:.1f}, "dy": {a[1]:.1f}, "dz": {a[2]:.1f}, "grip": "{grip}"}}'
         return f'{{"x": {a[0]:.1f}, "y": {a[1]:.1f}, "z": {a[2]:.1f}, "grip": "{grip}"}}'
 

@@ -108,6 +108,12 @@ keeps the expert's clean reply. The states stay near the expert's path (consiste
 The experts are tuned for closed-loop control at every simulator step. Through coarse waypoints, a binary gripper and 15
 turns, precise grasp-and-place tasks lose the most. Treat these as the ceiling of the protocol, not of a learned policy.
 
+**Reasoning variant** (`env_kwargs.prompt_style=compact_rel_reason`): like `compact_rel`, but each reply first gives one
+or two sentences (where the gripper, the object and the goal are, what to do next) and then the JSON move; the last
+`{...}` in the reply is parsed, so axis names in the reasoning are never read as the move. Use `max_new_tokens` ≈ 256.
+Native thinking (`chat_template_kwargs.enable_thinking=true`) is the other option; Qwen3.5-4B's thinking often runs
+past 2048 tokens.
+
 ## Install
 
 Metaworld 3.1.1 is **incompatible with mujoco 4** (its mocap-weld setup writes 11 values into mujoco 4's 12-value
