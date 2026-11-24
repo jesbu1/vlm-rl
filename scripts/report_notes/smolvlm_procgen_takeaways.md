@@ -910,6 +910,10 @@
       * On held-out layouts it beats the other agent's Qwen3-VL-2B at step 40 (0.31 / 0.33 on 11x11 / 15x15).
       * Single eval, one seed. The clone itself scored 10.9%, so RL from the clone is doing the work. Cloning seems to have
         given RL a policy whose sampled moves follow the oracle's routing, so successes can be reinforced.
+    * Step-25 eval **40.1%** (training 48.4, held-out 11x11 32.8, 15x15 39.1). Step-30 eval **39.1%** (training 45.3,
+      held-out 11x11 31.2, 15x15 40.6). Both 0% invalid. Steps 26-30: rollouts 51-59%, 54-63 groups with signal.
+      * Step 20's 44.3% was partly a high draw. The run is holding near 40%, still ~10 points above RL-only at the same
+        steps (31.8 / 29.2%) and above the scripted 37.5%.
   * **traj_mean (GPU0, started 09:53):** step-0 eval **9.4%**, 57% invalid (normal).
     Steps 1-5: rollout invalid 85% -> 70% (token_mean: 86% -> 78%), 9-26 groups with signal. Step-5 eval **14.6%**
     (training 20.3, held-out 11x11 9.4, 15x15 14.1), 75% invalid (token_mean at step 5: 14.6%).
@@ -936,6 +940,7 @@
       (`smolvlm_procgen_v2_terminate_500m_bc30_seed1_gpu0.yaml`). BC + traj_mean is the next candidate.
   * **BC-30 seed 1 (GPU0, started 15:30):** the clone's step-0 eval is **13.5%** (training 12.5, held-out 11x11 14.1,
     15x15 14.1), 0% invalid. The seed-0 clone scored 10.9%, so the clone reproduces.
+    Steps 1-4: rollouts 28-36%, 0.1-0.2% invalid, 58-61 groups with signal (seed 0 at steps 1-3: 23-28%).
   * BC run: RL steps take ~10 min, since the clone's valid replies run full 20-turn episodes. Rollouts 23-28% at steps 1-3.
   * The two T=0.8 runs are cut short (40 -> 25 and 20 steps) to free the GPUs. Their pattern is already clear on both
     seeds: a faster start, then greedy eval dips while rollouts climb.
