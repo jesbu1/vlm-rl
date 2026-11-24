@@ -1054,6 +1054,8 @@
     * Rerun: clone eval 13.5%; `train/kl` 0.0006 / 0.002 at RL steps 1-2 (reference is now the clone). Rollouts 29 / 23%.
     * Steps 1-5: rollouts 23-38%, log-prob -0.22 -> -0.19, KL 0.0006 -> 0.008. Step-5 eval **16.1%** (training 17.2,
       held-out 11x11 15.6, 15x15 15.6), 0% invalid; BC30 at step 5: 16-20%. Same track so far.
+    * Steps 6-10: rollouts 34-41% (flat), log-prob ~-0.19, KL 0.010 -> 0.018. Step-10 eval **17.2%** (training 20.3,
+      held-out 11x11 17.2, 15x15 14.1), 0% invalid; BC30 at step 10: 15-22%. Within range, at the low end; rollouts flat.
     * (A second frame is not the loop fix: `max_frames=2` on 256M, above, swapped wall-loops for copying its own previous
       reply, and collapsed at the same step.)
     * The loop also explains the sampled-vs-greedy gap in every run: under greedy decoding, any move that leaves the state
