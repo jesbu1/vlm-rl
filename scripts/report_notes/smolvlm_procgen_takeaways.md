@@ -914,6 +914,9 @@
       held-out 11x11 31.2, 15x15 40.6). Both 0% invalid. Steps 26-30: rollouts 51-59%, 54-63 groups with signal.
       * Step 20's 44.3% was partly a high draw. The run is holding near 40%, still ~10 points above RL-only at the same
         steps (31.8 / 29.2%) and above the scripted 37.5%.
+    * Step-35 eval **38.5%** (training 50.0, held-out 11x11 31.2, 15x15 34.4), 0% invalid. Rollouts 53-60%, log-prob
+      -0.13 (sharper than RL-only's ~-0.85). The gap between sampled rollouts (~57%) and greedy eval (~39%) is ~18 points.
+    * Next on GPU1 after step 40: BC-30 + `traj_mean` (`smolvlm_procgen_v2_terminate_500m_bc30_trajmean_gpu1.yaml`).
   * **traj_mean (GPU0, started 09:53):** step-0 eval **9.4%**, 57% invalid (normal).
     Steps 1-5: rollout invalid 85% -> 70% (token_mean: 86% -> 78%), 9-26 groups with signal. Step-5 eval **14.6%**
     (training 20.3, held-out 11x11 9.4, 15x15 14.1), 75% invalid (token_mean at step 5: 14.6%).
@@ -942,6 +945,7 @@
     15x15 14.1), 0% invalid. The seed-0 clone scored 10.9%, so the clone reproduces.
     Steps 1-4: rollouts 28-36%, 0.1-0.2% invalid, 58-61 groups with signal (seed 0 at steps 1-3: 23-28%).
     Step-5 eval **20.3%** (training 21.9, held-out 11x11 21.9, 15x15 17.2), 0% invalid (seed 0 at step 5: 16.1%).
+    Steps 6-9: rollouts 30-39%, log-prob -0.19 -> -0.16.
   * BC run: RL steps take ~10 min, since the clone's valid replies run full 20-turn episodes. Rollouts 23-28% at steps 1-3.
   * The two T=0.8 runs are cut short (40 -> 25 and 20 steps) to free the GPUs. Their pattern is already clear on both
     seeds: a faster start, then greedy eval dips while rollouts climb.
