@@ -981,6 +981,8 @@
     0% invalid (lr 5e-6 at step 20: 44.3 / 41.1%). Rollouts are ~10 points behind too; no sign yet of a higher ceiling.
     Steps 21-25: rollouts 45-56%, log-prob ~-0.16. Step-25 eval **33.8%** (training 45.3, held-out 11x11 29.7,
     15x15 26.6), 0% invalid (lr 5e-6 at step 25: 40.1 / 39.6%). Gap down to ~6 points; catching up, not overtaking.
+    Steps 26-30: rollouts 46-56%, log-prob ~-0.16. Step-30 eval **39.1%** (training 45.3, held-out 11x11 35.9,
+    15x15 35.9), 0% invalid (lr 5e-6 at step 30: 39.1 / 37.0%). Caught up; now at the same plateau.
   * **BC-30 + traj_mean (GPU1, started 19:19, seed 0):** the clone's step-0 eval is **16.7%** (training 20.3, held-out 11x11
     10.9, 15x15 18.8), 0% invalid. `loss_agg` does not touch the BC phase, so this is the same recipe as the seed-0 clone
     (10.9%). The 6-point spread across nominally identical clones is the run-to-run noise (vLLM sampling is not bit-exact).
