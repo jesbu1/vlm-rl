@@ -382,12 +382,14 @@ class HFPolicy:
         checkpoint in the model dtype (full fine-tuning; loaded on first use, so it costs memory only when a KL
         penalty is on, and it stays the pretrained model after a resume)."""
         if hasattr(self.model, "disable_adapter"):
+            assert getattr(self, "ref_path", None) is None, "kl_ref=clone is full fine-tuning only (LoRA ref = base)"
             self.model.eval()
             with self.model.disable_adapter():
                 return self._logprobs(self.model, batch)[0]
         if getattr(self, "_ref", None) is None:
             from transformers import AutoModelForImageTextToText
-            self._ref = AutoModelForImageTextToText.from_pretrained(self.model_name, dtype=self.dtype).to(self.device)
+            src = getattr(self, "ref_path", None) or self.model_name   # ref_path: e.g. the BC clone (kl_ref=clone)
+            self._ref = AutoModelForImageTextToText.from_pretrained(src, dtype=self.dtype).to(self.device)
             self._ref.eval().requires_grad_(False)
         return self._logprobs(self._ref, batch)[0]
 

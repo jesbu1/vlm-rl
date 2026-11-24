@@ -71,6 +71,7 @@ class TrainConfig:
     clip_low: float = 0.2
     clip_high: float = 0.28
     kl_coef: float = 0.0                                # per-token k3 KL to the pretrained model in the loss; 0 = off (PEAR)
+    kl_ref: str = "pretrained"                         # KL reference: pretrained | clone (the bc_steps clone, ckpt_bc)
     # optim
     lr: float = 1e-6                                    # PEAR (27B full FT); LoRA on small models wants ~1e-5..1e-4
     weight_decay: float = 0.0
@@ -688,6 +689,11 @@ class Trainer:
     def train(self):
         c = self.cfg
         bc = self.behaviour_clone() if c.bc_steps and self.start_step == 0 else {}
+        if c.kl_ref == "clone":                  # set after BC (or on resume), before the first RL step loads the ref
+            assert c.bc_steps and c.kl_coef > 0, "kl_ref=clone needs bc_steps > 0 and kl_coef > 0"
+            self.policy.ref_path = f"{c.out_dir}/ckpt_bc"
+        else:
+            assert c.kl_ref == "pretrained", f"kl_ref must be pretrained or clone, got {c.kl_ref!r}"
         if c.eval_every and self.start_step == 0:
             m, by_set = self.evaluate()
             self.log(0, {**bc, **m})
