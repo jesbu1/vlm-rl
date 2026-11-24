@@ -941,6 +941,7 @@
   * **BC-30 seed 1 (GPU0, started 15:30):** the clone's step-0 eval is **13.5%** (training 12.5, held-out 11x11 14.1,
     15x15 14.1), 0% invalid. The seed-0 clone scored 10.9%, so the clone reproduces.
     Steps 1-4: rollouts 28-36%, 0.1-0.2% invalid, 58-61 groups with signal (seed 0 at steps 1-3: 23-28%).
+    Step-5 eval **20.3%** (training 21.9, held-out 11x11 21.9, 15x15 17.2), 0% invalid (seed 0 at step 5: 16.1%).
   * BC run: RL steps take ~10 min, since the clone's valid replies run full 20-turn episodes. Rollouts 23-28% at steps 1-3.
   * The two T=0.8 runs are cut short (40 -> 25 and 20 steps) to free the GPUs. Their pattern is already clear on both
     seeds: a faster start, then greedy eval dips while rollouts climb.
