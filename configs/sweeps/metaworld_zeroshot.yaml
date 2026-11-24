@@ -5,7 +5,6 @@ project: vlm-rl-metaworld
 vllm_port: 8011
 overrides:
   - experiment=metaworld_zeroshot
-  - wandb_entity=tri
   - "wandb_tags='metaworld,zeroshot'"
 grid:
   policy: [qwen3vl2b_full, gemma4_e2b_full_48gb, qwen3vl4b_lora]

@@ -24,7 +24,6 @@ overrides:
   - eval_episodes=64
   - save_every=40
   - resume_every=5
-  - wandb_entity=tri
   - "wandb_tags='pointmaze,procgen,fft,larger,batch'"
 grid:
   policy: [gemma4_e2b_full_48gb, qwen3vl2b_full, smolvlm2_2b_full, minicpmv46_full]

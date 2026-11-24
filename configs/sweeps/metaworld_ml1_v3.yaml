@@ -17,7 +17,6 @@ overrides:
   - max_new_tokens=64
   - save_every=40
   - resume_every=5
-  - wandb_entity=tri
   - "wandb_tags='metaworld,ml1,rl,compact_rel'"
 grid:
   policy: [qwen3vl2b_full, qwen3vl4b_lora]

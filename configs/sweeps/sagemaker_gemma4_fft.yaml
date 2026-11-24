@@ -19,7 +19,6 @@ overrides:
   - max_new_tokens=512
   - save_every=40                    # final HF checkpoint only (bf16, ~10 GB)
   - resume_every=5                   # resume state = fp32 trainable weights + AdamW (~25 GB), synced to S3
-  - wandb_entity=tri
   - "wandb_tags='pointmaze,pear,fft,gemma4,sagemaker'"
   - env_kwargs.max_turns=15
 grid:

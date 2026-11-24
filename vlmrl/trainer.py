@@ -226,13 +226,17 @@ class Trainer:
         else:
             self.generator = self.policy
         self.wandb = None
-        if cfg.wandb_project:
+        # the standard WANDB_ENTITY / WANDB_PROJECT environment variables win over the config, so the same sweep files
+        # log to anyone's own wandb (a sweep's wandb_entity is only a default)
+        project = os.environ.get("WANDB_PROJECT") or cfg.wandb_project
+        entity = os.environ.get("WANDB_ENTITY") or cfg.wandb_entity
+        if project:
             import wandb
             id_file = f"{cfg.out_dir}/wandb_run_id"
             run_id = open(id_file).read().strip() if cfg.resume and os.path.exists(id_file) else uuid.uuid4().hex[:8]
             with open(id_file, "w") as f:
                 f.write(run_id)
-            self.wandb = wandb.init(project=cfg.wandb_project, entity=cfg.wandb_entity, name=cfg.wandb_run_name,
+            self.wandb = wandb.init(project=project, entity=entity, name=cfg.wandb_run_name,
                                     group=cfg.wandb_group, tags=[t for t in cfg.wandb_tags.split(",") if t],
                                     config=dataclasses.asdict(cfg), dir=cfg.out_dir, id=run_id, resume="allow")
             self.backfill_wandb()

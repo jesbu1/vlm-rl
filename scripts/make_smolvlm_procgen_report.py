@@ -365,7 +365,8 @@ def build(a) -> str:
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--group", default="smolvlm-procgen-v2")   # v1 predates the loss-mask fix
-    ap.add_argument("--entity", default="tri")
+    ap.add_argument("--entity", default=os.environ.get("WANDB_ENTITY", "tri"),
+                    help="wandb entity of the runs and the report (default: $WANDB_ENTITY or tri)")
     ap.add_argument("--project", default="vlm-rl-pointmaze")
     ap.add_argument("--title", default="VLM RL on mazes and Metaworld: what learns, what doesn't, and why")
     ap.add_argument("--takeaways", default=TAKEAWAYS, help="markdown file for the takeaways section")
@@ -383,7 +384,7 @@ def main():
                     help="procedural-setup groups trained after the loss-mask fix")
     a = ap.parse_args()
     if a.url is None:   # a draft is a separate report; only an explicit --url targets an existing one
-        a.url = "" if a.draft else REPORT_URL
+        a.url = "" if a.draft or a.entity != "tri" else REPORT_URL     # someone else's entity: a new report
     print(build(a))
 
 

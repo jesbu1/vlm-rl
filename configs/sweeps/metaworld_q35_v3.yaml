@@ -19,7 +19,6 @@ overrides:
   - steps=60
   - save_every=60
   - resume_every=5
-  - wandb_entity=tri
   - "wandb_tags='metaworld,rl,compact_rel,qwen3.5,v3'"
 grid:
   experiment: [metaworld_ml1, metaworld_ml10]

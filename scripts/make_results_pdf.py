@@ -4,11 +4,13 @@
 # ///
 """Build reports/vlmrl_results.pdf: key results and takeaways, with figures drawn from the wandb runs.
 
-    uv run scripts/make_results_pdf.py --fetch     # pull run histories from wandb into reports/data/runs.json
-    uv run scripts/make_results_pdf.py             # figures + tables from the cache, then pdflatex
+    uv run scripts/make_results_pdf.py             # figures + tables from the cache, then pdflatex (offline)
+    uv run scripts/make_results_pdf.py --fetch     # first refresh reports/data/runs.json from wandb
 
-Fetching needs WANDB_BASE_URL / WANDB_API_KEY (the report host). Everything else works offline from the cache, so
-the PDF can be rebuilt from the repo alone. Text lives in reports/vlmrl_results.tex; the numbers in its tables are
+The cache in the repo holds the runs behind every figure, so the PDF rebuilds anywhere without wandb access. --fetch
+reads your wandb (WANDB_API_KEY; WANDB_BASE_URL for a self-hosted server) under --entity / --metaworld_project /
+--maze_project (defaults: $WANDB_ENTITY or "tri", and our project names). It updates the runs it can read and keeps the
+cached copy of any it cannot, so registering your own runs in RUNS and fetching mixes them with the cached ones. Text lives in reports/vlmrl_results.tex; the numbers in its tables are
 generated here (reports/tables/*.tex) so they follow the data.
 """
 from __future__ import annotations
@@ -24,8 +26,8 @@ OUT = os.path.join(ROOT, "reports")
 DATA = os.path.join(OUT, "data", "runs.json")
 FIG = os.path.join(OUT, "figures")
 TAB = os.path.join(OUT, "tables")
-ENTITY = "tri"
-MAZE, MW = "vlm-rl-pointmaze", "vlm-rl-metaworld"
+ENTITY = os.environ.get("WANDB_ENTITY", "tri")
+MAZE, MW = "vlm-rl-pointmaze", "vlm-rl-metaworld"      # project keys in RUNS; --maze_project / --metaworld_project map them
 
 # key -> (project, run id). Only runs from after every bug fix; restarts and crashed duplicates are not listed.
 RUNS = {
@@ -105,18 +107,29 @@ INK, INK2, MUTED, GRID = "#0b0b0b", "#52514e", "#8a8985", "#e6e5e1"
 
 # ----------------------------------------------------------------------------- fetch
 
-def fetch():
+def fetch(entity=ENTITY, projects=None):
     import wandb
-    api = wandb.Api(timeout=120)
-    out = {}
-    for key, (proj, rid) in RUNS.items():
-        if rid.startswith("group:"):
-            found = sorted(api.runs(f"{ENTITY}/{proj}", filters={"group": rid[6:]}), key=lambda x: x.created_at)
-            if not found:
-                print(f"{key:22s} {rid}: no run yet", flush=True)
-                continue
-            rid = found[-1].id
-        r = api.run(f"{ENTITY}/{proj}/{rid}")
+    projects = projects or {}
+    try:
+        api = wandb.Api(timeout=120)
+    except Exception as e:  # noqa: BLE001 -- no API key / server unreachable: build from the cache as it is
+        print(f"wandb not reachable ({type(e).__name__}: {e}); keeping reports/data/runs.json as it is", flush=True)
+        return
+    out = load() if os.path.exists(DATA) else {}           # keep what we cannot (re)read
+    for key, (proj_key, rid) in RUNS.items():
+        proj = projects.get(proj_key, proj_key)
+        try:
+            if rid.startswith("group:"):
+                found = sorted(api.runs(f"{entity}/{proj}", filters={"group": rid[6:]}), key=lambda x: x.created_at)
+                if not found:
+                    print(f"{key:22s} {rid}: no run yet", flush=True)
+                    continue
+                rid = found[-1].id
+            r = api.run(f"{entity}/{proj}/{rid}")
+        except Exception as e:  # noqa: BLE001 -- no access (someone else's wandb), deleted run, network
+            print(f"{key:22s} {rid}: not readable ({type(e).__name__}); keeping the cached copy" if key in out
+                  else f"{key:22s} {rid}: not readable ({type(e).__name__})", flush=True)
+            continue
         rows = []
         for row in r.scan_history():
             keep = {k: float(v) for k, v in row.items() if isinstance(v, (int, float)) and not isinstance(v, bool)
@@ -127,7 +140,7 @@ def fetch():
         cfg = {k: r.config.get(k) for k in CONFIG_KEYS}
         cfg["benchmark"] = (r.config.get("env_kwargs") or {}).get("benchmark")
         cfg["maze"] = (r.config.get("env_kwargs") or {}).get("maze")
-        out[key] = {"project": proj, "id": rid, "group": r.group, "state": r.state, "config": cfg, "rows": rows}
+        out[key] = {"project": proj_key, "id": rid, "group": r.group, "state": r.state, "config": cfg, "rows": rows}
         print(f"{key:22s} {rid} {r.state:9s} {len(rows)} rows", flush=True)
     os.makedirs(os.path.dirname(DATA), exist_ok=True)
     with open(DATA, "w") as f:
@@ -680,10 +693,13 @@ def build():
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--fetch", action="store_true", help="pull run histories from wandb first")
+    ap.add_argument("--entity", default=ENTITY, help="wandb entity to fetch from (default: $WANDB_ENTITY or tri)")
+    ap.add_argument("--metaworld_project", default=MW)
+    ap.add_argument("--maze_project", default=MAZE)
     ap.add_argument("--figures_only", action="store_true", help="skip pdflatex")
     a = ap.parse_args()
     if a.fetch:
-        fetch()
+        fetch(a.entity, {MW: a.metaworld_project, MAZE: a.maze_project})
     if a.figures_only:
         D = load()
         style()

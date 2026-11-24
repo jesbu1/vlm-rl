@@ -27,7 +27,6 @@ overrides:
   - eval_episodes=64
   - save_every=100
   - resume_every=5
-  - wandb_entity=tri
   - "wandb_tags='pointmaze,fixed,fft,smolvlm2,sanity'"
 grid:
   policy: [smolvlm2_2b_full, smolvlm2_500m]

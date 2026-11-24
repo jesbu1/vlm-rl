@@ -48,56 +48,62 @@ interface and fine-tunes on its replies before RL.
 | `scripts/make_smolvlm_procgen_report.py`, `scripts/report_notes/*.md` | the wandb report |
 | `tests/` | `pytest -q`; Metaworld rendering tests skip without a renderer |
 
-## Setup
+## Setup on your own machines
 
-**Local (CPU), for code and tests.**
+**Hardware.** One run needs **2 GPUs**: the trainer on one, its vLLM rollout server on the other. Ours were 48 GB GPUs
+(L40S); A6000 / A100 / H100 class works the same. On that pair one cloning step (64 expert episodes) takes ~1.4 min
+and one RL step (128 episodes × 15 turns) ~6–8 min, so 400 cloning steps are ~9–10 h and 100 RL steps another ~10–13 h. A machine with 2k GPUs runs k experiments side by side (`--lanes k`).
+
+**wandb.** Use your own: `wandb login` (or `WANDB_API_KEY=...`), plus `WANDB_BASE_URL=...` only for a self-hosted
+server. Runs go to your default entity; set `WANDB_ENTITY=<your team>` to pick another. The environment wins over the
+configs, so sweeps that still name our entity log to yours. `WANDB_MODE=offline` disables logging; everything is also
+written to each run's directory (`metrics.jsonl`, eval transcripts and videos).
+
+**Code and tests (any machine, CPU is fine):**
 
 ```bash
 uv venv -p 3.11 .venv && uv pip install -p .venv -e ".[pointmaze,offline,lora,wandb,dev]"
-.venv/bin/python -m pytest -q          # ~5 min; tests that need Metaworld or a GPU skip
+.venv/bin/python -m pytest -q          # a few minutes; Metaworld and GPU tests skip
 ```
 
-Metaworld is not needed locally. It runs in the image, and the image's tests cover it.
-
-**Image.** Everything on the cluster runs one Docker image built from the *committed* tree and tagged with the 12-character
-commit hash. Commit, then build on an x86 machine with Docker, test inside the image, and push:
+**Training: use the Docker image** (recommended). It pins both environments: the trainer, with Metaworld 3.1.1 on
+mujoco 3.3 and flash-linear-attention for Qwen3.5; and vLLM, in its own venv at `$VLLM_BIN`. Getting the same stack outside
+Docker is possible ([installation](docs/getting-started/installation.md)) but is where most setup time goes.
 
 ```bash
-aws ecr get-login-password --region <region> | docker login --username AWS --password-stdin <registry>
-IMG=$(.venv/bin/python scripts/batch_submit.py --image)            # <registry>/<repo>:<commit>
-PUSH=0 docker/build.sh $IMG
-docker run --rm $IMG python -m pytest -q -p no:cacheprovider tests/test_sweep.py tests/test_policy.py tests/test_metaworld.py
-docker run --rm -e MUJOCO_GL=osmesa -e PYOPENGL_PLATFORM=osmesa $IMG python -m pytest -q tests/test_metaworld.py   # rendering tests on CPU
-docker push $IMG
+git commit ...                          # the image is built from the committed tree only
+PUSH=0 docker/build.sh vlmrl:$(git rev-parse --short=12 HEAD)
+docker run --rm vlmrl:<tag> python -m pytest -q -p no:cacheprovider tests/test_sweep.py tests/test_policy.py tests/test_metaworld.py
+docker run --rm -e MUJOCO_GL=osmesa -e PYOPENGL_PLATFORM=osmesa vlmrl:<tag> python -m pytest -q tests/test_metaworld.py
 ```
 
-**Cloud (AWS Batch).** Follow [docs/training/batch.md](docs/training/batch.md). Account-specific settings (queue, S3
-output prefix, role, tags) go in `configs/sagemaker/local_batch.yaml`, which is git-ignored; ask the project owner for
-theirs. Each run uses one lane of 2 GPUs (trainer + vLLM), so `--gpus 2 --gpus_per_lane 2` puts one run on each job.
-
-**wandb.** Runs log to a self-hosted wandb server: set `WANDB_BASE_URL` to it and `WANDB_API_KEY` to your key, both when
-submitting (the job inherits the key) and when building the report or the PDF. Projects: `tri/vlm-rl-metaworld`
-(everything here) and `tri/vlm-rl-pointmaze` (the maze work).
+The second test command runs the rendering tests on CPU. On a GPU host, `--gpus all` with the default `MUJOCO_GL=egl`
+works too.
 
 ## Running things
 
-**The recipe on ML10 / ML45** (cloning, then RL; ~5 h for ML10 with 400 cloning steps, ~10 h for ML45):
+**The recipe on ML10 / ML45** (cloning, then RL), on 2 local GPUs:
 
 ```bash
-export WANDB_API_KEY=...       # and WANDB_BASE_URL
-python scripts/batch_submit.py configs/sweeps/metaworld_recipe.yaml --tag <image tag> \
-    --gpus 2 --gpus_per_lane 2 --vcpus 24 --memory_mib 170000 \
-    --only 'metaworld_ml45' --set bc_steps=400 --set lr=2e-6 \
-    --group metaworld-mytest-ml45 --name vlmrl-mytest-ml45
+docker run --rm --gpus '"device=0,1"' --shm-size 32g -e WANDB_API_KEY -e WANDB_ENTITY \
+    -v $PWD/out:/out -v $HOME/.cache/huggingface:/root/.cache/huggingface vlmrl:<tag> \
+    python scripts/sweep.py configs/sweeps/metaworld_recipe.yaml --lanes 1 --out_root /out/runs --sync_root /out/sync \
+    --only 'metaworld_ml10' --set bc_steps=400 --set lr=2e-6 --group mytest-ml10
 ```
 
-- `--only` is a regex over run names (`'metaworld_ml1$'` for ML1; `'metaworld_ml1'` also matches ml10).
-- Keys missing from a preset need `+key=value`; keys inside `eval_sets` need `++` (Hydra struct mode).
-- Outputs sync to `<s3_output>/<job name>/<group>/<run>/`: `metrics.jsonl` (every step), `episodes/` (eval transcripts and
-  videos), `ckpt_bc/` (the clone, right after cloning), `ckpt_step<N>/`, `resume/state.pt` (a resubmitted job resumes).
+- `--only` is a regex over run names. Use `'metaworld_ml1$'` for ML1: `'metaworld_ml1'` also matches ml10.
+- Keys missing from a preset need `+key=value`, and keys inside `eval_sets` need `++` (Hydra struct mode).
+- Re-running the same command resumes unfinished runs from `resume/state.pt`.
+- Outputs land in `out/runs/<group>/<run>/`:
+  - `metrics.jsonl`, every step;
+  - `episodes/`, eval transcripts and videos;
+  - `ckpt_bc/`, the clone, saved right after cloning;
+  - `ckpt_step<N>/`, periodic checkpoints.
+- `out/sync/` holds the per-step weights handed to vLLM; it can be deleted.
 
-**Re-use a saved clone:** `--set "init_adapter='<s3_output>/<job>/<group>/<run>/ckpt_bc'"`. Add `--set bc_steps=N`
-to clone further from it, or leave cloning off to go straight to RL.
+**Re-use a saved clone:** `--set "init_adapter='/out/runs/<group>/<run>/ckpt_bc'"` (a local dir or an `s3://` URI). Add
+`--set bc_steps=N` to clone further from it, or leave cloning off to go straight to RL. **Our checkpoints stay in our
+cloud storage and are not shared**: re-create a clone with the commands here (~9–10 h for 400 cloning steps).
 
 **Eval only** (e.g. a bigger per-task eval of a clone): `--set steps=0`, the `init_adapter` above, and
 `--set ++eval_sets.train_tasks.episodes=270 --set ++eval_sets.heldout_tasks.episodes=100`. Per-task success is logged as
@@ -105,17 +111,17 @@ to clone further from it, or leave cloning off to go straight to RL.
 
 **Reasoning variants:**
 - Short reasoning in every reply: `env_kwargs.prompt_style=compact_rel_reason`, `max_new_tokens=256`.
-- RL-only reasoning: that, plus no `bc_steps`, `lr=1e-5`, `temperature=1.0`.
+- RL-only reasoning (the most promising thread): that, plus no `bc_steps`, `lr=1e-5`, `temperature=1.0`.
 - Cloning with reasons: that, plus `bc_rationale=true` (the base model writes a reason for each expert move).
 - Native thinking (`chat_template_kwargs.enable_thinking=true`) is not usable as is (below).
 
-**Check on runs:**
+**Several runs at once:** a sweep's grid (or several `--only` patterns) on `--lanes k` with 2k GPUs; lane i uses GPUs 2i
+(trainer) and 2i+1 (vLLM). `--gpus_per_lane 1` shares one GPU between both, for small models only.
 
-```bash
-aws s3 cp <s3_output>/<job>/<group>/<run>/metrics.jsonl - | tail -3
-```
-
-Or use the wandb group. Batch shows cancelled jobs as `FAILED`.
+**Cloud (optional).** The same image runs on AWS Batch or SageMaker; see [docs/training/batch.md](docs/training/batch.md)
+and [docs/training/sagemaker.md](docs/training/sagemaker.md). Account settings go in a git-ignored
+`configs/sagemaker/local_batch.yaml`. Its `env:` block, e.g. `WANDB_BASE_URL` / `WANDB_ENTITY`, is passed to every job,
+and so are `secret_env` (e.g. `WANDB_API_KEY`), copied from your shell at submit time.
 
 ## What we learned (keep these defaults)
 
@@ -150,26 +156,34 @@ Or use the wandb group. Batch shows cancelled jobs as `FAILED`.
 
 ## State at handoff (2026-11-24)
 
-Running in `tri/vlm-rl-metaworld` (wandb group = what to open):
+Our runs live in our wandb and cloud storage, which you will not have access to. **Everything they showed is in
+[`reports/vlmrl_results.pdf`](reports/vlmrl_results.pdf), and the run histories behind every figure are cached in
+`reports/data/runs.json`** (per-step metrics of ~60 runs), so you can re-plot or re-analyse them without access.
 
-| wandb group | What it tests | What to look for |
+Still running when this was written:
+
+| Run (our wandb group) | What it tests | What to look for |
 |---|---|---|
 | `metaworld-rlreason-q35-ml10` | RL only with short reasoning, from the base model, 150 steps | **does held-out door-close (0.52 at step 30) hold at steps 40+?** Training tasks were only 0.07 |
 | `metaworld-rlreason-q35-ml45` | the same on ML45 | any held-out task beyond door-lock / door-unlock |
 | `metaworld-reasonbc2-q35-ml10`, `-ml45` | cloning with one-sentence reasons (second attempt), then RL with reasoning | held-out vs the answer-only clones (ML10 0.02, door-close 0.04; ML45 0.12) |
 
-Best saved clones (`ckpt_bc` under `<s3_output>/<job>/<group>/<run>/`):
+The project owner can add their final numbers to the PDF.
 
-| Clone | job / group | Training / held-out tasks |
+Numbers to reproduce on your machines (Qwen3.5-4B, LoRA on the MLPs):
+
+| Setup | Training tasks | Held-out tasks |
 |---|---|---|
-| ML45, 400 steps (best transfer) | `vlmrl-recipe-q35-ml45` / `metaworld-recipe-q35-ml45` | 0.57 / 0.12 |
-| ML45, 800 steps (best fit) | `vlmrl-recipe-q35-ml45-bc800` / `metaworld-recipe-q35-ml45-bc800` | 0.73 / 0.06 |
-| ML10, 400 steps | `vlmrl-recipe-q35-ml10-bc400` / `metaworld-recipe-q35-ml10-bc400` | 0.69 / 0.00–0.02 |
+| ML10, 400 cloning steps, `train_seeds=10` | 0.69 | 0.00–0.02 |
+| ML45, 400 cloning steps | 0.57 | 0.12 (door-lock 0.44, door-unlock 0.20) |
+| ML45, 800 cloning steps | 0.73 | 0.06 |
+| ML10, RL only with reasoning, step 30 | 0.07 (drawer-close 0.93) | 0.12 (door-close 0.52; one eval) |
 
 ## Suggested next steps
 
-1. **Confirm the RL-reasoning transfer.** Pool the door-close evals of `metaworld-rlreason-q35-ml10` over steps 30–60. If
-   it holds, this is the headline result.
+1. **Reproduce and confirm the RL-reasoning transfer.** It is the cheapest headline to rerun: no cloning, ~30–60 RL
+   steps on ML10 (~4–8 h) (`compact_rel_reason`, `lr=1e-5`, `temperature=1.0`, evals every 10 steps with the larger eval sets).
+   Check that held-out door-close holds over several evals.
 2. **Combine skill and reasoning.** Start RL *with* `compact_rel_reason` from the **answer-only** clone (motor skill from
    cloning), not from scratch, and check whether held-out tasks rise while training tasks stay near 0.69. The first
    cloning-with-reasons attempt lost precise manipulation (pick-place 0.73 → 0.13), so watch both.
@@ -181,8 +195,12 @@ Best saved clones (`ckpt_bc` under `<s3_output>/<job>/<group>/<run>/`):
 
 ## Keeping the results current
 
-- **PDF:** text in `reports/vlmrl_results.tex`, runs in the `RUNS` table of `scripts/make_results_pdf.py` (`"group:<wandb
-  group>"` picks a group's newest run, so a run can be registered before it starts). Rebuild with
-  `uv run scripts/make_results_pdf.py --fetch` (needs pdflatex; matplotlib comes from `uv`'s throwaway environment).
-- **wandb report:** notes in `scripts/report_notes/*.md`, panels in `scripts/make_smolvlm_procgen_report.py`; rebuild with
-  `.venv/bin/python scripts/make_smolvlm_procgen_report.py`. It updates the existing report in place (never delete it).
+- **PDF:** text in `reports/vlmrl_results.tex`, runs in the `RUNS` table of `scripts/make_results_pdf.py`.
+  - A `"group:<wandb group>"` entry picks that group's newest run, so a run can be registered before it starts.
+  - `uv run scripts/make_results_pdf.py` rebuilds from the cache, offline. This needs pdflatex; matplotlib comes from
+    `uv`'s throwaway environment.
+  - `--fetch --entity <you> --metaworld_project <project>` refreshes from your wandb. It reads the runs it can, keeps the
+    cached copies of the rest (ours), and so mixes yours with ours.
+- **wandb report:** `scripts/make_smolvlm_procgen_report.py` builds our report from our runs (groups and run IDs in its
+  tables). With another entity it creates a new report (`--entity <you> --project <project>`); swap in your own groups
+  first. The PDF is the summary to keep up to date.

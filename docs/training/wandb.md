@@ -1,11 +1,14 @@
 # Weights & Biases
 
 ```bash
-python scripts/train.py ... wandb_project=vlm-rl-pointmaze wandb_entity=tri \
+wandb login                     # or export WANDB_API_KEY=...; for a self-hosted server also WANDB_BASE_URL=...
+python scripts/train.py ... wandb_project=vlm-rl-pointmaze \
     wandb_group=reward-sweep wandb_run_name=q3vl4b-success wandb_tags='pointmaze,umaze,lora'
 ```
 
-Logging is off unless `wandb_project` is set. The full resolved config becomes the run config, so runs
+Logging is off unless `wandb_project` (or `$WANDB_PROJECT`) is set. Runs go to your default entity unless you set
+`wandb_entity=<team>` or `$WANDB_ENTITY`; **the environment variables win over the config**, so sweep files that name an
+entity (some older ones say `tri`) still log to yours. `WANDB_MODE=offline` keeps everything local. The full resolved config becomes the run config, so runs
 can be grouped and filtered by `config.reward`, `config.model`, `config.env_kwargs.maze`, and so on.
 
 ## Metrics

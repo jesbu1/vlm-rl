@@ -26,7 +26,6 @@ overrides:
   - steps=100
   - save_every=50
   - resume_every=5
-  - wandb_entity=tri
   - "wandb_tags='metaworld,recipe,bc,rl'"
 grid:
   experiment: [metaworld_ml10, metaworld_ml45]

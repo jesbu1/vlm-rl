@@ -596,3 +596,21 @@ def test_bc_rationale_drops_reasons_that_judge_the_move(tmp_path):
     texts = [m["content"][0]["text"] for m in trajs[0].messages if m["role"] == "assistant"]
     assert texts[0] == labels[0]                                         # judging reason dropped: the bare move
     assert texts[1] == "The ball is below the goal.\n" + labels[1]       # first sentence only
+
+
+def test_wandb_entity_and_project_env_override_the_config(tmp_path, monkeypatch):
+    wandb = pytest.importorskip("wandb")
+    seen = {}
+
+    class Run:
+        def log(self, *a, **k): ...
+        def finish(self): ...
+    monkeypatch.setattr(wandb, "init", lambda **kw: (seen.update(kw), Run())[1])
+    monkeypatch.setenv("WANDB_ENTITY", "my-team")
+    monkeypatch.setenv("WANDB_PROJECT", "my-project")
+    _trainer(tmp_path, random_generate(0), wandb_project="vlm-rl-metaworld", wandb_entity="tri")
+    assert seen["entity"] == "my-team" and seen["project"] == "my-project"
+    monkeypatch.delenv("WANDB_ENTITY")
+    monkeypatch.delenv("WANDB_PROJECT")
+    _trainer(tmp_path / "b", random_generate(0), wandb_project="vlm-rl-metaworld", wandb_entity=None)
+    assert seen["entity"] is None and seen["project"] == "vlm-rl-metaworld"     # wandb then uses your default entity

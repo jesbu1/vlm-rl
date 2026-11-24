@@ -15,7 +15,6 @@ overrides:
   - reward=pref_mw
   - save_every=40
   - resume_every=5
-  - wandb_entity=tri
   - "wandb_tags='metaworld,ml1,rl,compact_rel,qwen3.5'"
 grid:
   env_kwargs.benchmark: [ML1:reach-v3, ML1:push-v3]

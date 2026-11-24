@@ -19,7 +19,6 @@ overrides:
   - max_new_tokens=512
   - save_every=40                    # final HF checkpoint only
   - resume_every=5                   # resume state (fp32 weights + AdamW, ~12 B/param) synced to S3
-  - wandb_entity=tri
   - "wandb_tags='pointmaze,fft,small,batch'"
   - env_kwargs.max_turns=15
   - env_kwargs.prompt_style=simple
