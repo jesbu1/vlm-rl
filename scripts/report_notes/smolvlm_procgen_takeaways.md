@@ -971,6 +971,7 @@
   * **BC-30 + lr 2.5e-6 (GPU0, started 01:29, seed 0):** the clone's step-0 eval is **10.9%** (training 17.2, held-out
     11x11 4.7, 15x15 10.9), 0% invalid. The BC phase is unchanged (bc_lr=1e-5), so this is the same clone as before
     (10.9 / 13.5 / 16.7% across three earlier copies).
+    RL steps 1-4: rollouts 21-29%, log-prob ~-0.24 (BC-30 at lr 5e-6, seed 0, steps 1-3: 23-28%).
   * **BC-30 + traj_mean (GPU1, started 19:19, seed 0):** the clone's step-0 eval is **16.7%** (training 20.3, held-out 11x11
     10.9, 15x15 18.8), 0% invalid. `loss_agg` does not touch the BC phase, so this is the same recipe as the seed-0 clone
     (10.9%). The 6-point spread across nominally identical clones is the run-to-run noise (vLLM sampling is not bit-exact).
@@ -984,6 +985,8 @@
     15x15 34.4), 0% invalid (BC-30 token_mean at step 20: 44.3 / 41.1%).
     Steps 21-25: rollouts 52-65%, log-prob -0.16 -> -0.18 (not sharpening). Step-25 eval **36.5%** (training 43.8,
     held-out 11x11 31.2, 15x15 34.4), 0% invalid (BC-30 token_mean at step 25: 40.1 / 39.6%).
+    Steps 26-30: rollouts 53-61%, log-prob -0.17 -> -0.13 (now sharpening too). Step-30 eval **36.5%** (training 42.2,
+    held-out 11x11 32.8, 15x15 34.4), 0% invalid (BC-30 token_mean at step 30: 39.1 / 37.0%).
   * BC run: RL steps take ~10 min, since the clone's valid replies run full 20-turn episodes. Rollouts 23-28% at steps 1-3.
   * The two T=0.8 runs are cut short (40 -> 25 and 20 steps) to free the GPUs. Their pattern is already clear on both
     seeds: a faster start, then greedy eval dips while rollouts climb.
