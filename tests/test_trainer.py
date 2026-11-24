@@ -513,6 +513,32 @@ def test_behaviour_clone_trains_on_expert_transcripts(tmp_path):
     assert 0.0 <= m3["bc/expert_success"] <= 1.0 and 0.0 <= m3["bc/dagger_success"] <= 1.0
 
 
+
+def test_behaviour_clone_has_no_kl_and_kl_ref_clone_points_at_the_clone(tmp_path):
+    """Cloning is plain maximum likelihood even with kl_coef > 0: it must not touch (and so cache) the reference,
+    which with kl_ref=clone is only set to ckpt_bc after cloning."""
+    import dataclasses
+    calls = []
+
+    class CountingPolicy(FakePolicy):
+        def ref_token_logprobs(self, batch):
+            calls.append(getattr(self, "ref_path", None))
+            return super().ref_token_logprobs(batch)
+
+    b = dataclasses.replace(_bundle(), expert=lambda env, k: np.array([0.3, 0.0]))
+    cfg = TrainConfig(out_dir=str(tmp_path), groups_per_step=2, group_size=4, eval_every=0, log_samples_every=0,
+                      save_every=0, lr=0.1, bc_steps=2, bc_episodes=3, bc_success_only=False, filter_groups=False,
+                      steps=1, kl_coef=0.05, kl_ref="clone")
+    ranks = lambda groups: [[float(i) for i in range(len(g))] for g in groups]      # signal in every group
+    tr = Trainer(cfg, policy=CountingPolicy(random_generate(0)), bundle=b, reward_fn=ranks)
+    tr.behaviour_clone()
+    assert calls == [] and tr.cfg.kl_coef == 0.05                       # no KL during cloning; restored after
+    tr.policy._ref = "pretrained-loaded-early"
+    tr.train()
+    assert calls and all(c == f"{tmp_path}/ckpt_bc" for c in calls)     # RL's KL is to the clone
+    assert tr.policy._ref is None                                       # any early-cached reference was dropped
+
+
 def test_adv_min_floors_advantages(tmp_path):
     ranks = lambda groups: [[float(i) for i in range(len(g))] for g in groups]      # spread within each group
     tr = _trainer(tmp_path, random_generate(0), reward_fn=ranks, adv_min=0.0, filter_groups=False)

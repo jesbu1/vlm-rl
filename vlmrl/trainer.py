@@ -612,6 +612,7 @@ class Trainer:
         rng = np.random.default_rng(20_000 + c.seed)
         succ, last = [], {}
         self._lr_base = c.bc_lr or c.lr
+        kl_coef, c.kl_coef = c.kl_coef, 0.0   # cloning is plain maximum likelihood: no KL (it would also cache the ref early)
         for i in range(c.bc_steps):
             dagger = i >= c.bc_steps - c.bc_dagger_steps
             if dagger and i > 0 and self.generator is not self.policy:
@@ -635,6 +636,7 @@ class Trainer:
                   f"{len(keep)} episodes, "
                   f"mean log-prob {last.get('train/mean_logp', float('nan')):.3f}", flush=True)
         self._lr_base = None
+        c.kl_coef = kl_coef
         self.policy.save(f"{c.out_dir}/ckpt_bc")   # the clone alone, reusable via init_adapter (LoRA)
         if self.generator is not self.policy:
             self.generator.sync(self.policy, 0)
@@ -692,6 +694,7 @@ class Trainer:
         if c.kl_ref == "clone":                  # set after BC (or on resume), before the first RL step loads the ref
             assert c.bc_steps and c.kl_coef > 0, "kl_ref=clone needs bc_steps > 0 and kl_coef > 0"
             self.policy.ref_path = f"{c.out_dir}/ckpt_bc"
+            self.policy._ref = None              # drop any reference loaded before ref_path was set
         else:
             assert c.kl_ref == "pretrained", f"kl_ref must be pretrained or clone, got {c.kl_ref!r}"
         if c.eval_every and self.start_step == 0:
