@@ -977,6 +977,8 @@
     0% invalid (lr 5e-6 at step 10: 18.8 / 21.9%). Slower, as expected at half the step size.
     Steps 11-15: rollouts 35-42%, log-prob -0.21 -> -0.18. Step-15 eval **18.2%** (training 18.8, held-out 11x11 15.6,
     15x15 20.3), 0% invalid (lr 5e-6 at step 15: 28.6 / 28.1%). About 10 points behind.
+    Steps 16-20: rollouts 37-44%, log-prob ~-0.17. Step-20 eval **22.9%** (training 28.1, held-out 11x11 18.8, 15x15 21.9),
+    0% invalid (lr 5e-6 at step 20: 44.3 / 41.1%). Rollouts are ~10 points behind too; no sign yet of a higher ceiling.
   * **BC-30 + traj_mean (GPU1, started 19:19, seed 0):** the clone's step-0 eval is **16.7%** (training 20.3, held-out 11x11
     10.9, 15x15 18.8), 0% invalid. `loss_agg` does not touch the BC phase, so this is the same recipe as the seed-0 clone
     (10.9%). The 6-point spread across nominally identical clones is the run-to-run noise (vLLM sampling is not bit-exact).
@@ -1015,6 +1017,7 @@
       moves. Cloning them taught small, timid moves, which makes the wall-loop more likely. This matches the Metaworld
       DAgger result in `rollout.py`'s docstring.
     * Left running to see whether RL recovers from this clone.
+    * RL steps 1-4: rollouts 10-19% (plain BC-30 at steps 1-3: 23-28%).
     * The loop also explains the sampled-vs-greedy gap in every run: under greedy decoding, any move that leaves the state
       unchanged repeats until the episode ends.
   * BC run: RL steps take ~10 min, since the clone's valid replies run full 20-turn episodes. Rollouts 23-28% at steps 1-3.
