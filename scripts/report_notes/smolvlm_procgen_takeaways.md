@@ -992,6 +992,15 @@
     held-out 11x11 32.8, 15x15 34.4), 0% invalid (BC-30 token_mean at step 30: 39.1 / 37.0%).
     Steps 31-35: rollouts 51-58%. Step-35 eval **37.0%** (training 43.8, held-out 11x11 32.8, 15x15 34.4), 0% invalid
     (BC-30 token_mean at step 35: 38.5 / 34.9%).
+    Step-40 eval **34.4%** (training 43.8, held-out 11x11 29.7, 15x15 29.7), 0% invalid. Finished.
+    * **Verdict: `traj_mean` adds nothing on top of BC.** Mean over steps 30-40 is **35.9%**, vs 37.6% for BC-30 with
+      token_mean (2 seeds: 38.7 / 36.5%). That is within noise, and slightly below.
+    * It changed the shape of the run: no step-20 spike (37.5% vs 44.3 / 41.1%), log-prob stayed softer (-0.13 to -0.18
+      vs -0.08 to -0.11), and rollouts were the highest of any run (52-65%). Greedy eval still plateaued at 35-37%.
+    * So the post-step-20 sharpening is not what caps greedy eval. With sharpening held back, greedy eval sits at the same
+      level.
+    * (The vLLM "EngineDeadError" lines at the end of this run and of BC-30 seed 1 come from shutdown after the run had
+      exited 0.)
     * Next on GPU1: BC-30 with DAgger on its last 15 steps (`smolvlm_procgen_v2_terminate_500m_bc30_dagger15_gpu1.yaml`).
       The aim is a better clone: the maze oracle can label any state the clone reaches.
   * BC run: RL steps take ~10 min, since the clone's valid replies run full 20-turn episodes. Rollouts 23-28% at steps 1-3.
