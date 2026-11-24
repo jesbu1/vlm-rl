@@ -85,7 +85,7 @@ class TrainConfig:
     bc_dagger_steps: int = 0                            # the last N of bc_steps run the current clone, labelled by the expert (DAgger)
     bc_noise: float = 0.0                               # DART: noise (std, action units: cm on Metaworld) on the expert's executed moves
     bc_rationale: bool = False                          # prefix each expert reply with a reason written by the rollout model
-    bc_rationale_tokens: int = 96
+    bc_rationale_tokens: int = 64
     bc_rationale_temperature: float = 0.3
     micro_batch_size: int = 1                           # sequences per forward/backward
     # generation
@@ -645,9 +645,12 @@ class Trainer:
             out["bc/dagger_last_success"] = succ[-1]
         return out
 
-    RATIONALE_HINT = ("The right move here is {move}. In one or two short sentences, say where the gripper, the object "
-                      "and the goal are in the image and why this move is right for the task. Write only the sentences, "
-                      "no JSON.")
+    RATIONALE_HINT = ("The correct move here is {move}. In one short sentence (at most 25 words), say where the gripper is "
+                      "relative to the object and the goal, and what it has to do next for the task. Do not judge, repeat "
+                      "or question the move. Write only the sentence, no JSON.")
+    # a reason that evaluates the move instead of describing the scene (the base model sometimes calls the expert's
+    # moves wrong: they exceed the prompt's 10 cm and are shortened by the env) would teach "this move is wrong, <move>"
+    _JUDGING = re.compile(r"\b(incorrect|wrong|not (?:correct|right)|mistake|proposed|the move|this move)\b", re.IGNORECASE)
 
     def _rationalize(self, trajs):
         """``bc_rationale``: expert data has no reasoning, so cloning it trains answer-only replies. Each expert reply is
@@ -673,7 +676,10 @@ class Trainer:
                                         c.gen_batch_size)
         for (tr, i, j, move), r in zip(jobs, texts):
             r = re.sub(r"\{[^{}]*\}", "", final_answer(r, self._thinking) or "")    # a reason only: the move is the expert's
-            r = " ".join(r.split())[:400]
+            r = " ".join(r.split())
+            r = re.split(r"(?<=[.!?])\s", r, maxsplit=1)[0][:200]                    # one sentence
+            if self._JUDGING.search(r):
+                r = ""                                                              # then the bare move
             text = f"{r}\n{move}" if r else move
             tr.messages[i] = {"role": "assistant", "content": [{"type": "text", "text": text}]}
             if j < len(tr.turns):

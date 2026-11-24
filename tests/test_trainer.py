@@ -552,5 +552,21 @@ def test_bc_rationale_prefixes_expert_replies_with_a_generated_reason(tmp_path):
     text = trajs[0].messages[2]["content"][0]["text"]
     assert text == "The ball is left of the goal, so move right.\n" + label     # reason, then the expert's own move
     assert trajs[0].turns[0].response == text
-    assert "The right move here is" in seen[0][-1]["content"][-1]["text"]     # the hint shows the expert's move
+    assert "The correct move here is" in seen[0][-1]["content"][-1]["text"]   # the hint shows the expert's move
     assert tr.behaviour_clone()["bc/steps"] == 1
+
+
+def test_bc_rationale_drops_reasons_that_judge_the_move(tmp_path):
+    import dataclasses
+    replies = iter(["The proposed move is incorrect because it goes too far.", "The ball is below the goal. Then more."])
+    b = dataclasses.replace(_bundle(), expert=lambda env, k: np.array([0.3, 0.0]))
+    cfg = TrainConfig(out_dir=str(tmp_path), groups_per_step=2, group_size=4, eval_every=0, log_samples_every=0,
+                      save_every=0, lr=0.1, bc_rationale=True, max_frames=1)
+    tr = Trainer(cfg, policy=FakePolicy(lambda convs: [next(replies) for _ in convs]), bundle=b)
+    from vlmrl.rollout import expert_rollout
+    trajs = expert_rollout(tr.env, b.interface, b.expert, b.train_sampler.sample(1, np.random.default_rng(0)), [0], 2)
+    labels = [m["content"][0]["text"] for m in trajs[0].messages if m["role"] == "assistant"]
+    tr._rationalize(trajs)
+    texts = [m["content"][0]["text"] for m in trajs[0].messages if m["role"] == "assistant"]
+    assert texts[0] == labels[0]                                         # judging reason dropped: the bare move
+    assert texts[1] == "The ball is below the goal.\n" + labels[1]       # first sentence only
