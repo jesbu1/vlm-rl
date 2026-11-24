@@ -955,6 +955,8 @@
     Steps 11-15: rollouts 38-48%. Step-15 eval **28.1%** (28.1 on all three sets), 0% invalid (seed 0 at step 15: 28.6%).
     Steps 16-20: rollouts 38-54%. Step-20 eval **41.1%** (training 46.9, held-out 11x11 39.1, 15x15 37.5), 0% invalid
     (seed 0 at step 20: 44.3%). **The BC-30 jump replicates:** both seeds are at 41-44% by step 20 (RL-only: 32.3%).
+    Steps 21-25: rollouts 48-58%, log-prob -0.16 -> -0.13. Step-25 eval **39.6%** (training 46.9, held-out 11x11 34.4,
+    15x15 37.5), 0% invalid (seed 0 at step 25: 40.1%). Same flattening near 40% as seed 0.
   * **BC-30 + traj_mean (GPU1, started 19:19, seed 0):** the clone's step-0 eval is **16.7%** (training 20.3, held-out 11x11
     10.9, 15x15 18.8), 0% invalid. `loss_agg` does not touch the BC phase, so this is the same recipe as the seed-0 clone
     (10.9%). The 6-point spread across nominally identical clones is the run-to-run noise (vLLM sampling is not bit-exact).
