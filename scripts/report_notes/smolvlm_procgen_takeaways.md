@@ -979,6 +979,8 @@
     15x15 31.2), 0% invalid (BC-30 token_mean at step 15: 28.6 / 28.1%).
     Steps 16-20: rollouts 51-60%, log-prob -0.17 -> -0.16. Step-20 eval **37.5%** (training 45.3, held-out 11x11 32.8,
     15x15 34.4), 0% invalid (BC-30 token_mean at step 20: 44.3 / 41.1%).
+    Steps 21-25: rollouts 52-65%, log-prob -0.16 -> -0.18 (not sharpening). Step-25 eval **36.5%** (training 43.8,
+    held-out 11x11 31.2, 15x15 34.4), 0% invalid (BC-30 token_mean at step 25: 40.1 / 39.6%).
   * BC run: RL steps take ~10 min, since the clone's valid replies run full 20-turn episodes. Rollouts 23-28% at steps 1-3.
   * The two T=0.8 runs are cut short (40 -> 25 and 20 steps) to free the GPUs. Their pattern is already clear on both
     seeds: a faster start, then greedy eval dips while rollouts climb.
