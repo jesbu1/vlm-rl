@@ -961,6 +961,11 @@
     15x15 39.1), 0% invalid (seed 0 at step 30: 39.1%).
     Steps 31-35: rollouts 48-55%, log-prob -0.10 -> -0.08 (still sharpening). Step-35 eval **34.9%** (training 37.5,
     held-out 11x11 35.9, 15x15 31.2), 0% invalid (seed 0 at step 35: 38.5%). Greedy eval is drifting down from the step-20 peak.
+    Step-40 eval **37.5%** (training 39.1, held-out 11x11 34.4, 15x15 39.1), 0% invalid. Finished. Log-prob ended at -0.08.
+    * **Verdict (2 seeds): BC-30 + RL replicates.** Mean over steps 30-40 is **36.5%** for seed 1 and 38.7% for seed 0, so
+      **37.6%** on average. RL alone scored 29.7% (seed 0) and 29.0% (seed 1), so cloning adds about 8 points.
+    * The ceiling also replicates. Both seeds peak at step 20 (44.3 / 41.1%), then settle at 35-39% while log-prob sharpens
+      (-0.2 -> -0.08) and sampled rollouts stay at 47-58%. The extra RL steps make greedy decoding more confident, not better.
     * Next on GPU0: BC-30 then RL at lr 2.5e-6 (`smolvlm_procgen_v2_terminate_500m_bc30_lr2p5e6_gpu0.yaml`). The aim is
       to test whether a gentler RL step avoids the post-step-20 sharpening and plateau.
   * **BC-30 + traj_mean (GPU1, started 19:19, seed 0):** the clone's step-0 eval is **16.7%** (training 20.3, held-out 11x11
