@@ -502,7 +502,16 @@ training tasks and 0.04 on the held-out ones, against 0.57 / 0.12 for the answer
 model, asked why the expert's move was right, often answered that it was \emph{wrong} (``The proposed move is incorrect
 because it attempts to move the gripper far away\ldots''; the experts' moves exceed the prompt's 10 cm and are shortened
 by the environment), and the other reasons were long and generic (``adjust the gripper slightly to align it''). The clone
-learned to say a move is incorrect and then make one. Second attempt (running next): one sentence of at most 25 words about
+learned to say a move is incorrect and then make one.
+
+\textbf{On ML10 the same flawed reasons still help the held-out tasks.} With reasons, the ML10 clone (400 cloning steps,
+per-task eval) scores 0.51 on the training tasks (answer-only 0.61) but \textbf{0.07 on the held-out tasks} (answer-only
+0.02; 7/100 vs 2/100, $p \approx 0.09$). Door-close, the opposite of the training task door-open, rises from 0.04 to 0.17;
+lever-pull and sweep-into from 0 to 0.06. On the training tasks reasoning helps where reading the scene and the instruction
+matters (door-open 0.24 $\to$ 0.55, reach 0.30 $\to$ 0.45) and hurts precise manipulation (pick-place 0.73 $\to$ 0.13, push
+0.94 $\to$ 0.33). A first sign that reasoning makes the instruction steer the motion.
+
+Second attempt (running): one sentence of at most 25 words about
 where the gripper is relative to the object and the goal and what it has to do, never judging the move; reasons that
 judge it are dropped. Also running: RL only with reasoning from the base model (no cloning) on ML10, the RL-learned
 counterpart.

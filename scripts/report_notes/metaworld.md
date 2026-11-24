@@ -152,3 +152,7 @@ Each GRPO group is 8 rollouts from the same start (same goal position and seed).
   expert move was right, often said it was wrong (the experts' moves exceed the prompt's 10 cm), and the clone learned
   "the move is incorrect" before each move. Second attempt: one short scene sentence, never judging the move. Also running:
   RL only with reasoning from the base model on ML10.
+* **ML10 clone with reasons (first attempt): held-out tasks 0.07 vs 0.02** (answer-only; 7/100 vs 2/100). door-close (the
+  opposite of training task door-open) 0.04 → 0.17, lever-pull and sweep-into 0 → 0.06. Training tasks 0.51 vs 0.61:
+  door-open 0.24 → 0.55 and reach 0.30 → 0.45, but pick-place 0.73 → 0.13, push 0.94 → 0.33. RL-only reasoning (from the
+  base model): 0.01 at step 10 (drawer-close 0.21).
