@@ -916,7 +916,12 @@
         steps (31.8 / 29.2%) and above the scripted 37.5%.
     * Step-35 eval **38.5%** (training 50.0, held-out 11x11 31.2, 15x15 34.4), 0% invalid. Rollouts 53-60%, log-prob
       -0.13 (sharper than RL-only's ~-0.85). The gap between sampled rollouts (~57%) and greedy eval (~39%) is ~18 points.
-    * Next on GPU1 after step 40: BC-30 + `traj_mean` (`smolvlm_procgen_v2_terminate_500m_bc30_trajmean_gpu1.yaml`).
+    * Step-40 eval **38.5%** (training 43.8, held-out 11x11 32.8, 15x15 39.1), 0% invalid. Finished.
+    * **Verdict (seed 0): BC-30 + RL is the best SmolVLM recipe so far.** Mean over steps 30-40 is **38.7%**, vs 29.7%
+      for RL alone and 33.7% for `traj_mean`. It is just above the scripted 37.5%. Held-out 15x15 is ~38%, held-out 11x11
+      ~32%. It peaked at 44.3% (step 20), then held flat near 39% while sampled rollouts stayed at 45-60%.
+    * Seed 1 is running on GPU0 to confirm. Next on GPU1: BC-30 + `traj_mean`
+      (`smolvlm_procgen_v2_terminate_500m_bc30_trajmean_gpu1.yaml`).
   * **traj_mean (GPU0, started 09:53):** step-0 eval **9.4%**, 57% invalid (normal).
     Steps 1-5: rollout invalid 85% -> 70% (token_mean: 86% -> 78%), 9-26 groups with signal. Step-5 eval **14.6%**
     (training 20.3, held-out 11x11 9.4, 15x15 14.1), 75% invalid (token_mean at step 5: 14.6%).
