@@ -55,10 +55,10 @@
 \item \textbf{RL from a good clone needs a low learning rate and refines rather than generalizes.} At lr 1e-5 it erodes
   held-out push (0.69 $\to$ 0.31 by step 35); at lr 2e-6 it keeps the clone and slowly lifts the training distribution
   (ML10 rollouts 0.49 $\to$ 0.64 over 50 steps), but not held-out positions or tasks. Positive-only advantages hurt.
-\item \textbf{Reasoning learned by RL transfers to a new task.} RL alone, from the base Qwen3.5-4B with one or two
-  sentences of reasoning before each move, learns ML10's drawer-close (0.93) in 30 steps and solves the held-out
-  door-close at \textbf{0.52}, against 0.04 for the answer-only clone and 0.17 for the clone with reasons. Its reasoning
-  links the instruction to the motion (``The door is open and needs to be pushed shut. The hand should move to the right'').
+\item \textbf{Reasoning learned by RL transferred, but not stably.} RL alone, from the base Qwen3.5-4B with one or two
+  sentences of reasoning before each move, learned ML10's drawer-close (0.93) in 30 steps and solved the held-out
+  door-close at 0.52 (answer-only clone 0.04). By step 40 door-close was back to 0.04 while the training tasks kept
+  improving: the reasoning still reads the instruction correctly, but the motion drifted toward the training tasks'.
 \item \textbf{Cloning longer trades transfer for fit.} ML45 at 400 / 800 cloning steps: 0.57 / 0.73 on the training tasks,
   0.12 / 0.056 on the held-out tasks (pooled, $p\approx0.01$).
 \item \textbf{ML45 gives the first transfer to held-out tasks.} The generic recipe's ML45 clone (Qwen3.5-4B, 400 cloning
@@ -518,8 +518,15 @@ matters (door-open 0.24 $\to$ 0.55, reach 0.30 $\to$ 0.45) and hurts precise man
 \textbf{Reasoning learned by RL instead of copied.} RL alone from the base model, with the short-reasoning prompt and
 no cloning (lr 1e-5, temperature 1.0), starts at 0.01 on the training tasks. By step 30 it solves drawer-close (0.93)
 and transfers to the held-out door-close at 0.52 (Fig.~\ref{fig:reasoningml10}); held-out tasks overall 0.12, the best on
-ML10 so far, against 0.02 for every answer-only clone. This is one eval (about 10 of 20 door-close episodes) and has to
-hold at the next ones. Nobody wrote its reasons; RL found that stating what the instruction
+ML10 so far, against 0.02 for every answer-only clone.
+
+\textbf{It did not hold.} At step 40 held-out door-close is 0.04 and held-out tasks overall 0.01, while the training tasks
+keep improving (0.10: drawer-close 1.00, reach 0.20, window-open 0.18). The reasoning is unchanged in kind (``The door is
+open and needs to be pushed shut. The gripper should move to the right''); the moves are not: the clean \code{dx +5} pushes
+of step 30 now carry forward and downward components (\code{dy +2}, \code{dz -1}) learned on the training tasks, and the
+door is sometimes judged angled the other way. RL on the training tasks reshapes the motion they share with the held-out
+task, and the transfer it found along the way was not kept. Keeping it would need held-out-aware checkpoint selection, a
+smaller learning rate or a broader task mix, none of which has been tried yet. Nobody wrote its reasons; RL found that stating what the instruction
 means for the motion pays: ``The door is open and needs to be pushed shut. The hand should move to the right to push the
 door closed.'' $\to$ \code{dx +5} $\to$ success. It is still poor at the other tasks after 30 steps (training tasks
 0.07): the motor skill that cloning gives has to be learned from scratch. RL on the first reasoning clone stayed flat

@@ -14,9 +14,11 @@ code.
 - **What doesn't yet:** **held-out tasks.** The best ML45 clone scores 0.12 on its 5 held-out tasks, and only on tasks that
   look like training tasks (door-lock, door-unlock). ML10's held-out tasks are ~0 for every cloned policy. The instruction
   does not steer the motion: ML10's clone cannot do drawer-open / door-close, the reverses of its training tasks.
-- **Most promising thread:** **reasoning learned by RL.** RL from the *base* model (no cloning), with one or two
-  sentences of reasoning before each move, learned drawer-close (0.93) in 30 steps and solved the held-out door-close at
-  **0.52** (answer-only clones: 0.04). That is a single eval so far; confirm it first (see "State at handoff").
+- **Most interesting lead:** **reasoning learned by RL.** RL from the *base* model (no cloning), with one or two
+  sentences of reasoning before each move, learned drawer-close in 30 steps and solved the held-out door-close at 0.52
+  (answer-only clones: 0.04). It did **not** hold: at step 40 door-close was back to 0.04 while the training tasks kept
+  improving. The reasoning still read the instruction correctly, but the moves drifted toward the training tasks'.
+  Making such transfer stick is open.
 - **Decision pending with the project owner:** whether to report held-out tasks after a short adaptation phase (a few RL
   steps per held-out task, the benchmark's own meta-RL protocol) or zero-shot only, as now.
 
@@ -164,7 +166,7 @@ Still running when this was written:
 
 | Run (our wandb group) | What it tests | What to look for |
 |---|---|---|
-| `metaworld-rlreason-q35-ml10` | RL only with short reasoning, from the base model, 150 steps | **does held-out door-close (0.52 at step 30) hold at steps 40+?** Training tasks were only 0.07 |
+| `metaworld-rlreason-q35-ml10` | RL only with short reasoning, from the base model, 150 steps | held-out door-close was 0.52 at step 30 and 0.04 at step 40; does it come back as training tasks improve (0.10 at step 40)? |
 | `metaworld-rlreason-q35-ml45` | the same on ML45 | any held-out task beyond door-lock / door-unlock |
 | `metaworld-reasonbc2-q35-ml10`, `-ml45` | cloning with one-sentence reasons (second attempt), then RL with reasoning | held-out vs the answer-only clones (ML10 0.02, door-close 0.04; ML45 0.12) |
 
@@ -177,13 +179,14 @@ Numbers to reproduce on your machines (Qwen3.5-4B, LoRA on the MLPs):
 | ML10, 400 cloning steps, `train_seeds=10` | 0.69 | 0.00–0.02 |
 | ML45, 400 cloning steps | 0.57 | 0.12 (door-lock 0.44, door-unlock 0.20) |
 | ML45, 800 cloning steps | 0.73 | 0.06 |
-| ML10, RL only with reasoning, step 30 | 0.07 (drawer-close 0.93) | 0.12 (door-close 0.52; one eval) |
+| ML10, RL only with reasoning, step 30 / 40 | 0.07 / 0.10 (drawer-close 0.93 / 1.00) | 0.12 / 0.01 (door-close 0.52 / 0.04) |
 
 ## Suggested next steps
 
-1. **Reproduce and confirm the RL-reasoning transfer.** It is the cheapest headline to rerun: no cloning, ~30–60 RL
-   steps on ML10 (~4–8 h) (`compact_rel_reason`, `lr=1e-5`, `temperature=1.0`, evals every 10 steps with the larger eval sets).
-   Check that held-out door-close holds over several evals.
+1. **Make the RL-reasoning transfer stick.** It appeared (door-close 0.52 at step 30) and vanished by step 40 as RL
+   specialized the motion to the training tasks. It is cheap to rerun: no cloning, ~30–60 RL steps on ML10 (~4–8 h;
+   `compact_rel_reason`, `lr=1e-5`, `temperature=1.0`, evals every 5 steps with the larger eval sets). Try a lower lr, a
+   broader task mix (ML45), and selecting checkpoints on held-out performance.
 2. **Combine skill and reasoning.** Start RL *with* `compact_rel_reason` from the **answer-only** clone (motor skill from
    cloning), not from scratch, and check whether held-out tasks rise while training tasks stay near 0.69. The first
    cloning-with-reasons attempt lost precise manipulation (pick-place 0.73 → 0.13), so watch both.
