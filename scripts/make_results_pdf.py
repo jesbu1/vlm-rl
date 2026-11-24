@@ -62,6 +62,9 @@ RUNS = {
     "rc_q35_ml45_rl2e6": (MW, "group:metaworld-recipe-q35-ml45-rl2e-6"),
     "rc_q35_ml45_bc800": (MW, "group:metaworld-recipe-q35-ml45-bc800"), "rc_q35_ml10_bc400": (MW, "group:metaworld-recipe-q35-ml10-bc400"),
     "rc_q35_ml10_bc800": (MW, "group:metaworld-recipe-q35-ml10-bc800"),
+    # eval-only per-task evals of saved clones (steps=0; 270/100 episodes on ML45, 200/100 on ML10)
+    "pt_ml45_400": (MW, "group:metaworld-pertask-ml45-clone400"), "pt_ml45_800": (MW, "group:metaworld-pertask-ml45-clone800"),
+    "pt_ml10_400": (MW, "group:metaworld-pertask-ml10-clone400"),
     # RL from good clones: lower lr / only above-average rollouts (adv_min=0); baselines p5_seeds10, m5_bc200 (lr 1e-5)
     "rl_push_lr": (MW, "group:metaworld-rlfix-push450-lr2e-6"), "rl_push_pos": (MW, "group:metaworld-rlfix-push450-posadv"),
     "rl_ml10_lr": (MW, "group:metaworld-rlfix-ml10-lr2e-6"), "rl_ml10_pos": (MW, "group:metaworld-rlfix-ml10-posadv"),
@@ -79,6 +82,16 @@ EXPERT = {
     "ML10 held-out: drawer-open": (1.0, 1.0), "door-close": (1.0, 1.0), "shelf-place": (0.0, 0.75),
     "sweep-into": (0.0, 0.625), "lever-pull": (0.125, 0.25),
 }
+
+# Scripted-expert success per task at controller gain 0.5 through the text protocol (15 turns; ML45: 6 episodes per task,
+# ML10: 8), the ceiling for cloning. Measured outside wandb like EXPERT above.
+EXPERT45 = {"handle-pull-side": 0.0, "lever-pull": 0.0, "stick-push": 0.0, "stick-pull": 0.17, "peg-unplug-side": 0.33,
+            "soccer": 0.33, "basketball": 0.5, "disassemble": 0.5, "handle-pull": 0.5, "peg-insert-side": 0.5,
+            "coffee-push": 0.67, "sweep-into": 0.67, "door-open": 0.83, "hammer": 0.83, "push-back": 0.83,
+            "bin-picking": 0.83}          # every other ML45 task (training and held-out): 1.0
+EXPERT10 = {"reach": 1.0, "push": 0.875, "pick-place": 1.0, "door-open": 0.625, "drawer-close": 1.0,
+            "button-press-topdown": 1.0, "peg-insert-side": 0.75, "window-open": 1.0, "sweep": 1.0, "basketball": 0.875,
+            "drawer-open": 1.0, "door-close": 1.0, "shelf-place": 0.75, "sweep-into": 0.625, "lever-pull": 0.25}
 
 # palette: validated categorical slots (light surface), text tokens, recessive grid
 C = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#6250d6", "#e34948"]
@@ -515,6 +528,55 @@ def fig_recipe(D):
     save(fig, "recipe.pdf")
 
 
+def _per_task(run, split):
+    row = next((r for r in run["rows"] if "eval/success" in r), {})
+    pre = f"eval/{split}/task/"
+    return {k[len(pre):].replace("-v3/success", ""): v for k, v in row.items() if k.startswith(pre)}
+
+
+def fig_pertask(D):
+    """Per task: the scripted expert's success (the ceiling) and the cloned policies'. ML45 training tasks; then the
+    held-out tasks of ML45 and ML10 and ML10's training tasks."""
+    import matplotlib.pyplot as plt
+    if not all(k in D for k in ("pt_ml45_400", "pt_ml45_800", "pt_ml10_400")):
+        return
+    a, b = _per_task(D["pt_ml45_400"], "train_tasks"), _per_task(D["pt_ml45_800"], "train_tasks")
+    names = sorted(a, key=lambda n: (EXPERT45.get(n, 1.0), b.get(n, 0), a.get(n, 0)))
+    fig, ax = plt.subplots(1, 1, figsize=(7.2, 0.17 * len(names) + 0.9))
+    y = list(range(len(names)))
+    ax.plot([EXPERT45.get(n, 1.0) for n in names], y, "o", ms=7, mfc="none", mec=MUTED, mew=1.2, label="scripted expert")
+    ax.plot([a[n] for n in names], y, "o", ms=4.5, color=C[0], mec="white", mew=0.8, label="clone, 400 cloning steps")
+    ax.plot([b.get(n, 0) for n in names], y, "o", ms=4.5, color=C[1], mec="white", mew=0.8, label="clone, 800 cloning steps")
+    ax.set_yticks(y, names, fontsize=7)
+    ax.set_xlim(-0.04, 1.06)
+    ax.grid(axis="y", visible=False)
+    ax.set_xlabel("Success on the task (6 episodes per task; 3-4 for the clones)")
+    ax.legend(loc="lower left", ncol=3, bbox_to_anchor=(0.0, 1.0))
+    fig.tight_layout()
+    save(fig, "pertask_ml45.pdf")
+
+    fig, axes = plt.subplots(3, 1, figsize=(5.6, 5.0), sharex=True, gridspec_kw={"height_ratios": [5, 5, 10]})
+    panels = [("ML45 held-out tasks", [("pt_ml45_400", "heldout_tasks", C[0], "400 steps"), ("pt_ml45_800", "heldout_tasks", C[1], "800 steps")], EXPERT45),
+              ("ML10 held-out tasks", [("pt_ml10_400", "heldout_tasks", C[0], "400 steps")], EXPERT10),
+              ("ML10 training tasks", [("pt_ml10_400", "train_tasks", C[0], "400 steps")], EXPERT10)]
+    for ax, (title, series_, ex) in zip(axes, panels):
+        base = _per_task(D[series_[0][0]], series_[0][1])
+        names = sorted(base, key=lambda n: base[n])
+        y = list(range(len(names)))
+        ax.plot([ex.get(n, 1.0) for n in names], y, "o", ms=7, mfc="none", mec=MUTED, mew=1.2, label="expert")
+        for k, split, col, lab in series_:
+            v = _per_task(D[k], split)
+            ax.plot([v.get(n, 0) for n in names], y, "o", ms=4.5, color=col, mec="white", mew=0.8, label=f"clone, {lab}")
+        ax.set_yticks(y, names, fontsize=7)
+        ax.set_xlim(-0.04, 1.06)
+        ax.grid(axis="y", visible=False)
+        ax.set_title(title)
+    axes[-1].set_xlabel("Success on the task (20 episodes per task for the clones; 8 for the expert on ML10)")
+    axes[0].legend(loc="lower left", ncol=3, bbox_to_anchor=(0.0, 1.18), fontsize=7)
+    fig.tight_layout(h_pad=1.0)
+    save(fig, "pertask_heldout.pdf")
+
+
 # ----------------------------------------------------------------------------- tables
 
 def tex_escape(s):
@@ -560,7 +622,7 @@ def build():
     D = load()
     style()
     for fn in (fig_maze_procgen, fig_maze_fixed, fig_reach_models, fig_reach_exploration, fig_push_reward,
-               fig_push_clones, fig_push_rl, fig_ml10, fig_rl_fixes, fig_recipe):
+               fig_push_clones, fig_push_rl, fig_ml10, fig_rl_fixes, fig_recipe, fig_pertask):
         fn(D)
     fig_expert_gain()
     write_tables(D)
@@ -588,7 +650,7 @@ if __name__ == "__main__":
         D = load()
         style()
         for fn in (fig_maze_procgen, fig_maze_fixed, fig_reach_models, fig_reach_exploration, fig_push_reward,
-                   fig_push_clones, fig_push_rl, fig_ml10, fig_rl_fixes, fig_recipe):
+                   fig_push_clones, fig_push_rl, fig_ml10, fig_rl_fixes, fig_recipe, fig_pertask):
             fn(D)
         fig_expert_gain()
         write_tables(D)

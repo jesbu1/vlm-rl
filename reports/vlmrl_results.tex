@@ -442,6 +442,35 @@ over 60 RL steps, against 0.69).
 ML45's scripted experts, at gain 0.5 through the same protocol, succeed 0.82 on its 45 training tasks (handle-pull-side,
 lever-pull and stick-push at 0) and 0.97 on its 5 held-out tasks: the ceiling for this recipe.
 
+\subsection{Task by task}
+\begin{figure}[p]
+\centering\includegraphics[width=\linewidth]{figures/pertask_ml45.pdf}
+\caption{ML45 training tasks: success of the scripted expert (ring; our protocol, gain 0.5) and of the 400- and 800-step
+clones (eval only, 270 episodes in all). Where both clones are at 1.0 only the later dot is visible.}
+\label{fig:pertask45}
+\end{figure}
+\begin{figure}[h]
+\centering\includegraphics[width=0.8\linewidth]{figures/pertask_heldout.pdf}
+\caption{Held-out tasks of ML45 and ML10, and ML10's training tasks (20 episodes per task for the clones).}
+\label{fig:pertaskho}
+\end{figure}
+Per-task evals of the saved clones (Figs.~\ref{fig:pertask45}, \ref{fig:pertaskho}) show where the scores come from:
+\begin{itemize}
+\item \textbf{Some training-task zeros are the expert's.} The scripted expert itself fails handle-pull-side, lever-pull and
+  stick-push through our protocol (and stick-pull 0.17); no amount of cloning fixes these. The others are the model's:
+  sweep, push-back and disassemble are 0 at 400 cloning steps with experts at 0.5--1.0.
+\item \textbf{Longer cloning trades tasks for tasks.} From 400 to 800 steps, push goes 0.10 $\to$ 0.60, pick-place 0.20
+  $\to$ 0.60, sweep 0 $\to$ 0.33 and 12 tasks reach 1.0, but door-open (0.14 $\to$ 0), handle-pull, coffee-pull, basketball
+  and hammer get worse.
+\item \textbf{Held-out transfer comes from look-alike tasks.} On ML45 only door-lock (0.44 / 0.33) and door-unlock (0.20 /
+  0.00) transfer: their objects and motions resemble training tasks (doors, dials, handles). Bin-picking, box-close and
+  hand-insert stay at 0.
+\item \textbf{The instruction does not steer the motion.} ML10 trains on drawer-close and door-open; its held-out tasks
+  drawer-open and door-close are their opposites, and the clone almost never solves them (0.05, 0.04): it performs the
+  motion it learned for the object instead of the one asked for. Even ML10's reach is only 0.30 although its expert is
+  perfect. This is the gap reasoning about the instruction should close (Section~\ref{sec:reasoning}).
+\end{itemize}
+
 \section{Reasoning for generalization (in progress)}
 \label{sec:reasoning}
 Held-out tasks need the policy to work out what a new instruction asks for, which is what reasoning should help with.

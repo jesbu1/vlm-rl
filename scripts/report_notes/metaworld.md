@@ -139,3 +139,8 @@ Each GRPO group is 8 rollouts from the same start (same goal position and seed).
 * **Reasoning, native thinking:** Qwen3.5-4B with thinking on (4096 tokens, ML45 eval only) scores 0 / 0; 87% of replies
   are invalid because the reasoning loops and never closes its thinking block (the 400-step clone with thinking: 0.02 / 0).
   Next: short reasoning in the reply (`compact_rel_reason`, 256 tokens), evals running.
+* **Per task** (eval-only, 270 / 100 episodes): ML45 held-out transfer is only door-lock (0.44 at 400 BC steps) and
+  door-unlock (0.20); bin-picking, box-close and hand-insert are 0. ML10's held-out drawer-open and door-close, the
+  opposites of its training tasks drawer-close and door-open, stay at ~0.05: the policy does the motion it learned for the
+  object, not the one the instruction asks for. Some ML45 training-task zeros are the expert's (handle-pull-side,
+  lever-pull, stick-push).
