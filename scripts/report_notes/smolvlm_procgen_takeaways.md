@@ -1018,6 +1018,10 @@
       DAgger result in `rollout.py`'s docstring.
     * Left running to see whether RL recovers from this clone.
     * RL steps 1-4: rollouts 10-19% (plain BC-30 at steps 1-3: 23-28%).
+    * Step-5 eval **4.7%** (4.7 on all three sets), rollouts 14% (plain BC-30 at step 5: 16.1 / 20.3%). Stopping after the
+      step-10 eval. Next on GPU1: BC-60 (`smolvlm_procgen_v2_terminate_500m_bc60_gpu1.yaml`).
+    * (A second frame is not the loop fix: `max_frames=2` on 256M, above, swapped wall-loops for copying its own previous
+      reply, and collapsed at the same step.)
     * The loop also explains the sampled-vs-greedy gap in every run: under greedy decoding, any move that leaves the state
       unchanged repeats until the episode ends.
   * BC run: RL steps take ~10 min, since the clone's valid replies run full 20-turn episodes. Rollouts 23-28% at steps 1-3.
