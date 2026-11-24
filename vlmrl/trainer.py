@@ -168,6 +168,19 @@ def end_reason_fracs(trajs, prefix):
     return {f"{prefix}/end_{r}": float(np.mean([t.end_reason == r for t in trajs])) for r in END_REASONS}
 
 
+def per_task_success(trajs, prefix: str) -> dict:
+    """``{prefix}/task/<env_name>/success`` for eval sets that span several tasks (Metaworld ML10 / ML45), so a benchmark
+    score can be read task by task (which tasks the policy solves, which it never does)."""
+    by: dict[str, list[float]] = {}
+    for t in trajs:
+        name = (t.start_state or {}).get("env_name") if isinstance(t.start_state, dict) else None
+        if name is not None:
+            by.setdefault(str(name), []).append(float(t.success))
+    if len(by) < 2:
+        return {}
+    return {f"{prefix}/task/{k}/success": float(np.mean(v)) for k, v in sorted(by.items())}
+
+
 class Trainer:
     def __init__(self, cfg: TrainConfig, policy: HFPolicy | None = None, bundle: EnvBundle | None = None,
                  reward_fn=None):
@@ -447,6 +460,7 @@ class Trainer:
         m = {}
         for name, trajs in by_set.items():
             m.update(self.eval_metrics(trajs, name))
+            m.update(per_task_success(trajs, name))
         if self.cfg.eval_sets:
             per = [self.eval_metrics(trajs, "eval") for trajs in by_set.values()]
             m.update({k: float(np.mean([p[k] for p in per])) for k in per[0]})

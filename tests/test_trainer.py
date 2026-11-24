@@ -504,9 +504,9 @@ def test_behaviour_clone_trains_on_expert_transcripts(tmp_path):
         t.advantage = 1.0 if i < 2 else -1.0
     assert tr2.update([kept[0]])["train/lr"] == pytest.approx(0.1)          # back to lr for RL
     assert m["bc/steps"] == 2 and 0.0 <= m["bc/expert_success"] <= 1.0 and np.isfinite(m["bc/mean_logp"])
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError):                  # an env without a scripted expert (PointMaze has one now)
         Trainer(dataclasses.replace(cfg, out_dir=str(tmp_path / "b")), policy=FakePolicy(random_generate(0)),
-                bundle=_bundle()).behaviour_clone()
+                bundle=dataclasses.replace(_bundle(), expert=None)).behaviour_clone()
     tr3 = Trainer(dataclasses.replace(cfg, out_dir=str(tmp_path / "d"), bc_steps=3, bc_dagger_steps=2),
                   policy=FakePolicy(random_generate(0)), bundle=b)
     m3 = tr3.behaviour_clone()                        # 1 expert step, then 2 steps on the clone's own episodes
@@ -519,3 +519,15 @@ def test_adv_min_floors_advantages(tmp_path):
     groups, _, _ = tr.collect()
     advs = [t.advantage for g in groups for t in g]
     assert min(advs) >= 0.0 and max(advs) > 0.0
+
+
+def test_per_task_success_only_for_multi_task_sets():
+    from conftest import make_traj
+    from vlmrl.trainer import per_task_success
+    a, b = make_traj(success=True), make_traj(success=False)
+    a.start_state, b.start_state = {"env_name": "reach-v3"}, {"env_name": "push-v3"}
+    c = make_traj(success=True)
+    c.start_state = {"env_name": "push-v3"}
+    m = per_task_success([a, b, c], "eval/train_tasks")
+    assert m == {"eval/train_tasks/task/push-v3/success": 0.5, "eval/train_tasks/task/reach-v3/success": 1.0}
+    assert per_task_success([b, c], "eval/x") == {}
