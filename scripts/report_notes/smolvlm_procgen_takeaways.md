@@ -959,6 +959,8 @@
     15x15 37.5), 0% invalid (seed 0 at step 25: 40.1%). Same flattening near 40% as seed 0.
     Steps 26-30: rollouts 46-55%, log-prob -0.12 -> -0.10. Step-30 eval **37.0%** (training 43.8, held-out 11x11 28.1,
     15x15 39.1), 0% invalid (seed 0 at step 30: 39.1%).
+    Steps 31-35: rollouts 48-55%, log-prob -0.10 -> -0.08 (still sharpening). Step-35 eval **34.9%** (training 37.5,
+    held-out 11x11 35.9, 15x15 31.2), 0% invalid (seed 0 at step 35: 38.5%). Greedy eval is drifting down from the step-20 peak.
     * Next on GPU0: BC-30 then RL at lr 2.5e-6 (`smolvlm_procgen_v2_terminate_500m_bc30_lr2p5e6_gpu0.yaml`). The aim is
       to test whether a gentler RL step avoids the post-step-20 sharpening and plateau.
   * **BC-30 + traj_mean (GPU1, started 19:19, seed 0):** the clone's step-0 eval is **16.7%** (training 20.3, held-out 11x11
