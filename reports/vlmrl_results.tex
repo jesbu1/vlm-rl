@@ -424,6 +424,7 @@ Recipe clone (Qwen3.5-4B) & Training tasks & Held-out tasks & Fit \\
 \midrule
 ML10, 200 BC steps & 0.54 & 0.02 & $-0.24$ \\
 ML10, 400 BC steps & \textbf{0.69} & 0.00 & $-0.19$ \\
+ML10, 800 BC steps & 0.67 & 0.02 & $-0.11$ \\
 ML45, 400 BC steps & 0.57 & 0.12 (pooled, 6 evals) & $-0.19$ \\
 ML45, 800 BC steps & \textbf{0.73} & 0.056 (14/250, 5 evals) & $-0.17$ \\
 \bottomrule
@@ -431,7 +432,9 @@ ML45, 800 BC steps & \textbf{0.73} & 0.056 (14/250, 5 evals) & $-0.17$ \\
 \end{center}
 
 Doubling the cloning lifts the training tasks by 0.15 on both benchmarks, as much as or more than RL ever did, and ML45's
-800-step clone (0.73) comes close to its experts' 0.82. \textbf{Held-out tasks go the other way}: pooled over five evals,
+800-step clone (0.73) comes close to its experts' 0.82. ML10 saturates between 400 and 800 steps (0.69, 0.67) although
+the fit keeps improving ($-0.19 \to -0.11$) and its experts reach 0.91: something other than the amount of expert data
+limits it now. Per-task evals of the saved clones are running to show which tasks fail. \textbf{Held-out tasks go the other way}: pooled over five evals,
 the 800-step ML45 clone transfers 0.056 (14/250) against the 400-step clone's 0.12 (36/300; $p\approx0.01$). Cloning
 longer fits the training tasks at the cost of transfer, so the checkpoint that transfers best is not the one that scores
 best on the training tasks. RL from either clone leaves both numbers where cloning put them (ML10 400-step clone: 0.62--0.73
@@ -477,8 +480,8 @@ ML10 held-out tasks & $\approx$0 everywhere & too few training tasks for task tr
 
 \section{Open questions and next steps}
 \begin{itemize}
-\item Training tasks: solved by scaling the cloning (ML45 0.73 against an expert ceiling of 0.82; ML10 0.69, an
-  800-step clone is training). Held-out tasks: ML45 transfers a little, best at 400 cloning steps (0.12), less at 800
+\item Training tasks: scaling the cloning gets ML45 to 0.73 (expert ceiling 0.82); ML10 saturates at 0.67--0.69 (expert
+  0.91). Which tasks stay unsolved, and why? Held-out tasks: ML45 transfers a little, best at 400 cloning steps (0.12), less at 800
   (0.056); RL does not raise it. A short adaptation phase on each held-out task (the benchmark's own protocol) is the
   obvious next experiment.
 \item The standard ML10/ML45 protocol allows a short adaptation phase on each held-out task; a few RL steps there (the

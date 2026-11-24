@@ -134,3 +134,5 @@ Each GRPO group is 8 rollouts from the same start (same goal position and seed).
   follow.
 * **Cloning longer trades transfer for fit (ML45):** 400 / 800 BC steps give 0.57 / 0.70 on the training tasks and
   0.12 / 0.056 on the held-out tasks (pooled over 5–6 evals; p ≈ 0.01). RL leaves both where cloning put them.
+* **ML10 cloning saturates:** 0.69 at 400 BC steps, 0.67 at 800 (fit −0.19 → −0.11; experts 0.91). Per-task evals of the
+  saved clones are next, to see which tasks stay unsolved.
