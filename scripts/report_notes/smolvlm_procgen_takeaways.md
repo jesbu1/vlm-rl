@@ -1033,6 +1033,8 @@
     does not give a better clone.
     Steps 1-5: rollouts 28-34%, log-prob -0.15 -> -0.12 (sharper than BC30's ~-0.2 at the same step). Step-5 eval **18.8%**
     (training 17.2, held-out 11x11 21.9, 15x15 17.2), 0% invalid; BC30 seeds at step 5: 20.3 / ~16-20%. Same track so far.
+    Steps 6-10: rollouts 33-40%, log-prob -0.09 -> -0.08 (already as sharp as BC30 at step 40). Step-10 eval **22.9%**
+    (training 26.6, held-out 11x11 23.4, 15x15 18.8), 0% invalid; BC30 at step 10: 15-22%. On track, slightly ahead.
   - **Queued on GPU0: BC30 + KL 0.05 to the clone** (`kl_ref: clone`, new option in cb32f9c; the old `kl_coef` pulled
     toward the pretrained model, which would undo the clone). Starts when the lr 2.5e-6 run finishes.
     * (A second frame is not the loop fix: `max_frames=2` on 256M, above, swapped wall-loops for copying its own previous
