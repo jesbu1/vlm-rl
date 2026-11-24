@@ -1024,6 +1024,9 @@
       step-10 eval. Next on GPU1: BC-60 (`smolvlm_procgen_v2_terminate_500m_bc60_gpu1.yaml`).
     * Steps 6-10: rollouts 14-18%. Step-10 eval **6.8%** (training 7.8, held-out 11x11 4.7, 15x15 7.8), 0% invalid,
       vs 15-20% for plain BC30 at step 10. Stopped by hand after this eval (failed run, kept on disk); BC-60 started on GPU1.
+  - **BC-60 then RL** (`bc_steps: [60]`, otherwise BC30; GPU1): clone eval **15.6%** (training 21.9, held-out 11x11 14.1,
+    15x15 10.9), 0% invalid, BC log-prob -0.10. Inside the 10.9-16.7% spread of the BC30 clones: twice the cloning steps
+    does not give a better clone. RL running.
     * (A second frame is not the loop fix: `max_frames=2` on 256M, above, swapped wall-loops for copying its own previous
       reply, and collapsed at the same step.)
     * The loop also explains the sampled-vs-greedy gap in every run: under greedy decoding, any move that leaves the state
