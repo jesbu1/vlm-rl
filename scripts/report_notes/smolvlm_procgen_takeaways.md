@@ -1047,6 +1047,7 @@
       earlier KL-to-pretrained runs), and the clone itself was KL-penalised (clone eval 14.6%, inside the usual range).
       Fixed in cebb7ca (no KL during cloning; cached reference dropped) with a regression test. Stopped after one RL
       step; dir kept as `..._kl_ref=clone_badref`. Rerun started on GPU0 at 12:20.
+    * Rerun: clone eval 13.5%; `train/kl` 0.0006 / 0.002 at RL steps 1-2 (reference is now the clone). Rollouts 29 / 23%.
     * (A second frame is not the loop fix: `max_frames=2` on 256M, above, swapped wall-loops for copying its own previous
       reply, and collapsed at the same step.)
     * The loop also explains the sampled-vs-greedy gap in every run: under greedy decoding, any move that leaves the state
