@@ -16,6 +16,9 @@ def group_advantages(scores: list[list[float]], mode: str = "zscore", eps: float
     * ``zscore`` : A = (s - mean) / (std + eps)   GRPO; PEAR Eq. (1) -- the default
     * ``center`` : A = s - mean(s)                 Dr.GRPO-style (no std division)
     * ``rloo``   : A = s - mean of the *other* G-1 members (leave-one-out baseline)
+    * ``reinforce_pp`` : A = s - mean(s) here; the trainer then divides every advantage of the step by their std over the
+      whole batch (``batch_normalize``): REINFORCE++-baseline (Hu et al., 2025), which avoids GRPO's per-group std, a
+      division that blows a group of near-equal rollouts up to full-size advantages
 
     (PEAR's "score centering" is *not* an advantage baseline; it is a gradient correction for
     rollout/learner policy mismatch -- see ``score_centering_term``.)
@@ -23,7 +26,7 @@ def group_advantages(scores: list[list[float]], mode: str = "zscore", eps: float
     out = []
     for g in scores:
         s = np.asarray(g, dtype=np.float64)
-        if mode == "center":
+        if mode in ("center", "reinforce_pp"):
             a = s - s.mean()
         elif mode == "zscore":
             a = (s - s.mean()) / (s.std() + eps)
@@ -34,6 +37,12 @@ def group_advantages(scores: list[list[float]], mode: str = "zscore", eps: float
             raise ValueError(mode)
         out.append(a.tolist())
     return out
+
+
+def batch_normalize(advantages: list[float], eps: float = 1e-6) -> list[float]:
+    """Global (whole-batch) advantage normalization, REINFORCE++ style: (A - mean) / std over every rollout of the step."""
+    a = np.asarray(advantages, dtype=np.float64)
+    return ((a - a.mean()) / (a.std() + eps)).tolist() if len(a) else []
 
 
 def keep_group(scores: list[float], eps: float = 1e-6) -> bool:

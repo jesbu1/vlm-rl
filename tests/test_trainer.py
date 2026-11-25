@@ -614,3 +614,13 @@ def test_wandb_entity_and_project_env_override_the_config(tmp_path, monkeypatch)
     monkeypatch.delenv("WANDB_PROJECT")
     _trainer(tmp_path / "b", random_generate(0), wandb_project="vlm-rl-metaworld", wandb_entity=None)
     assert seen["entity"] is None and seen["project"] == "vlm-rl-metaworld"     # wandb then uses your default entity
+
+
+def test_adv_mode_reinforce_pp_has_unit_std_over_the_step(tmp_path):
+    ranks = lambda groups: [[float(i) * (gi + 1) for i in range(len(g))] for gi, g in enumerate(groups)]
+    tr = _trainer(tmp_path, random_generate(0), reward_fn=ranks, adv_mode="reinforce_pp", filter_groups=False)
+    groups, _, _ = tr.collect()
+    advs = np.array([t.advantage for g in groups for t in g])
+    assert abs(advs.std() - 1) < 1e-3 and abs(advs.mean()) < 1e-6
+    a0, a1 = np.ptp([t.advantage for t in groups[0]]), np.ptp([t.advantage for t in groups[1]])
+    assert a1 > a0 * 1.5                                  # the wider-spread group keeps larger advantages

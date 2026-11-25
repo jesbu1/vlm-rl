@@ -50,7 +50,7 @@ Every field of `vlmrl.trainer.TrainConfig`, the Hydra schema. Set any of them on
 | `group_size` | `int` | `8` | PEAR: 8 |
 | `filter_groups` | `bool` | `True` | DAPO group filter |
 | `max_resample_rounds` | `int` | `3` |  |
-| `adv_mode` | `str` | `'zscore'` | zscore (GRPO, PEAR Eq. 1) \| center \| rloo |
+| `adv_mode` | `str` | `'zscore'` | zscore (GRPO, PEAR Eq. 1) \| center \| rloo \| reinforce_pp |
 | `adv_min` | `float \| None` | `null` | floor on advantages; 0 = reinforce only above-average rollouts |
 | `policy_loss` | `str` | `'reinforce'` | reinforce (PEAR "bypass", no clipping) \| ppo_clip |
 | `ppo_epochs` | `int` | `1` | updates per batch; 1 = PEAR |

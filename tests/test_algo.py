@@ -130,3 +130,14 @@ def test_kl_k3_is_zero_at_reference_and_pulls_back():
     kl.backward()
     assert float(kl) > 0 and (logp.grad < 0).all()   # descending the loss raises logp back toward ref
     assert float(kl_k3_sum(logp, ref, torch.zeros(1, 2))) == 0.0
+
+
+def test_reinforce_pp_normalizes_over_the_batch_not_the_group():
+    from vlmrl import algo
+    scores = [[0.0, 0.1], [0.0, 1.0]]                    # a near-tied group and a decisive one
+    z = algo.group_advantages(scores, "zscore")
+    assert abs(z[0][1] - z[1][1]) < 1e-3                 # GRPO: both get the same full-size advantage
+    c = algo.group_advantages(scores, "reinforce_pp")    # group-centered ...
+    flat = algo.batch_normalize([a for g in c for a in g])   # ... then one std for the batch
+    assert abs(flat[1]) < abs(flat[3]) / 5               # the near-tied group barely moves the policy
+    assert abs(sum(flat)) < 1e-6 and abs(np.std(flat) - 1) < 1e-3
