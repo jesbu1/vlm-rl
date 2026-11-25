@@ -167,7 +167,7 @@ Still running when this was written:
 | Run (our wandb group) | What it tests | What to look for |
 |---|---|---|
 | `metaworld-rlreason-q35-ml10` | RL only with short reasoning, from the base model, 150 steps | held-out door-close was 0.52 at step 30, 0.04 at step 40, 0 at 50–60; training tasks stalled at 0.10. The same on ML45 got no signal at all and was stopped |
-| `metaworld-reasonbc2-q35-ml10`, `-ml45` | cloning with one-sentence reasons (second attempt), then RL with reasoning | held-out vs the answer-only clones (ML10 0.02, door-close 0.04; ML45 0.12) |
+| `metaworld-reasonbc2-q35-ml10`, `-ml45` | cloning with one-sentence reasons (second attempt), then RL with reasoning | ML45 clone: 0.47 / 0.05 (answer-only 0.49 / 0.12), so no transfer gain there; ML10 vs its answer-only clone (held-out 0.02, door-close 0.04) still pending |
 
 The project owner can add their final numbers to the PDF.
 

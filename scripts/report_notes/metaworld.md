@@ -164,3 +164,5 @@ Each GRPO group is 8 rollouts from the same start (same goal position and seed).
   but the moves drifted toward the training tasks' (forward and down). ML45 RL-only reasoning: nothing yet at step 10.
 * **RL-only reasoning stalls:** ML10 at 0.10 on the training tasks from step 40 to 60 (held-out 0); ML45 gets no signal
   from the base model (rollouts 0.00–0.01 over 23 steps, stopped).
+* **Cloning with reasons, second attempt (ML45):** one-sentence reasons restore the skill (training tasks 0.47 vs 0.49
+  answer-only) but not transfer (held-out 0.05 vs 0.12). ML10's second attempt still training.
