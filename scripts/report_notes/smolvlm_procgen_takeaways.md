@@ -1085,6 +1085,10 @@
       Steps 6-10: rollouts 35-42%, log-prob -0.19 -> -0.17, KL 0.015 -> 0.038. Step-10 eval **18.8%** (training 23.4,
       held-out 11x11 15.6, 15x15 17.2); BC30 seed 0 at step 10: 18.8% with rollouts 30-39% (KL 0.05: 17.2%). All three
       are level here; BC30 seed 0 jumps between steps 15 and 20 (28.6 -> 44.3%), which is where KL 0.05 stalled.
+      Steps 11-15: rollouts 42-46%, log-prob -0.18 -> -0.22 (softening), KL 0.046 -> 0.24 (rising fast at steps 14-15).
+      Step-15 eval **29.2%** (training 34.4, held-out 11x11 25.0, 15x15 28.1), 0% invalid; BC30 seed 0: 28.6%, KL 0.05:
+      19.3%. Level with no-KL BC30. The rising KL with softer log-prob means the policy is moving away from the clone
+      toward a *less* peaked distribution (plain RL sharpens); watch for drift.
     * (A second frame is not the loop fix: `max_frames=2` on 256M, above, swapped wall-loops for copying its own previous
       reply, and collapsed at the same step.)
     * The loop also explains the sampled-vs-greedy gap in every run: under greedy decoding, any move that leaves the state
