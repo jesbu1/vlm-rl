@@ -525,12 +525,15 @@ keep improving (0.10: drawer-close 1.00, reach 0.20, window-open 0.18). The reas
 open and needs to be pushed shut. The gripper should move to the right''); the moves are not: the clean \code{dx +5} pushes
 of step 30 now carry forward and downward components (\code{dy +2}, \code{dz -1}) learned on the training tasks, and the
 door is sometimes judged angled the other way. RL on the training tasks reshapes the motion they share with the held-out
-task, and the transfer it found along the way was not kept. Keeping it would need held-out-aware checkpoint selection, a
-smaller learning rate or a broader task mix, none of which has been tried yet. Nobody wrote its reasons; RL found that stating what the instruction
+task, and the transfer it found along the way was not kept. By step 60 the training tasks have stalled at 0.10 (one task
+solved, two at 0.2) and held-out tasks are at 0. Keeping such transfer would need held-out-aware checkpoint selection, a
+smaller learning rate or a broader task mix, none of which has been tried yet. On ML45, RL from the base model gets no
+signal at all (rollouts 0.00--0.01 over 23 steps, stopped): with 45 tasks a policy that solves none of them rarely
+produces a better rollout to reinforce, so on the large benchmark reasoning has to start from a clone. Nobody wrote its reasons; RL found that stating what the instruction
 means for the motion pays: ``The door is open and needs to be pushed shut. The hand should move to the right to push the
 door closed.'' $\to$ \code{dx +5} $\to$ success. It is still poor at the other tasks after 30 steps (training tasks
 0.07): the motor skill that cloning gives has to be learned from scratch. RL on the first reasoning clone stayed flat
-(held-out 0.06 at step 20). Running: the same RL-only reasoning on ML45.
+(held-out 0.06 at step 20).
 
 \begin{figure}[h]
 \centering\includegraphics[width=\linewidth]{figures/reasoning_ml10.pdf}

@@ -162,3 +162,5 @@ Each GRPO group is 8 rollouts from the same start (same goal position and seed).
 * **Correction: the RL-reasoning transfer did not hold.** At step 40 held-out door-close is 0.04 (0.52 at step 30) and
   held-out tasks 0.01, while training tasks improve (0.10; drawer-close 1.00). The reasoning still reads the instruction,
   but the moves drifted toward the training tasks' (forward and down). ML45 RL-only reasoning: nothing yet at step 10.
+* **RL-only reasoning stalls:** ML10 at 0.10 on the training tasks from step 40 to 60 (held-out 0); ML45 gets no signal
+  from the base model (rollouts 0.00–0.01 over 23 steps, stopped).
