@@ -1125,6 +1125,7 @@
       (`smolvlm_procgen_v2_terminate_500m_bc30_klclone0p01_seed1_gpu0.yaml`) to check that the flat curve replicates.
     * Seed 1 (started 05:40): clone eval 17.2%; step 5 18.8%; step 10 19.3%; step 15 20.8% (rollouts 48%)
       -- seed 0 was 18.2 / 18.8 / 29.2 at steps 5 / 10 / 15, so seed 1 is slower to turn rollout gains into greedy gains.
+      Step 20: 33.9% (train 11x11 32.8, held-out 11x11 32.8, 15x15 35.9; seed 0 at step 20: 36.5%) -- caught up.
     * (A second frame is not the loop fix: `max_frames=2` on 256M, above, swapped wall-loops for copying its own previous
       reply, and collapsed at the same step.)
     * The loop also explains the sampled-vs-greedy gap in every run: under greedy decoding, any move that leaves the state
