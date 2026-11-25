@@ -1063,6 +1063,10 @@
     * Steps 11-15: rollouts 39-41% (flat since step 6), log-prob -0.20 -> -0.22 (softening, the opposite of BC30), KL ~0.024.
       Step-15 eval **19.3%** (training 23.4, held-out 11x11 15.6, 15x15 18.8), 0% invalid; BC30 at step 15: 28.6 / 28.1%.
       ~9 points behind: the KL to the clone is holding RL back, not (yet) protecting a peak.
+    * Steps 16-20: rollouts 34-43%, log-prob ~-0.22, KL ~0.018. Step-20 eval **19.3%** (training 23.4, held-out 11x11
+      17.2, 15x15 17.2); BC30 at step 20: 44.3 / 41.1%. **Stopped after step 20** (failed: it never reaches the peak it was
+      meant to protect). Next on GPU0: the same with `kl_coef: [0.01]`
+      (`smolvlm_procgen_v2_terminate_500m_bc30_klclone0p01_gpu0.yaml`).
     * (A second frame is not the loop fix: `max_frames=2` on 256M, above, swapped wall-loops for copying its own previous
       reply, and collapsed at the same step.)
     * The loop also explains the sampled-vs-greedy gap in every run: under greedy decoding, any move that leaves the state
