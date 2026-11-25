@@ -166,3 +166,6 @@ Each GRPO group is 8 rollouts from the same start (same goal position and seed).
   from the base model (rollouts 0.00–0.01 over 23 steps, stopped).
 * **Cloning with reasons, second attempt (ML45):** one-sentence reasons restore the skill (training tasks 0.47 vs 0.49
   answer-only) but not transfer (held-out 0.05 vs 0.12). ML10's second attempt still training.
+* **ML10, second reasoning clone:** 0.62 / 0.03 (answer-only 0.61 / 0.02); cloned reasoning does not reliably help transfer.
+* **GRPO vs REINFORCE++ (live):** `adv_mode=reinforce_pp` (group-mean baseline, then one std over the whole batch, instead of
+  GRPO's per-group std). Twins from the 400-step ML10 and ML45 clones, and RL-only reasoning on ML10.

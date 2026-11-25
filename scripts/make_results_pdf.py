@@ -72,6 +72,10 @@ RUNS = {
     "rr_ml10": (MW, "group:metaworld-rlreason-q35-ml10"),     # RL only with reasoning, from the base model
     "rr_ml45": (MW, "group:metaworld-rlreason-q35-ml45"),
     "rb2_ml10": (MW, "group:metaworld-reasonbc2-q35-ml10"), "rb2_ml45": (MW, "group:metaworld-reasonbc2-q35-ml45"),
+    # REINFORCE++-baseline (adv_mode=reinforce_pp) vs GRPO (zscore) twins, same settings
+    "rpp_ml10": (MW, "group:metaworld-adv-reinforce_pp-ml10-clone400"), "grpo_ml10": (MW, "group:metaworld-adv-zscore-ml10-clone400"),
+    "rpp_ml45": (MW, "group:metaworld-adv-reinforce_pp-ml45-clone400"), "grpo_ml45": (MW, "group:metaworld-adv-zscore-ml45-clone400"),
+    "rpp_rr_ml10": (MW, "group:metaworld-adv-reinforce_pp-ml10-rlreason"),
     # RL from good clones: lower lr / only above-average rollouts (adv_min=0); baselines p5_seeds10, m5_bc200 (lr 1e-5)
     "rl_push_lr": (MW, "group:metaworld-rlfix-push450-lr2e-6"), "rl_push_pos": (MW, "group:metaworld-rlfix-push450-posadv"),
     "rl_ml10_lr": (MW, "group:metaworld-rlfix-ml10-lr2e-6"), "rl_ml10_pos": (MW, "group:metaworld-rlfix-ml10-posadv"),
