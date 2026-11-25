@@ -1058,6 +1058,9 @@
       held-out 11x11 15.6, 15x15 15.6), 0% invalid; BC30 at step 5: 16-20%. Same track so far.
     * Steps 6-10: rollouts 34-41% (flat), log-prob ~-0.19, KL 0.010 -> 0.018. Step-10 eval **17.2%** (training 20.3,
       held-out 11x11 17.2, 15x15 14.1), 0% invalid; BC30 at step 10: 15-22%. Within range, at the low end; rollouts flat.
+    * Steps 11-15: rollouts 39-41% (flat since step 6), log-prob -0.20 -> -0.22 (softening, the opposite of BC30), KL ~0.024.
+      Step-15 eval **19.3%** (training 23.4, held-out 11x11 15.6, 15x15 18.8), 0% invalid; BC30 at step 15: 28.6 / 28.1%.
+      ~9 points behind: the KL to the clone is holding RL back, not (yet) protecting a peak.
     * (A second frame is not the loop fix: `max_frames=2` on 256M, above, swapped wall-loops for copying its own previous
       reply, and collapsed at the same step.)
     * The loop also explains the sampled-vs-greedy gap in every run: under greedy decoding, any move that leaves the state
