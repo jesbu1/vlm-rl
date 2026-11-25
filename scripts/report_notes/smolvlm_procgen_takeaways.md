@@ -1067,6 +1067,9 @@
       15x15 40.6), 0% invalid: the highest step-30 eval of any v2 run (seed 0: 42.7%, BC30 seeds 39.1 / 37.0%).
       Steps 31-35: rollouts 51-60%, log-prob -0.12 -> -0.10. Step-35 eval **33.9%** (training 37.5, held-out 11x11 34.4,
       15x15 29.7): an 11-point drop in 5 steps, the same peak-then-slide as seed 0 as log-prob sharpens to ~-0.10.
+      Step-40 eval **40.6%** (training 42.2, held-out 11x11 35.9, 15x15 43.8). **Mean over steps 30-40: 39.9%**.
+    * **BC-60 verdict (2 seeds): 38.8%** mean over steps 30-40 (37.7 / 39.9) vs BC-30 37.6% (38.7 / 36.5). Within seed
+      noise: twice the cloning does not raise the plateau.
   - **Queued on GPU1: BC-30 seed 2** (`smolvlm_procgen_v2_terminate_500m_bc30_seed2_gpu1.yaml`): a third baseline seed,
     since every variant lands within the two-seed spread.
   - **Queued on GPU0: BC30 + KL 0.05 to the clone** (`kl_ref: clone`, new option in cb32f9c; the old `kl_coef` pulled
