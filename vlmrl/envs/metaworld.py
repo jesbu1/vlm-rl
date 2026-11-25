@@ -88,9 +88,11 @@ def task_text(env_name: str, swap: bool = False) -> str:
     """The instruction for a task. ``swap``: the next task's instruction in alphabetical order instead (a diagnostic: if
     a trained policy succeeds as often with another task's instruction, it is not reading the instruction)."""
     name = re.sub(r"-v\d+$", "", env_name)
-    if swap:
+    if swap:   # the next task (alphabetically) whose instruction differs: -side variants share theirs
         names = sorted(TASK_TEXT)
-        name = names[(names.index(name) + 1) % len(names)]
+        i = names.index(name)
+        name = next(names[(i + k) % len(names)] for k in range(1, len(names))
+                    if TASK_TEXT[names[(i + k) % len(names)]] != TASK_TEXT[name])
     return TASK_TEXT[name]
 
 
