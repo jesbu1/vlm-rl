@@ -1098,6 +1098,8 @@
       Steps 19-20: KL 0.24 / 0.35, rollouts 50-54%. Step-20 eval **36.5%** (training 45.3, held-out 11x11 29.7, 15x15
       34.4), 0% invalid; BC30 seed 0 at step 20: 44.3%. Below the no-KL peak (one eval, ~3-point noise); log-prob stays
       soft (~-0.21 vs BC30's ~-0.12 here), so it may avoid the late sharpening slide. Steps 25-40 decide.
+      Steps 21-25: KL 0.51 -> 0.25, rollouts 48-59%, log-prob ~-0.21. Step-25 eval **37.5%** (training 45.3, held-out
+      11x11 34.4, 15x15 32.8), 0% invalid; BC30 seed 0 at step 25: 40.1%.
     * (A second frame is not the loop fix: `max_frames=2` on 256M, above, swapped wall-loops for copying its own previous
       reply, and collapsed at the same step.)
     * The loop also explains the sampled-vs-greedy gap in every run: under greedy decoding, any move that leaves the state
