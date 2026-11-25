@@ -1074,6 +1074,8 @@
       (`smolvlm_procgen_v2_terminate_500m_bc30_klclone0p01_gpu0.yaml`).
     * KL 0.01 run: clone eval 13.5%, identical to the KL 0.05 rerun (same seed, no KL during cloning), so the two
       differ only in kl_coef from RL step 1.
+      Steps 1-5: rollouts 26-40%, log-prob -0.24 -> -0.20, KL 0.0006 -> 0.009. Step-5 eval **18.2%** (training 14.1,
+      held-out 11x11 21.9, 15x15 18.8), 0% invalid; KL 0.05 at step 5: 16.1%, BC30: 16-20%.
     * (A second frame is not the loop fix: `max_frames=2` on 256M, above, swapped wall-loops for copying its own previous
       reply, and collapsed at the same step.)
     * The loop also explains the sampled-vs-greedy gap in every run: under greedy decoding, any move that leaves the state
