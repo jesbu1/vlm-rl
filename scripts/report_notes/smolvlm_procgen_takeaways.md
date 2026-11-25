@@ -1087,6 +1087,8 @@
       ~+-4 points of 36% (traj_mean 35.9, lr 2.5e-6 39.4, BC-60 37.7 / 39.9, KL 0.01 seed 0 37.2) are not distinguishable.
   - **Queued on GPU1: BC30 + KL 0.01 to the clone, seed 2** (`smolvlm_procgen_v2_terminate_500m_bc30_klclone0p01_seed2_gpu1.yaml`):
     KL 0.01 seed 1 is at 42.7 / 41.1% at steps 25 / 30 (above all BC30 seeds); a third seed to tell a gain from seed noise.
+    * Started 14:30. Clone eval **8.9%** (training 9.4, held-out 11x11 9.4, 15x15 7.8): the weakest clone so far
+      (other clones 10.9-19.3%), so this seed starts from behind.
   - **Queued on GPU0: BC30 + KL 0.05 to the clone** (`kl_ref: clone`, new option in cb32f9c; the old `kl_coef` pulled
     toward the pretrained model, which would undo the clone). Started on GPU0 at 11:38.
     * **First attempt invalid (bug):** cloning runs through the same update, so with `kl_coef > 0` it loaded and cached
