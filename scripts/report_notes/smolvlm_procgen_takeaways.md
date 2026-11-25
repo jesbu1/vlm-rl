@@ -1130,6 +1130,7 @@
       Step 20: 33.9% (train 11x11 32.8, held-out 11x11 32.8, 15x15 35.9; seed 0 at step 20: 36.5%) -- caught up.
       Step 25: 42.7% (train 11x11 46.9, held-out 11x11 39.1, 15x15 42.2; rollouts 46%) -- best greedy eval of any
       KL-to-clone eval so far, and greedy above the rollout rate for once; one eval, +-3 pts noise.
+      Step 30: 41.1% (train 11x11 46.9, held-out 11x11 37.5, 15x15 39.1; rollouts 54%) -- holding above 40.
     * (A second frame is not the loop fix: `max_frames=2` on 256M, above, swapped wall-loops for copying its own previous
       reply, and collapsed at the same step.)
     * The loop also explains the sampled-vs-greedy gap in every run: under greedy decoding, any move that leaves the state
