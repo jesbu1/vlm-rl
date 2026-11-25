@@ -12,8 +12,9 @@ code.
   task variations, then optional RL. With Qwen3.5-4B (LoRA) this gives **0.73 on ML45's 45 training tasks** (the experts
   score 0.82 through the same interface) and **0.69 on ML10's 10 training tasks**.
 - **What doesn't yet:** **held-out tasks.** The best ML45 clone scores 0.12 on its 5 held-out tasks, and only on tasks that
-  look like training tasks (door-lock, door-unlock). ML10's held-out tasks are ~0 for every cloned policy. The instruction
-  does not steer the motion: ML10's clone cannot do drawer-open / door-close, the reverses of its training tasks.
+  look like training tasks (door-lock, door-unlock). ML10's held-out tasks are ~0 for every cloned policy. The clones do
+  read the instruction: with another task's instruction their training-task success falls by half or more. They fail
+  held-out tasks because those need motions no training task demonstrated (ML10 never shows pulling a drawer open).
 - **Most interesting lead:** **reasoning learned by RL.** RL from the *base* model (no cloning), with one or two
   sentences of reasoning before each move, learned drawer-close in 30 steps and solved the held-out door-close at 0.52
   (answer-only clones: 0.04). It did **not** hold: at step 40 door-close was back to 0.04 while the training tasks kept
@@ -172,7 +173,7 @@ Still running when this was written:
 | `metaworld-adv-reinforce_pp-ml10-rlreason` | REINFORCE++ for RL-only reasoning on ML10 | slightly slower than GRPO so far (0.03 vs 0.07 at step 30) |
 
 | `metaworld-recipe-q35-9b-ml45`, `-ml10` | Qwen3.5-9B (`policy=qwen35_9b_lora_mlp`) with the same recipe | does 2.3× the parameters transfer better than the 4B (ML45 0.12, ML10 0.02 held-out)? |
-| `metaworld-swap-ml45-clone400`, `metaworld-swap-ml10-clone400` | the 4B clones evaluated with swapped instructions (`env_kwargs.swap_instructions=true`) | if training-task success barely drops, the clones ignore the instruction |
+| `metaworld-swap-ml45-clone400`, `metaworld-swap-ml10-clone400` (done) | the 4B clones evaluated with swapped instructions (`env_kwargs.swap_instructions=true`) | training tasks fell 0.49 → 0.11 (ML45) and 0.61 → 0.28 (ML10): the clones read the instruction |
 
 Finished just before handoff: cloning with one-sentence reasons (`metaworld-reasonbc2-q35-ml10`, `-ml45`) matched the answer-only clones on training tasks (ML10 0.62, ML45 0.47) but not better on held-out tasks (0.03, 0.05).
 

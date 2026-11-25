@@ -172,3 +172,7 @@ Each GRPO group is 8 rollouts from the same start (same goal position and seed).
 * **GRPO vs REINFORCE++: no difference.** Twins from the 400-step clones (lr 2e-6), pooled over steps 10–40: ML10 training
   tasks 0.64 vs 0.63, held-out 0.01 vs 0.03; ML45 0.53 vs 0.52, held-out 0.13 vs 0.12 (REINFORCE++ vs GRPO). Neither erodes
   the clone at this lr. RL-only reasoning on ML10: REINFORCE++ slightly slower (0.03 vs 0.07 at step 30).
+* **The clones read the instruction.** With every task given another task's instruction, the 4B clones' training-task
+  success falls 0.49 → 0.11 (ML45) and 0.61 → 0.28 (ML10; sweep 1.00 → 0, window-open 0.82 → 0). Held-out failures are
+  missing motions (e.g. pulling a drawer, never demonstrated in ML10), not ignored language. Qwen3.5-9B with the same
+  recipe is cloning (ML45 239/400, ML10 211/400).
