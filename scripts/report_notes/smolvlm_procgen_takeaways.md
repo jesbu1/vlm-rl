@@ -1044,6 +1044,8 @@
     15x15 37.5), 0% invalid; BC30 at step 20: 44.3 / 41.1%. Same peak as BC30, reached at the same step.
     Steps 21-25: rollouts 52-62%, log-prob ~-0.15. Step-25 eval **43.2%** (training 48.4, held-out 11x11 42.2,
     15x15 39.1), 0% invalid; BC30 at step 25: 40.1 / 39.6%. Holding the peak so far (BC30 had started to slide).
+    Steps 26-30: rollouts 50-61%, log-prob -0.14 -> -0.12. Step-30 eval **42.7%** (training 50.0, held-out 11x11 39.1,
+    15x15 39.1), 0% invalid; BC30 at step 30: 39.1 / 37.0%. Still holding, ~4-6 points above BC30.
   - **Queued on GPU0: BC30 + KL 0.05 to the clone** (`kl_ref: clone`, new option in cb32f9c; the old `kl_coef` pulled
     toward the pretrained model, which would undo the clone). Started on GPU0 at 11:38.
     * **First attempt invalid (bug):** cloning runs through the same update, so with `kl_coef > 0` it loaded and cached
