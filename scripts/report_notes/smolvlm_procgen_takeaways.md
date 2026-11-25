@@ -1079,6 +1079,7 @@
       Step 20: 34.4% (train 11x11 40.6, held-out 11x11 42.2, 15x15 20.3); seeds 0 / 1 at step 20: 44.3 / 41.1% (their peaks).
       Step 25: 33.9% (train 11x11 37.5, held-out 11x11 43.8, 15x15 20.3; rollouts 52%).
       Step 30: 32.3% (train 11x11 37.5, held-out 11x11 40.6, 15x15 18.8; rollouts 55%).
+      Step 35: 31.2% (train 11x11 35.9, held-out 11x11 40.6, 15x15 17.2; rollouts 58%) -- slow slide, greedy/rollout gap widening.
   - **Queued on GPU0: BC30 + KL 0.05 to the clone** (`kl_ref: clone`, new option in cb32f9c; the old `kl_coef` pulled
     toward the pretrained model, which would undo the clone). Started on GPU0 at 11:38.
     * **First attempt invalid (bug):** cloning runs through the same update, so with `kl_coef > 0` it loaded and cached
