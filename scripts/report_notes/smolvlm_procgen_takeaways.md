@@ -1052,6 +1052,7 @@
     15x15 32.8), 0% invalid. **Mean over steps 30-40: 37.7%** (BC30 two seeds: 37.6%). Verdict: twice the cloning gives
     the same clone, the same ~44% peak at step 20, holds it ~10 steps longer, then slides to the same plateau. Seed-1
     replicate started on GPU1 at 18:31 (`smolvlm_procgen_v2_terminate_500m_bc60_seed1_gpu1.yaml`).
+    * Seed 1: clone eval **19.3%**, the best clone so far (BC30 clones 10.9-16.7%, BC-60 seed 0 15.6%).
   - **Queued on GPU0: BC30 + KL 0.05 to the clone** (`kl_ref: clone`, new option in cb32f9c; the old `kl_coef` pulled
     toward the pretrained model, which would undo the clone). Started on GPU0 at 11:38.
     * **First attempt invalid (bug):** cloning runs through the same update, so with `kl_coef > 0` it loaded and cached
@@ -1071,6 +1072,8 @@
       17.2, 15x15 17.2); BC30 at step 20: 44.3 / 41.1%. **Stopped after step 20** (failed: it never reaches the peak it was
       meant to protect). Next on GPU0: the same with `kl_coef: [0.01]`
       (`smolvlm_procgen_v2_terminate_500m_bc30_klclone0p01_gpu0.yaml`).
+    * KL 0.01 run: clone eval 13.5%, identical to the KL 0.05 rerun (same seed, no KL during cloning), so the two
+      differ only in kl_coef from RL step 1.
     * (A second frame is not the loop fix: `max_frames=2` on 256M, above, swapped wall-loops for copying its own previous
       reply, and collapsed at the same step.)
     * The loop also explains the sampled-vs-greedy gap in every run: under greedy decoding, any move that leaves the state
