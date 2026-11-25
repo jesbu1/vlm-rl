@@ -1048,6 +1048,10 @@
     15x15 39.1), 0% invalid; BC30 at step 30: 39.1 / 37.0%. Still holding, ~4-6 points above BC30.
     Steps 31-35: rollouts 54-60%, log-prob -0.13 -> -0.10. Step-35 eval **36.5%** (training 43.8, held-out 11x11 28.1,
     15x15 37.5), 0% invalid; BC30 at step 35: 38.5 / 34.9%. The slide arrives later, as log-prob sharpens past ~-0.12.
+    Steps 36-40: rollouts 50-54%, log-prob -0.10 -> -0.09. Step-40 eval **33.9%** (training 37.5, held-out 11x11 31.2,
+    15x15 32.8), 0% invalid. **Mean over steps 30-40: 37.7%** (BC30 two seeds: 37.6%). Verdict: twice the cloning gives
+    the same clone, the same ~44% peak at step 20, holds it ~10 steps longer, then slides to the same plateau. Seed-1
+    replicate started on GPU1 at 18:31 (`smolvlm_procgen_v2_terminate_500m_bc60_seed1_gpu1.yaml`).
   - **Queued on GPU0: BC30 + KL 0.05 to the clone** (`kl_ref: clone`, new option in cb32f9c; the old `kl_coef` pulled
     toward the pretrained model, which would undo the clone). Started on GPU0 at 11:38.
     * **First attempt invalid (bug):** cloning runs through the same update, so with `kl_coef > 0` it loaded and cached
