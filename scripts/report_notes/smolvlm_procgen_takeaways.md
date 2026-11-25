@@ -1059,6 +1059,8 @@
       15x15 17.2); seed 0 at step 10: 22.9%.
       Steps 11-15: rollouts 39-48%, log-prob -0.12 -> -0.10. Step-15 eval **25.5%** (training 28.1, held-out 11x11 26.6,
       15x15 21.9); seed 0 at step 15: 33.9%.
+      Steps 16-20: rollouts 40-49%, log-prob ~-0.10. Step-20 eval **37.0%** (training 42.2, held-out 11x11 35.9, 15x15
+      32.8), 0% invalid; seed 0 at step 20: 43.8%, BC30 seeds 44.3 / 41.1%. Below the usual step-20 peak.
   - **Queued on GPU0: BC30 + KL 0.05 to the clone** (`kl_ref: clone`, new option in cb32f9c; the old `kl_coef` pulled
     toward the pretrained model, which would undo the clone). Started on GPU0 at 11:38.
     * **First attempt invalid (bug):** cloning runs through the same update, so with `kl_coef > 0` it loaded and cached
@@ -1089,6 +1091,8 @@
       Step-15 eval **29.2%** (training 34.4, held-out 11x11 25.0, 15x15 28.1), 0% invalid; BC30 seed 0: 28.6%, KL 0.05:
       19.3%. Level with no-KL BC30. The rising KL with softer log-prob means the policy is moving away from the clone
       toward a *less* peaked distribution (plain RL sharpens); watch for drift.
+      Steps 16-18: KL 0.57 / 0.56 / 0.33, log-prob ~-0.20, rollouts 46-48%, invalid <=0.1%, reply length unchanged (24
+      chars). Large drift from the clone without visible format damage.
     * (A second frame is not the loop fix: `max_frames=2` on 256M, above, swapped wall-loops for copying its own previous
       reply, and collapsed at the same step.)
     * The loop also explains the sampled-vs-greedy gap in every run: under greedy decoding, any move that leaves the state
