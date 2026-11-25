@@ -632,6 +632,32 @@ def fig_reasoning(D):
     save(fig, "reasoning_ml10.pdf")
 
 
+def fig_advmode(D):
+    """GRPO (per-group std) vs REINFORCE++-baseline (one std over the batch), same clones and settings."""
+    import matplotlib.pyplot as plt
+    pairs = [("ML10", "grpo_ml10", "rpp_ml10"), ("ML45", "grpo_ml45", "rpp_ml45")]
+    if not all(k in D for _, a, b in pairs for k in (a, b)):
+        return
+    fig, axes = plt.subplots(1, 4, figsize=(7.2, 2.2))
+    for col, (bench, kg, kr) in enumerate(pairs):
+        for ax, key, title in ((axes[2 * col], "eval/train_tasks/success", f"{bench}: training tasks"),
+                               (axes[2 * col + 1], "eval/heldout_tasks/success", f"{bench}: held-out tasks")):
+            ends = []
+            for i, (k, name) in enumerate(((kg, "GRPO"), (kr, "REINFORCE++"))):
+                xs, ys = series(D[k], key)
+                line(ax, xs, ys, C[i], name, marker="o")
+                ends.append((xs[-1], ys[-1], f"{ys[-1]:.2f}", C[i]))
+            ax.set_title(title, fontsize=8)
+            ax.set_xlabel("RL step")
+            ax.set_ylim(0, 0.9 if "train" in key else 0.3)
+            end_labels(ax, ends, xpad=2)
+    axes[0].set_ylabel("Eval success")
+    h, l = axes[0].get_legend_handles_labels()
+    fig.legend(h, l, loc="lower center", ncol=2, bbox_to_anchor=(0.5, -0.1))
+    fig.tight_layout(w_pad=1.2)
+    save(fig, "advmode.pdf")
+
+
 # ----------------------------------------------------------------------------- tables
 
 def tex_escape(s):
@@ -677,7 +703,7 @@ def build():
     D = load()
     style()
     for fn in (fig_maze_procgen, fig_maze_fixed, fig_reach_models, fig_reach_exploration, fig_push_reward,
-               fig_push_clones, fig_push_rl, fig_ml10, fig_rl_fixes, fig_recipe, fig_pertask, fig_reasoning):
+               fig_push_clones, fig_push_rl, fig_ml10, fig_rl_fixes, fig_recipe, fig_pertask, fig_reasoning, fig_advmode):
         fn(D)
     fig_expert_gain()
     write_tables(D)
@@ -708,7 +734,7 @@ if __name__ == "__main__":
         D = load()
         style()
         for fn in (fig_maze_procgen, fig_maze_fixed, fig_reach_models, fig_reach_exploration, fig_push_reward,
-                   fig_push_clones, fig_push_rl, fig_ml10, fig_rl_fixes, fig_recipe, fig_pertask, fig_reasoning):
+                   fig_push_clones, fig_push_rl, fig_ml10, fig_rl_fixes, fig_recipe, fig_pertask, fig_reasoning, fig_advmode):
             fn(D)
         fig_expert_gain()
         write_tables(D)

@@ -137,7 +137,7 @@ and so are `secret_env` (e.g. `WANDB_API_KEY`), copied from your shell at submit
 | `temperature` | 1.0 from a clone, 1.2 from scratch | a clone already explores; from scratch, low-entropy models never vary their moves |
 | `loss_agg` | `traj_mean` | token-mean collapsed small models (failed episodes carry most tokens) |
 | `adv_min` | unset | positive-only advantages reinforce above-average *failures* and hurt ML10 |
-| `adv_mode` | `zscore` (GRPO) so far | `reinforce_pp` (REINFORCE++-baseline: one std over the batch) is being compared; see "State at handoff" |
+| `adv_mode` | `zscore` (GRPO) | `reinforce_pp` (REINFORCE++-baseline: one std over the batch) performed the same from clones at lr 2e-6 (ML10 0.64 vs 0.63, ML45 0.53 vs 0.52 on training tasks) |
 | DAgger | don't | the experts are threshold state machines; their labels in the clone's own states contradict each other |
 | native thinking | don't | Qwen3.5-4B's thinking loops and never closes within 4096 tokens (87% invalid) |
 
@@ -168,8 +168,8 @@ Still running when this was written:
 | Run (our wandb group) | What it tests | What to look for |
 |---|---|---|
 | `metaworld-rlreason-q35-ml10` | RL only with short reasoning, from the base model, 150 steps | held-out door-close was 0.52 at step 30, 0.04 at step 40, 0 at 50–60; training tasks stalled at 0.10. The same on ML45 got no signal at all and was stopped |
-| `metaworld-adv-reinforce_pp-ml10-clone400` / `metaworld-adv-zscore-ml10-clone400` (and `-ml45-`) | REINFORCE++ vs GRPO advantages from the same 400-step clone, identical settings | does REINFORCE++ keep or improve the clone where GRPO erodes it (training and held-out tasks)? |
-| `metaworld-adv-reinforce_pp-ml10-rlreason` | REINFORCE++ for RL-only reasoning on ML10 | vs `metaworld-rlreason-q35-ml10` (GRPO): more training tasks learned, transfer kept? |
+| `metaworld-adv-reinforce_pp-ml10-clone400` / `metaworld-adv-zscore-ml10-clone400` (and `-ml45-`) | REINFORCE++ vs GRPO advantages from the same 400-step clone, identical settings | no difference through step 40 (both keep the clone and drift slightly up); final numbers at step 60 |
+| `metaworld-adv-reinforce_pp-ml10-rlreason` | REINFORCE++ for RL-only reasoning on ML10 | slightly slower than GRPO so far (0.03 vs 0.07 at step 30) |
 
 Finished just before handoff: cloning with one-sentence reasons (`metaworld-reasonbc2-q35-ml10`, `-ml45`) matched the answer-only clones on training tasks (ML10 0.62, ML45 0.47) but not better on held-out tasks (0.03, 0.05).
 

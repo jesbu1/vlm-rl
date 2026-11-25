@@ -550,12 +550,21 @@ held-out tasks. On ML10 the second attempt matches the answer-only clone on the 
 held-out ones (0.03 vs 0.02; door-close 0.09 vs 0.04): the first attempt's held-out gain (0.07) did not survive cleaner
 reasons. Cloned reasoning has not reliably improved transfer on either benchmark.
 
-\textbf{GRPO vs REINFORCE++ (running).} Our loss is REINFORCE already; what makes it GRPO is the advantage: each group's
-rewards are divided by that group's standard deviation, so a group of near-equal rollouts gets full-size advantages.
+\textbf{GRPO vs REINFORCE++.} Our loss is REINFORCE already; what makes it GRPO is the advantage: each group's rewards
+are divided by that group's standard deviation, so a group of near-equal rollouts gets full-size advantages.
 REINFORCE++-baseline (\code{adv\_mode=reinforce\_pp}) subtracts the group mean and divides by the standard deviation of the
-whole batch instead, so near-tied groups barely move the policy. That may be why RL erodes good clones. Running twins with
-identical settings from the 400-step ML10 and ML45 clones, and RL-only reasoning on ML10. (REINFORCE++'s token-level KL to
-the starting model is not included: with LoRA our KL reference is the base model, not the clone.)
+whole batch instead, so near-tied groups barely move the policy. Run as twins with identical settings from the 400-step
+clones (lr 2e-6, Fig.~\ref{fig:advmode}), the two are indistinguishable: pooled over steps 10--40, ML10's training tasks
+0.64 (REINFORCE++) vs 0.63 (GRPO) and held-out 0.01 vs 0.03; ML45's 0.53 vs 0.52 and 0.13 vs 0.12. Neither erodes the clone
+at this learning rate, so the earlier erosion came from the learning rate, not the normalization. For RL-only reasoning on
+ML10 REINFORCE++ is slightly slower (training tasks 0.03 at step 30, GRPO 0.07). REINFORCE++'s token-level KL to the
+starting model was not included (with LoRA our KL reference is the base model, not the clone).
+
+\begin{figure}[h]
+\centering\includegraphics[width=\linewidth]{figures/advmode.pdf}
+\caption{GRPO and REINFORCE++-baseline advantages, RL from the same 400-step clones with identical settings.}
+\label{fig:advmode}
+\end{figure}
 
 \section{Methodology lessons}
 \label{sec:noise}

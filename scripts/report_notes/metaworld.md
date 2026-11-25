@@ -169,3 +169,6 @@ Each GRPO group is 8 rollouts from the same start (same goal position and seed).
 * **ML10, second reasoning clone:** 0.62 / 0.03 (answer-only 0.61 / 0.02); cloned reasoning does not reliably help transfer.
 * **GRPO vs REINFORCE++ (live):** `adv_mode=reinforce_pp` (group-mean baseline, then one std over the whole batch, instead of
   GRPO's per-group std). Twins from the 400-step ML10 and ML45 clones, and RL-only reasoning on ML10.
+* **GRPO vs REINFORCE++: no difference.** Twins from the 400-step clones (lr 2e-6), pooled over steps 10–40: ML10 training
+  tasks 0.64 vs 0.63, held-out 0.01 vs 0.03; ML45 0.53 vs 0.52, held-out 0.13 vs 0.12 (REINFORCE++ vs GRPO). Neither erodes
+  the clone at this lr. RL-only reasoning on ML10: REINFORCE++ slightly slower (0.03 vs 0.07 at step 30).
