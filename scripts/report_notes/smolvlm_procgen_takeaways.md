@@ -1093,6 +1093,9 @@
       toward a *less* peaked distribution (plain RL sharpens); watch for drift.
       Steps 16-18: KL 0.57 / 0.56 / 0.33, log-prob ~-0.20, rollouts 46-48%, invalid <=0.1%, reply length unchanged (24
       chars). Large drift from the clone without visible format damage.
+      Steps 19-20: KL 0.24 / 0.35, rollouts 50-54%. Step-20 eval **36.5%** (training 45.3, held-out 11x11 29.7, 15x15
+      34.4), 0% invalid; BC30 seed 0 at step 20: 44.3%. Below the no-KL peak (one eval, ~3-point noise); log-prob stays
+      soft (~-0.21 vs BC30's ~-0.12 here), so it may avoid the late sharpening slide. Steps 25-40 decide.
     * (A second frame is not the loop fix: `max_frames=2` on 256M, above, swapped wall-loops for copying its own previous
       reply, and collapsed at the same step.)
     * The loop also explains the sampled-vs-greedy gap in every run: under greedy decoding, any move that leaves the state
