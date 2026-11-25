@@ -1057,6 +1057,8 @@
       seed 0 at step 5: 18.8%.
       Steps 6-10: rollouts 30-42%, log-prob -0.15 -> -0.13. Step-10 eval **19.8%** (training 21.9, held-out 11x11 20.3,
       15x15 17.2); seed 0 at step 10: 22.9%.
+      Steps 11-15: rollouts 39-48%, log-prob -0.12 -> -0.10. Step-15 eval **25.5%** (training 28.1, held-out 11x11 26.6,
+      15x15 21.9); seed 0 at step 15: 33.9%.
   - **Queued on GPU0: BC30 + KL 0.05 to the clone** (`kl_ref: clone`, new option in cb32f9c; the old `kl_coef` pulled
     toward the pretrained model, which would undo the clone). Started on GPU0 at 11:38.
     * **First attempt invalid (bug):** cloning runs through the same update, so with `kl_coef > 0` it loaded and cached
