@@ -1,0 +1,7 @@
+# @package _global_
+# Qwen3.5-9B: the same architecture as Qwen3.5-4B (Qwen3_5ForConditionalGeneration, 32 layers; hidden 4096 vs 2560,
+# MLP 12288 vs 9216), LoRA rank 64 on the language model's MLPs as in qwen35_4b_lora_mlp. Fits one 48 GB GPU for the
+# trainer (bf16 weights ~19 GB) and one for its vLLM server.
+defaults:
+  - qwen35_4b_lora_mlp
+model: Qwen/Qwen3.5-9B

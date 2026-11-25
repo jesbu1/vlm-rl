@@ -214,3 +214,12 @@ def test_compact_rel_reason_reads_the_last_json_only():
     assert itf.parse_action("Move right by dx=3 and down.") is None           # reasoning without a JSON move: invalid
     assert "short sentences" in itf.system_prompt({"env_name": "push-v3"})
     assert np.allclose(itf.parse_action(itf.format_action(np.array([1.0, 2.0, -3.0, 1.0]))), [1.0, 2.0, -3.0, 1.0])
+
+
+def test_swap_instructions_gives_every_task_another_tasks_instruction():
+    names = sorted(M.TASK_TEXT)
+    swapped = [M.task_text(n, swap=True) for n in names]
+    assert all(s != M.TASK_TEXT[n] for n, s in zip(names, swapped)) and len(set(swapped)) == len(names)
+    itf = M.MetaWorldTextInterface(prompt_style="compact_rel", swap_instructions=True)
+    assert M.TASK_TEXT["drawer-open"] in itf.system_prompt({"env_name": "drawer-close-v3"})
+    assert M.make_metaworld(benchmark="ML10", swap_instructions=True).interface.swap_instructions

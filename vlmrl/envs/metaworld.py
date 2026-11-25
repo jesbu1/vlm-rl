@@ -84,8 +84,14 @@ TASK_TEXT = {
 }
 
 
-def task_text(env_name: str) -> str:
-    return TASK_TEXT[re.sub(r"-v\d+$", "", env_name)]
+def task_text(env_name: str, swap: bool = False) -> str:
+    """The instruction for a task. ``swap``: the next task's instruction in alphabetical order instead (a diagnostic: if
+    a trained policy succeeds as often with another task's instruction, it is not reading the instruction)."""
+    name = re.sub(r"-v\d+$", "", env_name)
+    if swap:
+        names = sorted(TASK_TEXT)
+        name = names[(names.index(name) + 1) % len(names)]
+    return TASK_TEXT[name]
 
 
 @lru_cache(maxsize=None)
@@ -367,10 +373,12 @@ class MetaWorldTextInterface:
 
     SCHEMA = {"hand": ["x", "y", "z"], "gripper": ["opening"]}
 
-    def __init__(self, max_delta: float = 10.0, prompt_style: str = "pear", include_state: bool = True):
+    def __init__(self, max_delta: float = 10.0, prompt_style: str = "pear", include_state: bool = True,
+                 swap_instructions: bool = False):
         assert prompt_style in ("pear", "compact", "compact_rel", "compact_rel_reason"), prompt_style
         self.max_delta, self.prompt_style, self.include_state = max_delta, prompt_style, include_state
         self.rel = prompt_style in ("compact_rel", "compact_rel_reason")
+        self.swap_instructions = swap_instructions
 
     def environment_section(self) -> str:
         return (
@@ -388,11 +396,11 @@ class MetaWorldTextInterface:
     def system_prompt(self, start_state):
         if self.prompt_style == "pear":
             from vlmrl.envs import protocol
-            return protocol.system_prompt(self.environment_section(), task_text(start_state["env_name"]),
+            return protocol.system_prompt(self.environment_section(), task_text(start_state["env_name"], self.swap_instructions),
                                           length_unit="centimeters")
         if self.prompt_style == "compact_rel_reason":
             return ("You control a robot arm with a gripper above a table, seen from a fixed camera. "
-                    f"Task: {task_text(start_state['env_name'])} "
+                    f"Task: {task_text(start_state['env_name'], self.swap_instructions)} "
                     "Each turn, first write one or two short sentences: where the gripper, the object and the goal "
                     "are in the image, and what the hand should do next. Then, on the last line, give how far to move "
                     'the hand, in centimeters, as JSON, for example {"dx": 3.0, "dy": -2.0, "dz": -1.0, "grip": "open"}. '
@@ -401,14 +409,14 @@ class MetaWorldTextInterface:
                     '"grip": "close" closes the gripper, "open" opens it.')
         if self.prompt_style == "compact_rel":
             return ("You control a robot arm with a gripper above a table, seen from a fixed camera. "
-                    f"Task: {task_text(start_state['env_name'])} "
+                    f"Task: {task_text(start_state['env_name'], self.swap_instructions)} "
                     "Each turn, reply with only how far to move the hand, in centimeters, as JSON, for example "
                     '{"dx": 3.0, "dy": -2.0, "dz": -1.0, "grip": "open"}. These are changes, not positions: '
                     "in the image, +dx moves the hand to the right, +dy to the left, both slightly away from the "
                     f"camera; +dz moves it up. At most {self.max_delta:g} cm per turn. "
                     '"grip": "close" closes the gripper, "open" opens it.')
         return ("You control a robot arm with a gripper above a table, seen from a fixed camera. "
-                f"Task: {task_text(start_state['env_name'])} "
+                f"Task: {task_text(start_state['env_name'], self.swap_instructions)} "
                 "Positions are in centimeters; z points up. Each turn, reply with only the move as JSON, for example "
                 f'{{"x": 2.0, "y": -1.0, "z": 0.0, "grip": "close"}}. The hand moves by that amount (at most '
                 f'{self.max_delta:g} cm per turn); "grip" is "open" or "close".')
@@ -482,6 +490,7 @@ class MetaWorldConfig:
     eval_split: str = "test"          # test = held-out goals (ML1) / held-out tasks (ML10, ML45) | train
     prompt_style: str = "pear"        # pear | compact | compact_rel
     include_state: bool = True
+    swap_instructions: bool = False   # diagnostic: every task gets the next task's instruction (see task_text)
     image_size: int = 224              # square crop fed to the VLM
     render_width: int = 640            # rendered frame, before cropping
     render_height: int = 480
@@ -506,7 +515,7 @@ def make_metaworld(cfg: MetaWorldConfig | None = None, **kw) -> EnvBundle:
         make_vec_env=lambda: MetaWorldVecEnv(cfg.benchmark, cfg.seed, cfg.image_size, cfg.camera, cfg.max_delta,
                                              cfg.max_substeps, render_size=(cfg.render_width, cfg.render_height),
                                              crop=cfg.crop, gain=cfg.gain),
-        interface=MetaWorldTextInterface(cfg.max_delta, cfg.prompt_style, cfg.include_state),
+        interface=MetaWorldTextInterface(cfg.max_delta, cfg.prompt_style, cfg.include_state, cfg.swap_instructions),
         train_sampler=TaskSampler(cfg.benchmark, "train", cfg.seed, n_seeds=cfg.train_seeds),
         eval_sampler=TaskSampler(cfg.benchmark, cfg.eval_split, cfg.seed),
         max_turns=cfg.max_turns,
