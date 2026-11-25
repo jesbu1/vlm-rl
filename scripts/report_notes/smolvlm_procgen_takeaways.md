@@ -1072,6 +1072,8 @@
       noise: twice the cloning does not raise the plateau.
   - **Queued on GPU1: BC-30 seed 2** (`smolvlm_procgen_v2_terminate_500m_bc30_seed2_gpu1.yaml`): a third baseline seed,
     since every variant lands within the two-seed spread.
+    * Clone eval 11.5%. Steps 1-5: rollouts 30-33%, log-prob -0.24 -> -0.20. Step-5 eval **15.1%** (training 18.8,
+      held-out 11x11 17.2, 15x15 9.4); seeds 0 / 1 at step 5: 16.1 / 20.3%.
   - **Queued on GPU0: BC30 + KL 0.05 to the clone** (`kl_ref: clone`, new option in cb32f9c; the old `kl_coef` pulled
     toward the pretrained model, which would undo the clone). Started on GPU0 at 11:38.
     * **First attempt invalid (bug):** cloning runs through the same update, so with `kl_coef > 0` it loaded and cached
@@ -1117,6 +1119,7 @@
       11x11 35.9, 15x15 31.2). **Mean over steps 30-40: 37.2%** (BC30 two seeds: 37.6%). Verdict: KL 0.01 to the clone
       removes the peak-then-slide (flat 36-39% from step 20) but lands on the same plateau. Seed 1 queued on GPU0
       (`smolvlm_procgen_v2_terminate_500m_bc30_klclone0p01_seed1_gpu0.yaml`) to check that the flat curve replicates.
+    * Seed 1 (started 05:40): clone eval 17.2%.
     * (A second frame is not the loop fix: `max_frames=2` on 256M, above, swapped wall-loops for copying its own previous
       reply, and collapsed at the same step.)
     * The loop also explains the sampled-vs-greedy gap in every run: under greedy decoding, any move that leaves the state
