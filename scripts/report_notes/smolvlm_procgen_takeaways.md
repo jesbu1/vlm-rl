@@ -1055,6 +1055,8 @@
     * Seed 1: clone eval **19.3%**, the best clone so far (BC30 clones 10.9-16.7%, BC-60 seed 0 15.6%).
       Steps 1-5: rollouts 28-36%, log-prob ~-0.16. Step-5 eval **20.3%** (training 23.4, held-out 11x11 21.9, 15x15 15.6);
       seed 0 at step 5: 18.8%.
+      Steps 6-10: rollouts 30-42%, log-prob -0.15 -> -0.13. Step-10 eval **19.8%** (training 21.9, held-out 11x11 20.3,
+      15x15 17.2); seed 0 at step 10: 22.9%.
   - **Queued on GPU0: BC30 + KL 0.05 to the clone** (`kl_ref: clone`, new option in cb32f9c; the old `kl_coef` pulled
     toward the pretrained model, which would undo the clone). Started on GPU0 at 11:38.
     * **First attempt invalid (bug):** cloning runs through the same update, so with `kl_coef > 0` it loaded and cached
@@ -1078,6 +1080,9 @@
       differ only in kl_coef from RL step 1.
       Steps 1-5: rollouts 26-40%, log-prob -0.24 -> -0.20, KL 0.0006 -> 0.009. Step-5 eval **18.2%** (training 14.1,
       held-out 11x11 21.9, 15x15 18.8), 0% invalid; KL 0.05 at step 5: 16.1%, BC30: 16-20%.
+      Steps 6-10: rollouts 35-42%, log-prob -0.19 -> -0.17, KL 0.015 -> 0.038. Step-10 eval **18.8%** (training 23.4,
+      held-out 11x11 15.6, 15x15 17.2); BC30 seed 0 at step 10: 18.8% with rollouts 30-39% (KL 0.05: 17.2%). All three
+      are level here; BC30 seed 0 jumps between steps 15 and 20 (28.6 -> 44.3%), which is where KL 0.05 stalled.
     * (A second frame is not the loop fix: `max_frames=2` on 256M, above, swapped wall-loops for copying its own previous
       reply, and collapsed at the same step.)
     * The loop also explains the sampled-vs-greedy gap in every run: under greedy decoding, any move that leaves the state
