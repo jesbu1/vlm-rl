@@ -1113,6 +1113,10 @@
       (training 42.2, held-out 11x11 32.8, 15x15 32.8), 0% invalid; BC30 seed 0 at step 30: 39.1%.
       Steps 31-35: KL 0.39-0.63, rollouts 41-54%, log-prob ~-0.25. Step-35 eval **38.5%** (training 43.8, held-out 11x11
       39.1, 15x15 32.8), 0% invalid; BC30 seed 0 at step 35: 38.5%. Flat at 36-39% since step 20, no slide, no peak.
+      Steps 36-40: KL 0.21 -> 0.11, rollouts 49-53%, log-prob -0.25 -> -0.21. Step-40 eval **37.0%** (training 43.8, held-out
+      11x11 35.9, 15x15 31.2). **Mean over steps 30-40: 37.2%** (BC30 two seeds: 37.6%). Verdict: KL 0.01 to the clone
+      removes the peak-then-slide (flat 36-39% from step 20) but lands on the same plateau. Seed 1 queued on GPU0
+      (`smolvlm_procgen_v2_terminate_500m_bc30_klclone0p01_seed1_gpu0.yaml`) to check that the flat curve replicates.
     * (A second frame is not the loop fix: `max_frames=2` on 256M, above, swapped wall-loops for copying its own previous
       reply, and collapsed at the same step.)
     * The loop also explains the sampled-vs-greedy gap in every run: under greedy decoding, any move that leaves the state
