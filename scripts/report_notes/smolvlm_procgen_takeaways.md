@@ -1074,6 +1074,7 @@
     since every variant lands within the two-seed spread.
     * Clone eval 11.5%. Steps 1-5: rollouts 30-33%, log-prob -0.24 -> -0.20. Step-5 eval **15.1%** (training 18.8,
       held-out 11x11 17.2, 15x15 9.4); seeds 0 / 1 at step 5: 16.1 / 20.3%.
+      Step 10: 18.8% (train 11x11 18.8, held-out 11x11 25.0, 15x15 12.5); seeds 0 / 1 at step 10: 18.8 / 21.9%.
   - **Queued on GPU0: BC30 + KL 0.05 to the clone** (`kl_ref: clone`, new option in cb32f9c; the old `kl_coef` pulled
     toward the pretrained model, which would undo the clone). Started on GPU0 at 11:38.
     * **First attempt invalid (bug):** cloning runs through the same update, so with `kl_coef > 0` it loaded and cached
