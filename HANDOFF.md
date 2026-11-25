@@ -171,6 +171,9 @@ Still running when this was written:
 | `metaworld-adv-reinforce_pp-ml10-clone400` / `metaworld-adv-zscore-ml10-clone400` (and `-ml45-`) | REINFORCE++ vs GRPO advantages from the same 400-step clone, identical settings | no difference through step 40 (both keep the clone and drift slightly up); final numbers at step 60 |
 | `metaworld-adv-reinforce_pp-ml10-rlreason` | REINFORCE++ for RL-only reasoning on ML10 | slightly slower than GRPO so far (0.03 vs 0.07 at step 30) |
 
+| `metaworld-recipe-q35-9b-ml45`, `-ml10` | Qwen3.5-9B (`policy=qwen35_9b_lora_mlp`) with the same recipe | does 2.3× the parameters transfer better than the 4B (ML45 0.12, ML10 0.02 held-out)? |
+| `metaworld-swap-ml45-clone400`, `metaworld-swap-ml10-clone400` | the 4B clones evaluated with swapped instructions (`env_kwargs.swap_instructions=true`) | if training-task success barely drops, the clones ignore the instruction |
+
 Finished just before handoff: cloning with one-sentence reasons (`metaworld-reasonbc2-q35-ml10`, `-ml45`) matched the answer-only clones on training tasks (ML10 0.62, ML45 0.47) but not better on held-out tasks (0.03, 0.05).
 
 The project owner can add their final numbers to the PDF.

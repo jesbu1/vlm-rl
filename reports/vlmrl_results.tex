@@ -566,6 +566,21 @@ starting model was not included (with LoRA our KL reference is the base model, n
 \label{fig:advmode}
 \end{figure}
 
+\section{Would a larger model generalize? (in progress)}
+\label{sec:scale}
+Two observations argue that held-out tasks are limited by what training teaches more than by model size. Qwen3.5-4B
+and Qwen3-VL-4B are the same size and reach the same 0.57 on ML45's training tasks with the same recipe, yet transfer
+0.12 vs 0.04. And the clones do not act on the instruction: each Metaworld training task has its own scene, so cloning
+never needs to read it. Two tests are running:
+\begin{itemize}
+\item \textbf{Scale:} Qwen3.5-9B (same family and architecture, 2.3$\times$ the parameters) with the same recipe on ML45 and ML10
+  (\code{policy=qwen35\_9b\_lora\_mlp}, 400 cloning steps, then RL at lr 2e-6), against the 4B's 0.57 / 0.12 and 0.69 / 0.02.
+\item \textbf{Does the clone read the instruction?} The 4B clones evaluated with every task given another task's
+  instruction (\code{env\_kwargs.swap\_instructions=true}; e.g.\ drawer-close is told to pull the drawer open). If
+  training-task success hardly drops, the policy ignores the instruction, and transfer to new tasks needs training in which
+  the instruction matters, whatever the model size.
+\end{itemize}
+
 \section{Methodology lessons}
 \label{sec:noise}
 \begin{itemize}
