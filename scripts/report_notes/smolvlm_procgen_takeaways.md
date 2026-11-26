@@ -1212,6 +1212,10 @@
     - Step 65: 41.7% (train 11x11 39.1, held-out 11x11 43.8, 15x15 42.2; rollouts 56%).
     - Step 70: 40.6% (train 11x11 39.1, held-out 11x11 45.3, 15x15 37.5; rollouts 56%).
     - Step 75: 40.6% (train 11x11 39.1, held-out 11x11 43.8, 15x15 39.1; rollouts 61%).
+    - Step 80 (final): 40.1% (train 11x11 40.6, held-out 11x11 43.8, 15x15 35.9; rollouts 54%).
+      **Doubling the steps did not help: greedy-eval means 40.3 (steps 30-40) / 41.3 (50-60) / 40.5 (70-80).** Rollouts
+      rose 45% -> 54-61%, so the sampled policy kept learning but the greedy one did not; ~40% is this recipe's
+      greedy ceiling at lr=5e-6 on this seed. No slide either: the KL anchor held for 80 steps.
     * **Next on GPU1: KL seed 0 continued to 80 steps** (`smolvlm_procgen_v2_terminate_500m_bc30_klclone0p01_steps80_gpu1.yaml`),
       a second seed for the 80-step question. Seed 0 picked because its steps 30-40 mean (37.2%) is nearest the
       four-seed mean (38.1%), not the best seed. Same copy-and-resume setup; resumed cleanly from step 40.
