@@ -79,6 +79,9 @@ RUNS = {
     # model size (Qwen3.5-9B, same recipe) and the swapped-instruction diagnostic of the 4B clones
     "q9_ml45": (MW, "group:metaworld-recipe-q35-9b-ml45"), "q9_ml10": (MW, "group:metaworld-recipe-q35-9b-ml10"),
     "sw_ml45": (MW, "group:metaworld-swap-ml45-clone400"), "sw_ml10": (MW, "group:metaworld-swap-ml10-clone400"),
+    # hidden goal markers (eval only) and the goal offset in text with the text history
+    "nm_ml45": (MW, "group:metaworld-nomarker-ml45-clone400"),
+    "gh_ml45": (MW, "group:metaworld-goalhist-q35-ml45"), "gh_ml10": (MW, "group:metaworld-goalhist-q35-ml10"),
     # RL from good clones: lower lr / only above-average rollouts (adv_min=0); baselines p5_seeds10, m5_bc200 (lr 1e-5)
     "rl_push_lr": (MW, "group:metaworld-rlfix-push450-lr2e-6"), "rl_push_pos": (MW, "group:metaworld-rlfix-push450-posadv"),
     "rl_ml10_lr": (MW, "group:metaworld-rlfix-ml10-lr2e-6"), "rl_ml10_pos": (MW, "group:metaworld-rlfix-ml10-posadv"),

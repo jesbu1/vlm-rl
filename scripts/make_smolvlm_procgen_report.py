@@ -71,7 +71,8 @@ METAWORLD_PUSH = [("gain 0.5: Qwen3.5-4B, BC (30 steps) then RL", "metaworld-g05
                   ("450-position clone, RL adv_min=0 (positive only)", "metaworld-rlfix-push450-posadv", None),
                   ("gain 1.0: Qwen3.5-4B, BC then RL, pref_mw (RL undoes BC)", "metaworld-bc2-q35-push", None),
                   ("gain 1.0: Qwen3.5-4B, BC then RL, pref_mw_obj", "metaworld-bc3-q35-push", None)]
-METAWORLD_ML45 = [("Qwen3.5-9B: recipe, BC 400 then RL", "metaworld-recipe-q35-9b-ml45", None),
+METAWORLD_ML45 = [("goal offset in text + text history: BC 400 then RL", "metaworld-goalhist-q35-ml45", None),
+                  ("Qwen3.5-9B: recipe, BC 400 then RL", "metaworld-recipe-q35-9b-ml45", None),
                   ("REINFORCE++ from the 400-step clone", "metaworld-adv-reinforce_pp-ml45-clone400", None),
                   ("GRPO (same settings) from the 400-step clone", "metaworld-adv-zscore-ml45-clone400", None),
                   ("reasoning: RL only with reasoning, from the base model", "metaworld-rlreason-q35-ml45", None),
@@ -81,7 +82,8 @@ METAWORLD_ML45 = [("Qwen3.5-9B: recipe, BC 400 then RL", "metaworld-recipe-q35-9
                   ("recipe: Qwen3.5-4B, BC 400, RL lr 2e-6", "metaworld-recipe-q35-ml45-rl2e-6", None),
                   ("recipe: Qwen3.5-4B, BC 800, RL lr 2e-6", "metaworld-recipe-q35-ml45-bc800", None),
                   ("recipe: Qwen3-VL-4B, BC 400 then RL (train_seeds=10)", "metaworld-recipe-q3vl4b-ml45", None)]
-METAWORLD_ML10 = [("Qwen3.5-9B: recipe, BC 400 then RL", "metaworld-recipe-q35-9b-ml10", None),
+METAWORLD_ML10 = [("goal offset in text + text history: BC 400 then RL", "metaworld-goalhist-q35-ml10", None),
+                  ("Qwen3.5-9B: recipe, BC 400 then RL", "metaworld-recipe-q35-9b-ml10", None),
                   ("REINFORCE++ from the 400-step clone", "metaworld-adv-reinforce_pp-ml10-clone400", None),
                   ("GRPO (same settings) from the 400-step clone", "metaworld-adv-zscore-ml10-clone400", None),
                   ("REINFORCE++, RL only with reasoning", "metaworld-adv-reinforce_pp-ml10-rlreason", None),

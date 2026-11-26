@@ -593,6 +593,25 @@ transfer 0.12 vs 0.04: at this scale pretraining matters more than parameter cou
   This corrects the earlier reading of the per-task results (Fig.~\ref{fig:pertaskho}).
 \end{itemize}
 
+\section{Why doesn't RL generalize here the way it does for frontier LLMs?}
+Frontier RL on LLMs improves held-out problems. Four differences explain why ours does not, and model size is not among
+them (Section~\ref{sec:scale}):
+\begin{enumerate}
+\item \textbf{Breadth.} Frontier RL trains on millions of problems, so a held-out problem shares structure with many
+  training ones. We have 10 or 45 tasks, and transfer is exactly that narrow: only to look-alikes (door-lock from door and dial
+  tasks), more with 45 tasks than with 10.
+\item \textbf{What RL starts from.} Frontier RL mostly elicits and sharpens what the base model can already do, which
+  needs some success to start from. Our base model scores $\approx$0 on every task (no prior for this arm and this action
+  interface), so every motor skill comes from our training tasks; on ML45, RL from the base model got no signal at all.
+\item \textbf{Missing motions, not missing understanding.} The clones follow the instruction (the swap test) but fail
+  held-out tasks whose motion no training task demonstrated.
+\item \textbf{No adaptation within an episode.} A frontier model tries, sees the result and revises in context. A
+  one-frame policy cannot notice that its last moves failed. Keeping the text history (\code{max\_frames=null},
+  \code{max\_images=1}) and stating the goal once at the start (\code{prompt\_style=compact\_rel\_goal}, the same
+  information as the goal marker) makes that possible; RL still has to teach the policy to use it. Running on ML10 and
+  ML45.
+\end{enumerate}
+
 \section{Methodology lessons}
 \label{sec:noise}
 \begin{itemize}
