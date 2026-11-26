@@ -1216,6 +1216,7 @@
       a second seed for the 80-step question. Seed 0 picked because its steps 30-40 mean (37.2%) is nearest the
       four-seed mean (38.1%), not the best seed. Same copy-and-resume setup; resumed cleanly from step 40.
     - Step 45: 38.5% (train 11x11 45.3, held-out 11x11 37.5, 15x15 32.8; rollouts 48%); step 40 was 37.0.
+    - Step 50: 39.1% (train 11x11 46.9, held-out 11x11 34.4, 15x15 35.9; rollouts 57%).
     * (A second frame is not the loop fix: `max_frames=2` on 256M, above, swapped wall-loops for copying its own previous
       reply, and collapsed at the same step.)
     * The loop also explains the sampled-vs-greedy gap in every run: under greedy decoding, any move that leaves the state
