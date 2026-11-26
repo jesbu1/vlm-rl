@@ -117,6 +117,10 @@ cloud storage and are not shared**: re-create a clone with the commands here (~9
 - RL-only reasoning (the most promising thread): that, plus no `bc_steps`, `lr=1e-5`, `temperature=1.0`.
 - Cloning with reasons: that, plus `bc_rationale=true` (the base model writes a reason for each expert move).
 - Native thinking (`chat_template_kwargs.enable_thinking=true`) is not usable as is (below).
+- Goal stated in text once, with the text history kept: `env_kwargs.prompt_style=compact_rel_goal --set max_frames=null
+  --set max_images=1`. Only the latest image is in context; every earlier turn's text stays.
+- Diagnostics: `+env_kwargs.swap_instructions=true` (each task gets another task's instruction) and
+  `+env_kwargs.goal_marker_scale=0` (hides the goal markers; 1.0 is Metaworld's size).
 
 **Several runs at once:** a sweep's grid (or several `--only` patterns) on `--lanes k` with 2k GPUs; lane i uses GPUs 2i
 (trainer) and 2i+1 (vLLM). `--gpus_per_lane 1` shares one GPU between both, for small models only.
@@ -179,6 +183,9 @@ Still running when this was written:
 
 | `metaworld-recipe-q35-9b-ml45`, `-ml10` | Qwen3.5-9B (`policy=qwen35_9b_lora_mlp`) with the same recipe | ML45 clone: 0.51 / 0.08 vs the 4B's 0.49 / 0.12, so no transfer gain from scale; ML10 pending |
 | `metaworld-swap-ml45-clone400`, `metaworld-swap-ml10-clone400` (done) | the 4B clones evaluated with swapped instructions (`env_kwargs.swap_instructions=true`) | training tasks fell 0.49 → 0.11 (ML45) and 0.61 → 0.28 (ML10): the clones read the instruction |
+
+| `metaworld-goalhist-q35-ml10`, `-ml45` | goal offset in text at the start + text history (only the latest image), 400 cloning steps then RL | held-out tasks vs the one-frame clones (ML10 0.02, ML45 0.12); can the policy now notice failed moves and adapt? |
+| `metaworld-nomarker-ml45-clone400` | the 4B ML45 clone evaluated with the goal markers hidden | which tasks depend on the marker (point goals) vs. the scene |
 
 Finished just before handoff: cloning with one-sentence reasons (`metaworld-reasonbc2-q35-ml10`, `-ml45`) matched the answer-only clones on training tasks (ML10 0.62, ML45 0.47) but not better on held-out tasks (0.03, 0.05).
 
