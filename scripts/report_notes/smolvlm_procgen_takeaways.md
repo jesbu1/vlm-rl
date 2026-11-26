@@ -1147,6 +1147,8 @@
     * **KL 0.01-to-clone, 2 seeds: 39.7%** (37.2 / 42.2) vs BC-30 3 seeds 35.9% (38.7 / 36.5 / 32.5). +4 points, about one
       BC-30 seed spread, and neither KL seed slid after step 20. Promising, not settled: seed 2 (GPU1) and seed 3 (GPU0,
       `smolvlm_procgen_v2_terminate_500m_bc30_klclone0p01_seed3_gpu0.yaml`, queued) will decide.
+    * Seed 3 (GPU0, started 16:44): clone eval **19.3%** (training 17.2, held-out 11x11 18.8, 15x15 21.9), tied for the
+      best clone so far (seed 2's was 8.9%).
     * (A second frame is not the loop fix: `max_frames=2` on 256M, above, swapped wall-loops for copying its own previous
       reply, and collapsed at the same step.)
     * The loop also explains the sampled-vs-greedy gap in every run: under greedy decoding, any move that leaves the state
