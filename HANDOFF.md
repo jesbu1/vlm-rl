@@ -185,6 +185,7 @@ Still running when this was written:
 | `metaworld-swap-ml45-clone400`, `metaworld-swap-ml10-clone400` (done) | the 4B clones evaluated with swapped instructions (`env_kwargs.swap_instructions=true`) | training tasks fell 0.49 → 0.11 (ML45) and 0.61 → 0.28 (ML10): the clones read the instruction |
 
 | `metaworld-goalhist-q35-ml10`, `-ml45` | goal offset in text at the start + text history (only the latest image), 400 cloning steps then RL | held-out tasks vs the one-frame clones (ML10 0.02, ML45 0.12); can the policy now notice failed moves and adapt? |
+| `metaworld-rlonly-q35-ml10-g32` | RL only (no cloning) on ML10 with 32 groups per step (~3 per task, twice the usual), temperature 1.2, lr 1e-5, 300 steps | does RL alone get past the 0.10–0.17 of earlier RL-only runs given more signal per task and more steps? |
 | `metaworld-nomarker-ml45-clone400` (done) | the 4B ML45 clone evaluated with the goal markers hidden | training tasks 0.49 → 0.40: point-goal and opening/pulling tasks need the marker, closing/pressing and held-out tasks do not |
 
 Finished just before handoff: cloning with one-sentence reasons (`metaworld-reasonbc2-q35-ml10`, `-ml45`) matched the answer-only clones on training tasks (ML10 0.62, ML45 0.47) but not better on held-out tasks (0.03, 0.05).
