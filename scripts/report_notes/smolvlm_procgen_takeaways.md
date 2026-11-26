@@ -1142,6 +1142,11 @@
       KL-to-clone eval so far, and greedy above the rollout rate for once; one eval, +-3 pts noise.
       Step 30: 41.1% (train 11x11 46.9, held-out 11x11 37.5, 15x15 39.1; rollouts 54%) -- holding above 40.
       Step 35: 41.1% (train 11x11 48.4, held-out 11x11 37.5, 15x15 37.5; rollouts 51%) -- still no slide.
+      Step 40: 44.3% (train 11x11 50.0, held-out 11x11 40.6, 15x15 42.2; rollouts 43%). **Mean over steps 30-40: 42.2%**,
+      the best of any v2 run; greedy >= rollouts from step 25 on (every other run: greedy ~15-25 points below rollouts).
+    * **KL 0.01-to-clone, 2 seeds: 39.7%** (37.2 / 42.2) vs BC-30 3 seeds 35.9% (38.7 / 36.5 / 32.5). +4 points, about one
+      BC-30 seed spread, and neither KL seed slid after step 20. Promising, not settled: seed 2 (GPU1) and seed 3 (GPU0,
+      `smolvlm_procgen_v2_terminate_500m_bc30_klclone0p01_seed3_gpu0.yaml`, queued) will decide.
     * (A second frame is not the loop fix: `max_frames=2` on 256M, above, swapped wall-loops for copying its own previous
       reply, and collapsed at the same step.)
     * The loop also explains the sampled-vs-greedy gap in every run: under greedy decoding, any move that leaves the state
