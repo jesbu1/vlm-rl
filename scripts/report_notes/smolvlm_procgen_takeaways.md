@@ -1153,6 +1153,7 @@
     * Seed 3 (GPU0, started 16:44): clone eval **19.3%** (training 17.2, held-out 11x11 18.8, 15x15 21.9), tied for the
       best clone so far (seed 2's was 8.9%).
       Step 5: 21.4% (train 11x11 21.9, held-out 11x11 20.3, 15x15 21.9; rollouts 31%); seeds 0 / 1 / 2 at step 5: 18.2 / 18.8 / 14.6%.
+      Step 10: 24.5% (train 11x11 26.6, held-out 11x11 21.9, 15x15 25.0; rollouts 35%); seeds 0 / 1 / 2 at step 10: 18.8 / 19.3 / 20.8%.
     * (A second frame is not the loop fix: `max_frames=2` on 256M, above, swapped wall-loops for copying its own previous
       reply, and collapsed at the same step.)
     * The loop also explains the sampled-vs-greedy gap in every run: under greedy decoding, any move that leaves the state
