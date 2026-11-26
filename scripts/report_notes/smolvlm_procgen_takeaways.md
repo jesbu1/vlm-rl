@@ -1107,6 +1107,7 @@
       for a paired comparison.
       Started 01:35. Clone eval **20.8%** (training 20.3, held-out 11x11 20.3, 15x15 21.9), the best clone so far
       (KL seed 3's: 19.3%).
+      Step 5: 19.8% (train 11x11 18.8, held-out 11x11 18.8, 15x15 21.9; rollouts 29%); KL seed 3 at step 5: 21.4%.
   - **Queued on GPU0: BC30 + KL 0.05 to the clone** (`kl_ref: clone`, new option in cb32f9c; the old `kl_coef` pulled
     toward the pretrained model, which would undo the clone). Started on GPU0 at 11:38.
     * **First attempt invalid (bug):** cloning runs through the same update, so with `kl_coef > 0` it loaded and cached
