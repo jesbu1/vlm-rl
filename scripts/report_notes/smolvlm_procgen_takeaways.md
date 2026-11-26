@@ -1194,6 +1194,8 @@
       rollouts 50%) -- down 2.6 from step 40, within eval noise.
     - Step 50: 40.1% (train 11x11 37.5, held-out 11x11 45.3, 15x15 37.5; rollouts 48%) -- back to the
       step-40 level. Flat at ~38-40 so far: no gain past step 40, but no slide either.
+    - Step 55: 41.7% (train 11x11 37.5, held-out 11x11 45.3, 15x15 42.2; rollouts 53%) -- best greedy eval
+      of any KL run so far, but only +1.6 over step 40 (within noise).
     * (A second frame is not the loop fix: `max_frames=2` on 256M, above, swapped wall-loops for copying its own previous
       reply, and collapsed at the same step.)
     * The loop also explains the sampled-vs-greedy gap in every run: under greedy decoding, any move that leaves the state
