@@ -1186,6 +1186,8 @@
     * **Next on GPU0: seed 3 continued to 80 steps** (`smolvlm_procgen_v2_terminate_500m_bc30_klclone0p01_seed3_steps80_gpu0.yaml`):
       its run dir was copied (without the wandb id) to `..._seed=3__steps=80` and resumes from the step-40 checkpoint, so
       steps 1-40 are the seed-3 run. Question: does the KL-anchored run keep improving past step 40, or is ~40% the ceiling?
+      Resumed cleanly ('continuing after step 40'). Step 45: 37.5% (train 11x11 35.9, held-out 11x11 40.6, 15x15 35.9;
+      rollouts 50%) -- down 2.6 from step 40, within eval noise.
     * (A second frame is not the loop fix: `max_frames=2` on 256M, above, swapped wall-loops for copying its own previous
       reply, and collapsed at the same step.)
     * The loop also explains the sampled-vs-greedy gap in every run: under greedy decoding, any move that leaves the state
