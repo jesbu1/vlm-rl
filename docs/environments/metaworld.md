@@ -114,6 +114,11 @@ with one or two sentences written by the rollout model when shown the observatio
 (STaR-style rationalization); training uses the normal prompt, so the clone states where the gripper, object and
 goal are and what the task needs before each move.
 
+**Goal in text, with history** (`env_kwargs.prompt_style=compact_rel_goal`, plus `max_frames=null max_images=1`): the
+first observation states the goal relative to the hand (`Goal: dx=+12.0, dy=-3.5, dz=+4.0 from the hand.`, the same
+information the goal marker draws), and the whole text history stays in context while only the latest image is
+kept, so the offset stays usable and the policy can see what its earlier moves did.
+
 **Reasoning variant** (`env_kwargs.prompt_style=compact_rel_reason`): like `compact_rel`, but each reply first gives one
 or two sentences (where the gripper, the object and the goal are, what to do next) and then the JSON move; the last
 `{...}` in the reply is parsed, so axis names in the reasoning are never read as the move. Use `max_new_tokens` ≈ 256.

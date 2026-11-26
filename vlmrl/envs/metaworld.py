@@ -252,9 +252,14 @@ class MetaWorldVecEnv:
             img = img[::-1, ::-1]                # down): rotate, not flip rows only, which would mirror the scene
         img = self._crop(img)
         state = np.r_[o[:3] * 100.0, o[3]]       # hand xyz in cm, gripper opening in [0, 1]
+        # the task's goal relative to the hand, in cm, in the dx/dy/dz frame of the moves (shown only by
+        # prompt_style=compact_rel_goal, once, at the start: the same information the goal marker draws in the image)
+        goal = getattr(env, "_target_pos", None)
+        offset = [round(float(v), 1) for v in (np.asarray(goal, dtype=float)[:3] - o[:3]) * 100.0] if goal is not None else None
         return Obs(image=np.ascontiguousarray(img), state=state,
                    extras={"env_name": self._keys[k][1], "path": int(env.curr_path_length),
-                           "mw_progress": self._progress[k], "mw_obj_dist": self._obj_dist[k], **(extras or {})})
+                           "mw_progress": self._progress[k], "mw_obj_dist": self._obj_dist[k], "goal_offset": offset,
+                           **(extras or {})})
 
     def reset(self, start_states):
         for env, key in zip(self._envs, self._keys):
@@ -384,9 +389,9 @@ class MetaWorldTextInterface:
 
     def __init__(self, max_delta: float = 10.0, prompt_style: str = "pear", include_state: bool = True,
                  swap_instructions: bool = False):
-        assert prompt_style in ("pear", "compact", "compact_rel", "compact_rel_reason"), prompt_style
+        assert prompt_style in ("pear", "compact", "compact_rel", "compact_rel_reason", "compact_rel_goal"), prompt_style
         self.max_delta, self.prompt_style, self.include_state = max_delta, prompt_style, include_state
-        self.rel = prompt_style in ("compact_rel", "compact_rel_reason")
+        self.rel = prompt_style in ("compact_rel", "compact_rel_reason", "compact_rel_goal")
         self.swap_instructions = swap_instructions
 
     def environment_section(self) -> str:
@@ -412,6 +417,15 @@ class MetaWorldTextInterface:
                     f"Task: {task_text(start_state['env_name'], self.swap_instructions)} "
                     "Each turn, first write one or two short sentences: where the gripper, the object and the goal "
                     "are in the image, and what the hand should do next. Then, on the last line, give how far to move "
+                    'the hand, in centimeters, as JSON, for example {"dx": 3.0, "dy": -2.0, "dz": -1.0, "grip": "open"}. '
+                    "These are changes, not positions: in the image, +dx moves the hand to the right, +dy to the left, "
+                    f"both slightly away from the camera; +dz moves it up. At most {self.max_delta:g} cm per turn. "
+                    '"grip": "close" closes the gripper, "open" opens it.')
+        if self.prompt_style == "compact_rel_goal":
+            return ("You control a robot arm with a gripper above a table, seen from a fixed camera. "
+                    f"Task: {task_text(start_state['env_name'], self.swap_instructions)} "
+                    "At the start you are told where the goal is relative to the hand, in the same dx/dy/dz directions "
+                    "as the moves; the earlier turns stay in the conversation. Each turn, reply with only how far to move "
                     'the hand, in centimeters, as JSON, for example {"dx": 3.0, "dy": -2.0, "dz": -1.0, "grip": "open"}. '
                     "These are changes, not positions: in the image, +dx moves the hand to the right, +dy to the left, "
                     f"both slightly away from the camera; +dz moves it up. At most {self.max_delta:g} cm per turn. "
@@ -444,6 +458,9 @@ class MetaWorldTextInterface:
         h = obs.state
         if self.rel:
             text = "No valid move last turn. " if parse_error else ""
+            g = obs.extras.get("goal_offset")
+            if self.prompt_style == "compact_rel_goal" and turn == 0 and g is not None:
+                text += f"Goal: dx={g[0]:+.1f}, dy={g[1]:+.1f}, dz={g[2]:+.1f} from the hand. "
             if self.include_state:
                 text += f"Gripper: {'open' if h[3] > 0.6 else 'closed'}. "
                 m = obs.extras.get("moved")

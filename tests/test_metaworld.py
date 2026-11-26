@@ -234,3 +234,23 @@ def test_goal_marker_scale_enlarges_the_goal_sites(renderable):
     assert np.allclose(big._envs[0].model.site_size[gid], 2.0 * small._envs[0].model.site_size[gid])
     assert M.make_metaworld(benchmark="ML10", goal_marker_scale=2.0).make_vec_env().goal_marker_scale == 2.0
     small.close(); big.close()
+
+
+def test_compact_rel_goal_states_the_goal_offset_once_at_the_start():
+    from vlmrl.types import Obs
+    itf = M.MetaWorldTextInterface(prompt_style="compact_rel_goal")
+    obs = Obs(image=np.zeros((8, 8, 3), np.uint8), state=np.zeros(4), extras={"goal_offset": [12.0, -3.5, 4.0]})
+    first = itf.observation_message(obs, 0, None, False)[-1]["text"]
+    later = itf.observation_message(obs, 1, None, False)[-1]["text"]
+    assert "Goal: dx=+12.0, dy=-3.5, dz=+4.0 from the hand." in first and "Goal" not in later
+    assert "told where the goal is" in itf.system_prompt({"env_name": "push-v3"})
+    assert np.allclose(itf.parse_action('{"dx": 1, "dy": 2, "dz": 3, "grip": "open"}'), [1, 2, 3, 1])
+
+
+def test_goal_offset_is_target_minus_hand_in_cm(renderable):
+    env = M.MetaWorldVecEnv("ML1:reach-v3", image_size=32, render_size=(64, 48))
+    o = env.reset([_state("ML1:reach-v3", "train", "reach-v3")])[0]
+    sim = env._envs[0]
+    expect = (np.asarray(sim._target_pos)[:3] - env._obs[0][:3]) * 100.0
+    assert np.allclose(o.extras["goal_offset"], expect, atol=0.06)
+    env.close()
