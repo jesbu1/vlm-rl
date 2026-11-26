@@ -575,13 +575,16 @@ starting model was not included (with LoRA our KL reference is the base model, n
 \label{fig:advmode}
 \end{figure}
 
-\section{Would a larger model generalize? (in progress)}
+\section{Would a larger model generalize?}
 \label{sec:scale}
 Qwen3.5-4B and Qwen3-VL-4B are the same size and reach the same 0.57 on ML45's training tasks with the same recipe, yet
 transfer 0.12 vs 0.04: at this scale pretraining matters more than parameter count. Two tests:
 \begin{itemize}
-\item \textbf{Scale:} Qwen3.5-9B (same family and architecture, 2.3$\times$ the parameters) with the same recipe on ML45 and ML10
-  (\code{policy=qwen35\_9b\_lora\_mlp}, 400 cloning steps, then RL at lr 2e-6), against the 4B's 0.57 / 0.12 and 0.69 / 0.02.
+\item \textbf{Scale: no gain so far.} Qwen3.5-9B (same family and architecture, 2.3$\times$ the parameters) with the same
+  recipe (\code{policy=qwen35\_9b\_lora\_mlp}, 400 cloning steps). On ML45, with the same per-task eval as the 4B clone:
+  0.51 on the training tasks (4B: 0.49) and 0.08 on the held-out ones (4B: 0.12; door-lock 0.22 vs 0.44, door-unlock 0.10 vs
+  0.20, box-close 0.09 vs 0). Twice the parameters give the same fit and the same narrow transfer, as expected if held-out
+  tasks fail for lack of demonstrated motions. ML10 with the 9B is still training.
 \item \textbf{Does the clone read the instruction? Yes.} The 4B clones evaluated with every task given another task's
   instruction (\code{env\_kwargs.swap\_instructions=true}): ML45's training tasks fall from 0.49 to 0.11 and ML10's from 0.61
   to 0.28 (sweep 1.00 $\to$ 0, window-open 0.82 $\to$ 0; drawer-close, told to pull the drawer open, 1.00 $\to$ 0.57, as it

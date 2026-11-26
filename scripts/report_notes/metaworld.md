@@ -176,3 +176,5 @@ Each GRPO group is 8 rollouts from the same start (same goal position and seed).
   success falls 0.49 → 0.11 (ML45) and 0.61 → 0.28 (ML10; sweep 1.00 → 0, window-open 0.82 → 0). Held-out failures are
   missing motions (e.g. pulling a drawer, never demonstrated in ML10), not ignored language. Qwen3.5-9B with the same
   recipe is cloning (ML45 239/400, ML10 211/400).
+* **Qwen3.5-9B: no transfer gain.** Same recipe (400 BC steps) on ML45: 0.51 / 0.08 (training / held-out tasks) against
+  the 4B's 0.49 / 0.12. ML10 9B still training.
