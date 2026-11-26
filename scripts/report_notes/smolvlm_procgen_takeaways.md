@@ -1203,6 +1203,7 @@
       of any KL run so far, but only +1.6 over step 40 (within noise).
     - Step 60: 42.2% (train 11x11 39.1, held-out 11x11 43.8, 15x15 43.8; rollouts 61%) -- steps 50-60
       average 41.3 vs 40.3 for steps 30-40: a slow creep at most, while rollouts climb 45% -> 61%.
+    - Step 65: 41.7% (train 11x11 39.1, held-out 11x11 43.8, 15x15 42.2; rollouts 56%).
     * (A second frame is not the loop fix: `max_frames=2` on 256M, above, swapped wall-loops for copying its own previous
       reply, and collapsed at the same step.)
     * The loop also explains the sampled-vs-greedy gap in every run: under greedy decoding, any move that leaves the state
