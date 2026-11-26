@@ -181,7 +181,7 @@ Still running when this was written:
 | `metaworld-adv-reinforce_pp-ml10-clone400` / `metaworld-adv-zscore-ml10-clone400` (and `-ml45-`) | REINFORCE++ vs GRPO advantages from the same 400-step clone, identical settings | no difference through step 40 (both keep the clone and drift slightly up); final numbers at step 60 |
 | `metaworld-adv-reinforce_pp-ml10-rlreason` | REINFORCE++ for RL-only reasoning on ML10 | slightly slower than GRPO so far (0.03 vs 0.07 at step 30) |
 
-| `metaworld-recipe-q35-9b-ml45`, `-ml10` | Qwen3.5-9B (`policy=qwen35_9b_lora_mlp`) with the same recipe | ML45 clone: 0.51 / 0.08 vs the 4B's 0.49 / 0.12, so no transfer gain from scale; ML10 pending |
+| `metaworld-recipe-q35-9b-ml45`, `-ml10` | Qwen3.5-9B (`policy=qwen35_9b_lora_mlp`) with the same recipe | clones: ML45 0.51 / 0.08 (4B 0.49 / 0.12), ML10 0.67 / 0.02 (4B 0.61 / 0.02): slightly better fit, no transfer gain from scale |
 | `metaworld-swap-ml45-clone400`, `metaworld-swap-ml10-clone400` (done) | the 4B clones evaluated with swapped instructions (`env_kwargs.swap_instructions=true`) | training tasks fell 0.49 → 0.11 (ML45) and 0.61 → 0.28 (ML10): the clones read the instruction |
 
 | `metaworld-goalhist-q35-ml10`, `-ml45` | goal offset in text at the start + text history (only the latest image), 400 cloning steps then RL | held-out tasks vs the one-frame clones (ML10 0.02, ML45 0.12); can the policy now notice failed moves and adapt? |

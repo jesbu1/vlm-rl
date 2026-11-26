@@ -584,7 +584,9 @@ transfer 0.12 vs 0.04: at this scale pretraining matters more than parameter cou
   recipe (\code{policy=qwen35\_9b\_lora\_mlp}, 400 cloning steps). On ML45, with the same per-task eval as the 4B clone:
   0.51 on the training tasks (4B: 0.49) and 0.08 on the held-out ones (4B: 0.12; door-lock 0.22 vs 0.44, door-unlock 0.10 vs
   0.20, box-close 0.09 vs 0). Twice the parameters give the same fit and the same narrow transfer, as expected if held-out
-  tasks fail for lack of demonstrated motions. ML10 with the 9B is still training.
+  tasks fail for lack of demonstrated motions. On ML10 the 9B fits the training tasks a little better (0.67 vs 0.61:
+  door-open 0.55 vs 0.24, reach 0.60 vs 0.30) and transfers exactly as little (held-out 0.02; drawer-open 0.05, door-close
+  0.04, the same as the 4B).
 \item \textbf{Does the clone read the instruction? Yes.} The 4B clones evaluated with every task given another task's
   instruction (\code{env\_kwargs.swap\_instructions=true}): ML45's training tasks fall from 0.49 to 0.11 and ML10's from 0.61
   to 0.28 (sweep 1.00 $\to$ 0, window-open 0.82 $\to$ 0; drawer-close, told to pull the drawer open, 1.00 $\to$ 0.57, as it

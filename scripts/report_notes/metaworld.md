@@ -178,3 +178,5 @@ Each GRPO group is 8 rollouts from the same start (same goal position and seed).
   recipe is cloning (ML45 239/400, ML10 211/400).
 * **Qwen3.5-9B: no transfer gain.** Same recipe (400 BC steps) on ML45: 0.51 / 0.08 (training / held-out tasks) against
   the 4B's 0.49 / 0.12. ML10 9B still training.
+* **Qwen3.5-9B on ML10:** 0.67 / 0.02 (4B: 0.61 / 0.02; drawer-open and door-close unchanged at 0.05 / 0.04). Scale buys a
+  little training-task fit and no transfer on either benchmark.
