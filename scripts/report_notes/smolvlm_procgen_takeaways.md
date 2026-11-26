@@ -1105,6 +1105,8 @@
       the same clone: clone evals were 8.9% here vs 11.5% for BC-30 seed 2, so cloning is not bit-reproducible across runs.)
     * Next on GPU1: BC-30 seed 3 (`smolvlm_procgen_v2_terminate_500m_bc30_seed3_gpu1.yaml`), so both arms have seeds 0-3
       for a paired comparison.
+      Started 01:35. Clone eval **20.8%** (training 20.3, held-out 11x11 20.3, 15x15 21.9), the best clone so far
+      (KL seed 3's: 19.3%).
   - **Queued on GPU0: BC30 + KL 0.05 to the clone** (`kl_ref: clone`, new option in cb32f9c; the old `kl_coef` pulled
     toward the pretrained model, which would undo the clone). Started on GPU0 at 11:38.
     * **First attempt invalid (bug):** cloning runs through the same update, so with `kl_coef > 0` it loaded and cached
