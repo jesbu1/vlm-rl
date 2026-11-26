@@ -1109,6 +1109,8 @@
       (KL seed 3's: 19.3%).
       Step 5: 19.8% (train 11x11 18.8, held-out 11x11 18.8, 15x15 21.9; rollouts 29%); KL seed 3 at step 5: 21.4%.
       Step 10: 25.0% (train 11x11 29.7, held-out 11x11 25.0, 15x15 20.3; rollouts 33%); KL seed 3 at step 10: 24.5%.
+      Step 15: 39.6% (train 11x11 37.5, held-out 11x11 42.2, 15x15 39.1; rollouts 40%); KL seed 3 at step 15: 30.2%;
+      BC-30 seeds 0-2 at step 15: 28.6 / 28.1 / 32.3%. Earliest big jump of any BC-30 seed.
   - **Queued on GPU0: BC30 + KL 0.05 to the clone** (`kl_ref: clone`, new option in cb32f9c; the old `kl_coef` pulled
     toward the pretrained model, which would undo the clone). Started on GPU0 at 11:38.
     * **First attempt invalid (bug):** cloning runs through the same update, so with `kl_coef > 0` it loaded and cached
