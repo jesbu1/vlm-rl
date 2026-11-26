@@ -1089,6 +1089,7 @@
     KL 0.01 seed 1 is at 42.7 / 41.1% at steps 25 / 30 (above all BC30 seeds); a third seed to tell a gain from seed noise.
     * Started 14:30. Clone eval **8.9%** (training 9.4, held-out 11x11 9.4, 15x15 7.8): the weakest clone so far
       (other clones 10.9-19.3%), so this seed starts from behind.
+      Step 5: 14.6% (train 11x11 14.1, held-out 11x11 17.2, 15x15 12.5; rollouts 29%); seeds 0 / 1 at step 5: 18.2 / 18.8%.
   - **Queued on GPU0: BC30 + KL 0.05 to the clone** (`kl_ref: clone`, new option in cb32f9c; the old `kl_coef` pulled
     toward the pretrained model, which would undo the clone). Started on GPU0 at 11:38.
     * **First attempt invalid (bug):** cloning runs through the same update, so with `kl_coef > 0` it loaded and cached
