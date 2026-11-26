@@ -1100,6 +1100,11 @@
       Step 30: 32.3% (train 11x11 37.5, held-out 11x11 43.8, 15x15 15.6; rollouts 48%); seeds 0 / 1 at step 30: 35.9 / 41.1%.
       Step 35: 34.9% (train 11x11 40.6, held-out 11x11 46.9, 15x15 17.2; rollouts 58%); seeds 0 / 1 at step 35: 38.5 / 41.1%.
       Still climbing every eval since step 20 (no slide); held-out 11x11 46.9% is the best of any run.
+      Step 40: 31.2% (train 11x11 39.1, held-out 11x11 40.6, 15x15 14.1; rollouts 51%). **Mean over steps 30-40: 32.8%**
+      -- vs 32.5% for BC-30 seed 2: no gain on this seed; the 15x15 mazes never recovered (11-17%). (Same seed does not mean
+      the same clone: clone evals were 8.9% here vs 11.5% for BC-30 seed 2, so cloning is not bit-reproducible across runs.)
+    * Next on GPU1: BC-30 seed 3 (`smolvlm_procgen_v2_terminate_500m_bc30_seed3_gpu1.yaml`), so both arms have seeds 0-3
+      for a paired comparison.
   - **Queued on GPU0: BC30 + KL 0.05 to the clone** (`kl_ref: clone`, new option in cb32f9c; the old `kl_coef` pulled
     toward the pretrained model, which would undo the clone). Started on GPU0 at 11:38.
     * **First attempt invalid (bug):** cloning runs through the same update, so with `kl_coef > 0` it loaded and cached
