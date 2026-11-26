@@ -1214,6 +1214,7 @@
     * **Next on GPU1: KL seed 0 continued to 80 steps** (`smolvlm_procgen_v2_terminate_500m_bc30_klclone0p01_steps80_gpu1.yaml`),
       a second seed for the 80-step question. Seed 0 picked because its steps 30-40 mean (37.2%) is nearest the
       four-seed mean (38.1%), not the best seed. Same copy-and-resume setup; resumed cleanly from step 40.
+    - Step 45: 38.5% (train 11x11 45.3, held-out 11x11 37.5, 15x15 32.8; rollouts 48%); step 40 was 37.0.
     * (A second frame is not the loop fix: `max_frames=2` on 256M, above, swapped wall-loops for copying its own previous
       reply, and collapsed at the same step.)
     * The loop also explains the sampled-vs-greedy gap in every run: under greedy decoding, any move that leaves the state
