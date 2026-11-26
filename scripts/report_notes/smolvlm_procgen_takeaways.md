@@ -1118,6 +1118,9 @@
     - Step 30: 34.4% (train 11x11 31.2, held-out 11x11 40.6, 15x15 31.2; rollouts 56%) -- greedy trails
       rollouts by 21 points; KL seed 3 was 39.6 at step 30.
     - Step 35: 37.5% (train 11x11 35.9, held-out 11x11 40.6, 15x15 35.9; rollouts 53%). KL seed 3: 41.1.
+    - Step 40: 39.1% (train 11x11 40.6, held-out 11x11 40.6, 15x15 35.9; rollouts 52%). KL seed 3: 40.1.
+      **Mean over steps 30-40: 37.0%** (KL seed 3: 40.3, +3.3). Unlike BC-30 seeds 0-2 it did not slide: peak 39.6 at
+      step 15, then 34-39 with no trend.
   - **Queued on GPU0: BC30 + KL 0.05 to the clone** (`kl_ref: clone`, new option in cb32f9c; the old `kl_coef` pulled
     toward the pretrained model, which would undo the clone). Started on GPU0 at 11:38.
     * **First attempt invalid (bug):** cloning runs through the same update, so with `kl_coef > 0` it loaded and cached
@@ -1186,10 +1189,13 @@
       Step 35: 41.1% (train 11x11 37.5, held-out 11x11 42.2, 15x15 43.8; rollouts 55%); seeds 0 / 1 / 2 at step 35: 38.5 / 41.1 / 34.9%.
       Up at every eval so far; 15x15 43.8% is the best 15x15 eval of any run.
       Step 40: 40.1% (train 11x11 37.5, held-out 11x11 43.8, 15x15 39.1; rollouts 45%). **Mean over steps 30-40: 40.3%**.
-    * **KL 0.01-to-clone, 4 seeds: 38.1%** (37.2 / 42.2 / 32.8 / 40.3) vs BC-30 35.9% over seeds 0-2 (38.7 / 36.5 / 32.5);
-      seed-paired over seeds 0-2: KL 37.4 vs BC-30 35.9 (+1.5; per seed -1.5 / +5.7 / +0.3). BC-30 seed 3 is running (GPU1).
-      Consistent across all 4 KL seeds: no late slide (steps 30-40 within +-3 points of each other; BC-30 seeds lose 5-8
-      points from their step-20 peak). The greedy-vs-rollout gap is smaller for three of the four seeds, not all: seeds 0 / 1 /
+    * **KL 0.01-to-clone vs BC-30, 4 seeds each, seed-paired: 38.1% vs 36.2%** (steps 30-40 means; KL 37.2 / 42.2 / 32.8 /
+      40.3, BC-30 38.7 / 36.5 / 32.5 / 37.0). Per-seed difference -1.5 / +5.7 / +0.3 / +3.3: mean +1.9, SE 1.6 (t = 1.2,
+      3 df) -- **not significant**; KL is ahead on 3 of 4 seeds by small margins. Caveat: the two arms' clones differ
+      even at the same seed (e.g. seed 2: 11.5 vs 8.9%), so seed pairing only partly controls for the start.
+      All 4 KL seeds show no late slide (steps 30-40 within +-3 points of each other). BC-30 seeds 0-2 lose 5-8
+      points from their step-20 peak, but BC-30 seed 3 did not (39.6 at step 15, then 34-39), so the stability edge is
+      3 of 4 BC-30 seeds, not all. The greedy-vs-rollout gap is smaller for three of the four seeds, not all: seeds 0 / 1 /
       3 trail rollouts by 10-15 points at steps 30-35 (0-5 at step 40 for seeds 1 and 3), but seed 2 by 15-23, close to
       BC-30 seed 2's 23-27. (Corrected: an earlier version of this bullet said the gap narrowed for all four seeds.)
     * **Next on GPU0: seed 3 continued to 80 steps** (`smolvlm_procgen_v2_terminate_500m_bc30_klclone0p01_seed3_steps80_gpu0.yaml`):
