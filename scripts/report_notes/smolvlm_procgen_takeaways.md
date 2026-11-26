@@ -1095,6 +1095,8 @@
       The 15x15 mazes are stuck at ~10% while both 11x11 sets climb.
       Step 20: 24.5% (train 11x11 28.1, held-out 11x11 34.4, 15x15 10.9; rollouts 47%); seeds 0 / 1 at step 20: 36.5 / 33.9%.
       Behind; 15x15 still ~11%.
+      Step 25: 29.2% (train 11x11 34.4, held-out 11x11 42.2, 15x15 10.9; rollouts 55%); seeds 0 / 1 at step 25: 37.5 / 42.7%.
+      Held-out 11x11 is level with the other seeds; the gap is all in 15x15 (10.9% for three evals running).
   - **Queued on GPU0: BC30 + KL 0.05 to the clone** (`kl_ref: clone`, new option in cb32f9c; the old `kl_coef` pulled
     toward the pretrained model, which would undo the clone). Started on GPU0 at 11:38.
     * **First attempt invalid (bug):** cloning runs through the same update, so with `kl_coef > 0` it loaded and cached
