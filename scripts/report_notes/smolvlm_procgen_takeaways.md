@@ -1115,6 +1115,8 @@
       step 15 while rollouts keep rising; the greedy-rollout gap reopens to 13 points.
     - Step 25: 38.5% (train 11x11 39.1, held-out 11x11 39.1, 15x15 37.5; rollouts 51%) -- back up 3.6;
       steps 15-25 bounce within eval noise.
+    - Step 30: 34.4% (train 11x11 31.2, held-out 11x11 40.6, 15x15 31.2; rollouts 56%) -- greedy trails
+      rollouts by 21 points; KL seed 3 was 40.3 at step 30.
   - **Queued on GPU0: BC30 + KL 0.05 to the clone** (`kl_ref: clone`, new option in cb32f9c; the old `kl_coef` pulled
     toward the pretrained model, which would undo the clone). Started on GPU0 at 11:38.
     * **First attempt invalid (bug):** cloning runs through the same update, so with `kl_coef > 0` it loaded and cached
