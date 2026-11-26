@@ -183,3 +183,10 @@ Each GRPO group is 8 rollouts from the same start (same goal position and seed).
 * **Goal markers hidden** (ML45 400-step clone): training tasks 0.49 → 0.40; point-goal tasks collapse (pick-out-of-hole
   0.80 → 0, reach-wall 1.00 → 0.40) and so do opening/pulling tasks (drawer-open 1.00 → 0.33, window-open 0.50 → 0);
   closing/pressing tasks and held-out tasks (0.12) unchanged.
+* **Goal once in text + text history: ML10's first held-out transfer.** The first turn states the goal relative to the
+  hand (`compact_rel_goal`); every earlier turn's text stays, only the latest image. ML10 400-step clone: held-out 0.22
+  over steps 0–40 (one-frame clone 0.02; door-close 0.84, sweep-into 0.18), training tasks 0.70 (0.61; reach 0.30 → 1.00).
+  The policy dead-reckons: it replies with the remaining offset each turn. ML45: training 0.61 (0.49), held-out 0.06
+  (0.12). Live: the same history without the goal text (`metaworld-histonly-q35-ml10`).
+* **RL alone, 32 groups per step (ML10):** 0.08–0.10 on the training tasks through step 60 (drawer-close 1.0, some
+  reach), the same plateau as with 16 groups; held-out 0.01. Running to 300 steps.

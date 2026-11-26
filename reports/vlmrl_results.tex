@@ -51,7 +51,13 @@
   memorizes them (0.94 training, 0.28 held-out). Cloned on 450 positions (10 benchmark seeds) it scores 0.62 / 0.69: no gap
   (Fig.~\ref{fig:clones}).
 \item \textbf{ML10 needs proportionally more cloning}: 0.10 / 0.38 / 0.52 on its training tasks after 30 / 100 / 200 steps.
-  Its 5 held-out tasks stay at $\approx$0.
+  Its 5 held-out tasks stay at $\approx$0 for one-frame policies.
+\item \textbf{Stating the goal once and keeping the text history gave ML10's first held-out transfer:} 0.22 on the
+  held-out tasks (one-frame clone 0.02), almost all on door-close (0.84 vs 0.04), and 0.70 vs 0.61 on the training tasks.
+  The policy dead-reckons toward the stated goal; ``move the hand to the goal'' carries over to door-close. ML45 did not
+  gain (0.06 vs 0.12 held-out). Section~\ref{sec:goalhist}.
+\item \textbf{RL alone learns one or two ML10 tasks} (drawer-close, some reach; 0.08--0.14 on the training tasks), also
+  with twice the groups per step: cloning is needed for motor skills (Section~\ref{sec:rlonly}).
 \item \textbf{RL from a good clone needs a low learning rate and refines rather than generalizes.} At lr 1e-5 it erodes
   held-out push (0.69 $\to$ 0.31 by step 35); at lr 2e-6 it keeps the clone and slowly lifts the training distribution
   (ML10 rollouts 0.49 $\to$ 0.64 over 50 steps), but not held-out positions or tasks. Positive-only advantages hurt.
@@ -63,9 +69,9 @@
   0.12 / 0.056 on the held-out tasks (pooled, $p\approx0.01$).
 \item \textbf{ML45 gives the first transfer to held-out tasks.} The generic recipe's ML45 clone (Qwen3.5-4B, 400 cloning
   steps) scores 0.57 on its 45 training tasks and \textbf{0.14 on its 5 held-out tasks}, zero-shot (7/50 episodes; 95\%
-  interval 0.07--0.26). With 10 training tasks (ML10) held-out tasks stayed at 0.00--0.02 in every run.
+  interval 0.07--0.26). With 10 training tasks (ML10) one-frame policies stayed at 0.00--0.02 on held-out tasks.
 \item \textbf{What did not work:} RL alone on push (0 in every run), DAgger with the scripted experts (made clones worse),
-  and held-out ML10 tasks ($\approx$0 in every run).
+  and held-out ML10 tasks for one-frame policies ($\approx$0 in every run).
 \item \textbf{Greedy evals are noisy}: the same push clone scored 0.12, 0.16 and 0.31 on held-out positions in three
   runs. Differences below $\sim$0.15 on one 32-episode eval are not meaningful.
 \end{itemize}
@@ -581,6 +587,20 @@ starting model was not included (with LoRA our KL reference is the base model, n
 \label{fig:advmode}
 \end{figure}
 
+\section{Is cloning necessary? RL alone on ML10}
+\label{sec:rlonly}
+\begin{figure}[h]
+\centering\includegraphics[width=\linewidth]{figures/rlonly_ml10.pdf}
+\caption{RL from the base model (no cloning) on ML10: 16 groups per step (the first ML10 run, controller gain 1.0),
+32 groups per step (twice the signal per task, temperature 1.2) and RL-only reasoning. Eval: 48 or 200 episodes.}
+\label{fig:rlonly}
+\end{figure}
+Without cloning, RL has learned one or two ML10 tasks: drawer-close (1.00 by step 40) and a little reach (0.10--0.25).
+Doubling the groups per step to 32 (about three per task) has not changed that through step 60 (training tasks 0.08--0.10,
+the same as with 16 groups; held-out 0.01), so the plateau is not for lack of samples. The base model scores
+$\approx$0 everywhere, and multi-phase motions (grasp, then place) are never sampled. This run continues to 300 steps.
+On ML45, RL from the base model got no signal at all. So far cloning, or another source of motor skills, is necessary.
+
 \section{Would a larger model generalize?}
 \label{sec:scale}
 Qwen3.5-4B and Qwen3-VL-4B are the same size and reach the same 0.57 on ML45's training tasks with the same recipe, yet
@@ -613,12 +633,49 @@ them (Section~\ref{sec:scale}):
   interface), so every motor skill comes from our training tasks; on ML45, RL from the base model got no signal at all.
 \item \textbf{Missing motions, not missing understanding.} The clones follow the instruction (the swap test) but fail
   held-out tasks whose motion no training task demonstrated.
-\item \textbf{No adaptation within an episode.} A frontier model tries, sees the result and revises in context. A
-  one-frame policy cannot notice that its last moves failed. Keeping the text history (\code{max\_frames=null},
-  \code{max\_images=1}) and stating the goal once at the start (\code{prompt\_style=compact\_rel\_goal}, the same
-  information as the goal marker) makes that possible; RL still has to teach the policy to use it. Running on ML10 and
-  ML45.
+\item \textbf{No memory within an episode.} A frontier model tries, sees the result and revises in context. A
+  one-frame policy cannot even remember what it was told about the goal or what it has done. Section~\ref{sec:goalhist}
+  gives it the text history; that alone produced our largest held-out gain so far.
 \end{enumerate}
+
+\section{Goal once in text, with the text history}
+\label{sec:goalhist}
+Metaworld's ML benchmarks hide the goal from the state vector; our VLM sees it only as the goal marker in the image.
+Here the first turn also states the goal relative to the hand, in the move's own units (\code{Goal: dx=+71.0, dy=+14.1,
+dz=-4.6 from the hand}, \code{prompt\_style=compact\_rel\_goal}), and every earlier turn's text stays in context
+(\code{max\_frames=null}, \code{max\_images=1}: only the latest image). The marker is unchanged. Everything else is the
+recipe: 400 cloning steps, then RL at lr 2e-6.
+
+\begin{figure}[h]
+\centering\includegraphics[width=\linewidth]{figures/goalhist.pdf}
+\caption{Held-out tasks, per task: the one-frame 400-step clones (one per-task eval, 20 episodes per task) against
+clones that see the goal once in text and keep the text history (mean of the evals at RL steps 0--40 or 0--50, 20
+episodes per task each; the bar spans them).}
+\label{fig:goalhist}
+\end{figure}
+
+\textbf{ML10: held-out 0.02 $\to$ 0.22.} Over five evals (steps 0--40, 100 held-out episodes each) the held-out tasks
+average 0.22 (0.20--0.23), against 0.02 for the one-frame clone: door-close 0.84 (0.04) and sweep-into 0.18 (0). The
+training tasks rise too, 0.70 against 0.61 on the same 200-episode eval, mostly on point-goal tasks (reach 0.30 $\to$
+1.00, door-open 0.24 $\to$ 0.48, window-open 0.82 $\to$ 1.00; push falls 0.94 $\to$ 0.61). RL at lr 2e-6 keeps both
+level.
+
+\textbf{How the policy uses it: dead reckoning.} The transcripts show the clone replying with the \emph{remaining}
+offset each turn (dx 75.2, then 65.5, 56.1, 46.8, \dots, cm), subtracting the moves it has made; the 10 cm cap turns that
+into steady progress. On door-close, moving the hand to the goal point pushes the door shut, so ``go to the stated
+point'', learned from the training tasks, solves it. On lever-pull the policy also reaches the goal, but without hooking
+the lever. The transfer is real but specific: it helps held-out tasks whose goal point is where the hand should go.
+
+\textbf{ML45: no held-out gain.} Training tasks 0.61 against 0.49 (same 270-episode eval), held-out 0.06 over six evals
+(0.03 at the clone, 0.10 at step 50) against 0.12: door-lock 0.28 vs 0.44, door-unlock 0 vs 0.20. ML45's held-out
+gains came from look-alike tasks, and the history did not add to them.
+
+\textbf{Running:} the same with the text history but without the goal in text (\code{metaworld-histonly-q35-ml10}), to
+tell whether the ML10 gain comes from the history or from the stated goal.
+
+\takeaway{Stating the goal once and keeping the text history raised ML10's held-out tasks from 0.02 to 0.22, almost all
+on door-close, by turning ``move the hand to the goal'' into a skill that carries over. The stated offset is more
+precise than the marker (it includes depth), which is also why reach goes to 1.00.}
 
 \section{Methodology lessons}
 \label{sec:noise}
@@ -652,7 +709,8 @@ DART with 2 cm noise & worse clone & the noisy expert itself succeeds only 0.20 
 More cloning on 50 push positions & held-out stays 0.28 & memorizes the training configurations (450 positions: 0.69) \\
 RL from the memorized clone & held-out flat or down & sharpens the memorized behaviour \\
 RL (lr 1e-5) from good clones & push held-out falls, ML10 level & sharpens on its own samples \\
-ML10 held-out tasks & $\approx$0 everywhere & too few training tasks for task transfer \\
+ML10 held-out tasks, one frame & $\approx$0 everywhere & too few training tasks; no memory of the goal \\
+RL alone on ML10, 32 groups/step & 0.08--0.10 (step 60) & same plateau as 16 groups: multi-phase motions never sampled \\
 \bottomrule
 \end{tabular}\par}
 
@@ -666,6 +724,8 @@ ML10 held-out tasks & $\approx$0 everywhere & too few training tasks for task tr
   object-first reward gives a signal before any success) need no new code.
 \item Reach plateaus at 0.6--0.8 on held-out positions while training positions reach 0.9--1.0: more positions (as for push)
   should narrow that gap.
+\item Which part of the goal-in-text gain (Section~\ref{sec:goalhist}) is the history and which is the stated goal?
+  The history-only ablation is running. If the history matters, keeping images in context too is the next step.
 \item A larger eval (128+ episodes) or pooled evals would make step-to-step comparisons meaningful.
 \end{itemize}
 

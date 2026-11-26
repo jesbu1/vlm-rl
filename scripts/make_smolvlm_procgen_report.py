@@ -84,6 +84,7 @@ METAWORLD_ML45 = [("goal offset in text + text history: BC 400 then RL", "metawo
                   ("recipe: Qwen3-VL-4B, BC 400 then RL (train_seeds=10)", "metaworld-recipe-q3vl4b-ml45", None)]
 METAWORLD_ML10 = [("goal offset in text + text history: BC 400 then RL", "metaworld-goalhist-q35-ml10", None),
                   ("RL only, 32 groups/step, T 1.2, 300 steps", "metaworld-rlonly-q35-ml10-g32", None),
+                  ("text history, no goal in text: BC 400 then RL", "metaworld-histonly-q35-ml10", None),
                   ("Qwen3.5-9B: recipe, BC 400 then RL", "metaworld-recipe-q35-9b-ml10", None),
                   ("REINFORCE++ from the 400-step clone", "metaworld-adv-reinforce_pp-ml10-clone400", None),
                   ("GRPO (same settings) from the 400-step clone", "metaworld-adv-zscore-ml10-clone400", None),

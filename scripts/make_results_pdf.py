@@ -84,6 +84,8 @@ RUNS = {
     "gh_ml45": (MW, "group:metaworld-goalhist-q35-ml45"), "gh_ml10": (MW, "group:metaworld-goalhist-q35-ml10"),
     # RL only (no cloning) with twice the groups per step
     "ro_ml10": (MW, "group:metaworld-rlonly-q35-ml10-g32"),
+    # text history without the goal in text (ablation of gh_ml10)
+    "ho_ml10": (MW, "group:metaworld-histonly-q35-ml10"),
     # RL from good clones: lower lr / only above-average rollouts (adv_min=0); baselines p5_seeds10, m5_bc200 (lr 1e-5)
     "rl_push_lr": (MW, "group:metaworld-rlfix-push450-lr2e-6"), "rl_push_pos": (MW, "group:metaworld-rlfix-push450-posadv"),
     "rl_ml10_lr": (MW, "group:metaworld-rlfix-ml10-lr2e-6"), "rl_ml10_pos": (MW, "group:metaworld-rlfix-ml10-posadv"),
@@ -666,6 +668,90 @@ def fig_advmode(D):
     save(fig, "advmode.pdf")
 
 
+def _per_task_evals(run, split):
+    """Per task: the success of every eval in the run (RL steps 0, 10, ...)."""
+    pre, out = f"eval/{split}/task/", {}
+    for r in sorted((r for r in run["rows"] if "eval/success" in r), key=lambda r: r["_step"]):
+        for k, v in r.items():
+            if k.startswith(pre):
+                out.setdefault(k[len(pre):].replace("-v3/success", ""), []).append(v)
+    return out
+
+
+def fig_goalhist(D):
+    """Held-out tasks per task: the one-frame clones vs clones that see the goal offset once in text and keep the text
+    history (and, once it runs, the history without the goal text)."""
+    import matplotlib.pyplot as plt
+    if not all(k in D for k in ("pt_ml10_400", "pt_ml45_400", "gh_ml10", "gh_ml45")):
+        return
+    fig, axes = plt.subplots(1, 2, figsize=(7.2, 2.0), sharex=True)
+    for ax, bench, base, others in (
+            (axes[0], "ML10", "pt_ml10_400", [("gh_ml10", C[2], "goal once in text + text history"),
+                                              ("ho_ml10", C[1], "text history only")]),
+            (axes[1], "ML45", "pt_ml45_400", [("gh_ml45", C[2], "goal once in text + text history")])):
+        b = _per_task(D[base], "heldout_tasks")
+        names = sorted(b, key=lambda n: -b[n])
+        y = list(range(len(names)))
+        ax.plot([b[n] for n in names], y, "o", ms=5, color=C[0], mec="white", mew=0.8, label="one frame, no history")
+        for j, (k, col, lab) in enumerate(others):
+            if k not in D or not series(D[k], "eval/heldout_tasks/success")[0]:
+                continue
+            ev = _per_task_evals(D[k], "heldout_tasks")
+            off = 0.18 * (j + 1)
+            for i, n in enumerate(names):
+                v = ev.get(n, [0])
+                ax.plot([min(v), max(v)], [i + off] * 2, color=col, lw=1.4, alpha=0.55, solid_capstyle="round")
+            ax.plot([sum(ev.get(n, [0])) / len(ev.get(n, [0])) for n in names], [i + off for i in y], "o", ms=5,
+                    color=col, mec="white", mew=0.8, label=lab)
+        ax.set_yticks(y, names, fontsize=7)
+        ax.invert_yaxis()
+        ax.set_xlim(-0.04, 1.04)
+        ax.grid(axis="y", visible=False)
+        ax.set_title(f"{bench} held-out tasks")
+        ax.set_xlabel("Success (bar: range over evals)")
+    h, l = [], []
+    for ax in axes:
+        for hh, ll in zip(*ax.get_legend_handles_labels()):
+            if ll not in l:
+                h.append(hh); l.append(ll)
+    fig.legend(h, l, loc="lower center", ncol=3, bbox_to_anchor=(0.5, -0.16), fontsize=7)
+    fig.tight_layout(w_pad=3)
+    save(fig, "goalhist.pdf")
+
+
+def fig_rlonly(D):
+    """RL from the base model (no cloning) on ML10: 16 vs 32 groups per step, and with reasoning."""
+    import matplotlib.pyplot as plt
+    runs = [("m_rl", "16 groups/step (gain 1.0)"), ("ro_ml10", "32 groups/step"),
+            ("rr_ml10", "16 groups/step, with reasoning (T 1.0)")]
+    runs = [(i, k, n) for i, (k, n) in enumerate(runs) if k in D and series(D[k], "eval/train_tasks/success")[0]]
+    if not runs:
+        return
+    fig, axes = plt.subplots(1, 2, figsize=(7.2, 2.3))
+    for ax, key, title in ((axes[0], "eval/train_tasks/success", "ML10 training tasks"),
+                           (axes[1], "rollout/success", "Training rollouts (5-step mean)")):
+        ends = []
+        for i, k, name in runs:
+            xs, ys = series(D[k], key)
+            if not xs:
+                continue
+            sm = smooth(ys, 5) if key.startswith("rollout") else ys
+            line(ax, xs, sm, C[i], name, raw=(xs, ys) if key.startswith("rollout") else None,
+                 marker=None if key.startswith("rollout") else "o")
+            ends.append((xs[-1], sm[-1], f"{sm[-1]:.2f}", C[i]))
+        ax.axhline(0.69, color=MUTED, lw=1.0, zorder=0)
+        ax.set_title(title)
+        ax.set_xlabel("RL step")
+        ax.set_ylim(0, 0.75)
+        end_labels(ax, ends, xpad=3)
+    axes[0].set_ylabel("Success")
+    axes[0].text(2, 0.66, "gray line: 400-step clone (0.69)", fontsize=6.5, color=MUTED, va="top")
+    h, l = axes[0].get_legend_handles_labels()
+    fig.legend(h, l, loc="lower center", ncol=3, bbox_to_anchor=(0.5, -0.12), fontsize=7)
+    fig.tight_layout(w_pad=3)
+    save(fig, "rlonly_ml10.pdf")
+
+
 # ----------------------------------------------------------------------------- tables
 
 def tex_escape(s):
@@ -711,7 +797,8 @@ def build():
     D = load()
     style()
     for fn in (fig_maze_procgen, fig_maze_fixed, fig_reach_models, fig_reach_exploration, fig_push_reward,
-               fig_push_clones, fig_push_rl, fig_ml10, fig_rl_fixes, fig_recipe, fig_pertask, fig_reasoning, fig_advmode):
+               fig_push_clones, fig_push_rl, fig_ml10, fig_rl_fixes, fig_recipe, fig_pertask, fig_reasoning, fig_advmode,
+               fig_goalhist, fig_rlonly):
         fn(D)
     fig_expert_gain()
     write_tables(D)
@@ -742,7 +829,8 @@ if __name__ == "__main__":
         D = load()
         style()
         for fn in (fig_maze_procgen, fig_maze_fixed, fig_reach_models, fig_reach_exploration, fig_push_reward,
-                   fig_push_clones, fig_push_rl, fig_ml10, fig_rl_fixes, fig_recipe, fig_pertask, fig_reasoning, fig_advmode):
+                   fig_push_clones, fig_push_rl, fig_ml10, fig_rl_fixes, fig_recipe, fig_pertask, fig_reasoning, fig_advmode,
+               fig_goalhist, fig_rlonly):
             fn(D)
         fig_expert_gain()
         write_tables(D)

@@ -24,6 +24,9 @@
 * **Reasoning learned by RL transferred briefly.** RL from the base model with one or two sentences of reasoning per
   move, no cloning: ML10's held-out door-close reached 0.52 at step 30 (answer-only clones: 0.04), then fell back to
   0.04 at step 40 while the training tasks kept improving.
+* **Stating the goal once and keeping the text history** raised ML10's held-out tasks from 0.02 to 0.22 (door-close
+  0.84): the policy dead-reckons toward the stated goal. ML45 did not gain.
+* **RL alone** learns one or two ML10 tasks (~0.10), also with twice the groups per step; cloning supplies the motor skills.
 * **Most "collapses" were bugs**, all fixed:
   * Trained a template token the model never generates.
   * Re-tokenized replies instead of the sampled ids.
