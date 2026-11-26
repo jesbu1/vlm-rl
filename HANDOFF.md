@@ -151,6 +151,11 @@ and so are `secret_env` (e.g. `WANDB_API_KEY`), copied from your shell at submit
   anything within 1 cm of a held-out variation; keep that if you add data.
 - **Cloning longer trades transfer for fit.** ML45 at 400 / 800 cloning steps: 0.57 / 0.73 on training tasks, but
   0.12 / 0.056 on held-out tasks. The checkpoint that transfers best isn't the one that scores best on training tasks.
+- **A few tasks are partially observable for the VLM.** The goal is visible in the image for almost every task
+  (Metaworld's hidden goal only affects the state vector, which the VLM never sees), but sweep's goal is never in view
+  and dial-turn, plate-slide-side, stick-push and stick-pull's are tiny or sometimes outside the crop.
+  `env_kwargs.goal_marker_scale=2.0` fixes most of them; see "Observability" in
+  [docs/environments/metaworld.md](docs/environments/metaworld.md). All runs so far used markers ×1.
 - **Some ML45 training tasks are expert-limited.** The scripted expert fails handle-pull-side, lever-pull and stick-push
   through our interface. Cloning cannot fix these.
 - **Metaworld 3.1.1 needs mujoco 3.3** (incompatible with 4). The image pins it.

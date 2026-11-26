@@ -102,6 +102,13 @@ with full fine-tuning. \code{traj\_mean} weights every trajectory equally in the
 Greedy decoding on fixed start states: 32 episodes per set on Metaworld (48 on ML10), 64 on mazes. Section~\ref{sec:noise}
 explains why single evals are noisy; the plots therefore also show training-rollout success (128 episodes per step).
 
+\paragraph{Is it an MDP?} Metaworld's ML benchmarks hide the goal only in the state vector, which the VLM never sees;
+goals are drawn as markers in the image. Hiding the markers and counting changed pixels shows the goal is visible (or
+implied by a visible object) in almost every task. The exceptions: sweep's goal is never visible, and dial-turn,
+plate-slide-side, stick-push and stick-pull's are a few pixels or sometimes outside the crop (POMDP or nearly). Drawing the
+markers twice as large (\code{env\_kwargs.goal\_marker\_scale=2.0}) fixes most of them; all runs here used Metaworld's
+size. Our clones' zeros on sweep and stick-pull may partly come from this.
+
 \paragraph{Scope.} Runs affected by bugs that were fixed during the project are left out; every figure uses runs
 from after the fixes. Appendix~\ref{app:runs} lists every run used.
 

@@ -223,3 +223,14 @@ def test_swap_instructions_gives_every_task_another_tasks_instruction():
     itf = M.MetaWorldTextInterface(prompt_style="compact_rel", swap_instructions=True)
     assert M.TASK_TEXT["drawer-open"] in itf.system_prompt({"env_name": "drawer-close-v3"})
     assert M.make_metaworld(benchmark="ML10", swap_instructions=True).interface.swap_instructions
+
+
+def test_goal_marker_scale_enlarges_the_goal_sites(renderable):
+    small = M.MetaWorldVecEnv("ML1:reach-v3", image_size=32, render_size=(64, 48))
+    big = M.MetaWorldVecEnv("ML1:reach-v3", image_size=32, render_size=(64, 48), goal_marker_scale=2.0)
+    st = _state("ML1:reach-v3", "train", "reach-v3")
+    small.reset([st]); big.reset([st])
+    gid = [i for i in range(small._envs[0].model.nsite) if "goal" in small._envs[0].model.site(i).name][0]
+    assert np.allclose(big._envs[0].model.site_size[gid], 2.0 * small._envs[0].model.site_size[gid])
+    assert M.make_metaworld(benchmark="ML10", goal_marker_scale=2.0).make_vec_env().goal_marker_scale == 2.0
+    small.close(); big.close()

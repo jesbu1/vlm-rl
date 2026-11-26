@@ -171,7 +171,7 @@ class MetaWorldVecEnv:
     def __init__(self, bench_name: str, seed: int = 0, image_size: int = 224, camera: str = "corner",
                  max_delta: float = 10.0, max_substeps: int = 40, pos_tol: float = 0.5, blocked_window: int = 6,
                  blocked_eps: float = 0.05, gain: float = 0.5, grip_steps: int = 12,
-                 render_size: tuple[int, int] = (640, 480), crop: str = "center"):
+                 render_size: tuple[int, int] = (640, 480), crop: str = "center", goal_marker_scale: float = 1.0):
         """Lengths in cm. ``max_delta``: longest hand move per action; ``max_substeps``: simulator steps per turn.
         Frames are rendered at ``render_size`` (width, height) and cropped to ``image_size`` square:
         ``crop="center"`` (default) takes the central ``image_size`` pixels of the full-resolution frame: a zoom on
@@ -185,6 +185,9 @@ class MetaWorldVecEnv:
         self.max_delta, self.max_substeps, self.pos_tol = max_delta, max_substeps, pos_tol
         self.blocked_window, self.blocked_eps, self.gain = blocked_window, blocked_eps, gain
         self.grip_steps = grip_steps   # a changed gripper command gets at least this many steps (fingers are slow)
+        # goal markers (sites named *goal*) drawn this many times larger: at 1.0 several are a few pixels in the 224 crop
+        # (dial-turn 17, plate-slide-side 7-19, stick-push 6-13 changed pixels); at 2.0 they are 70-300
+        self.goal_marker_scale = goal_marker_scale
         self._pool: dict[tuple, list] = {}
         self._renderers: dict[str, object] = {}
         self._envs: list = []
@@ -198,7 +201,11 @@ class MetaWorldVecEnv:
         b = benchmark(self.bench_name, self.bench_seed)
         cls = (b.train_classes if split == "train" else b.test_classes)[env_name]
         w, h = self.render_size
-        return cls(render_mode="rgb_array", camera_name=self.camera, width=w, height=h)
+        env = cls(render_mode="rgb_array", camera_name=self.camera, width=w, height=h)
+        if self.goal_marker_scale != 1.0:   # once per simulator (they are pooled and reused): the size is a model constant
+            gids = [i for i in range(env.model.nsite) if "goal" in (env.model.site(i).name or "").lower()]
+            env.model.site_size[gids] *= self.goal_marker_scale
+        return env
 
     def _crop(self, img: np.ndarray) -> np.ndarray:
         s = self.image_size
@@ -504,6 +511,8 @@ class MetaWorldConfig:
     # 1.0 (the default before 2026-11-22) ran at full speed to 1 cm, overshot and lifted the hand while dragging an
     # object: scripted-expert success push 0.63 -> 0.97, ML10 training tasks 0.85 -> 0.91, held-out tasks 0.42 -> 0.72
     gain: float = 0.5
+    # goal markers drawn this many times larger (see docs/environments/metaworld.md, Observability); 1.0 = Metaworld's
+    goal_marker_scale: float = 1.0
     # training positions from this many benchmark seeds (1 = the benchmark's own split; > 1 is an ablation outside the
     # ML1/ML10 protocol: more positions, held-out ones excluded, eval unchanged)
     train_seeds: int = 1
@@ -516,7 +525,7 @@ def make_metaworld(cfg: MetaWorldConfig | None = None, **kw) -> EnvBundle:
     return EnvBundle(
         make_vec_env=lambda: MetaWorldVecEnv(cfg.benchmark, cfg.seed, cfg.image_size, cfg.camera, cfg.max_delta,
                                              cfg.max_substeps, render_size=(cfg.render_width, cfg.render_height),
-                                             crop=cfg.crop, gain=cfg.gain),
+                                             crop=cfg.crop, gain=cfg.gain, goal_marker_scale=cfg.goal_marker_scale),
         interface=MetaWorldTextInterface(cfg.max_delta, cfg.prompt_style, cfg.include_state, cfg.swap_instructions),
         train_sampler=TaskSampler(cfg.benchmark, "train", cfg.seed, n_seeds=cfg.train_seeds),
         eval_sampler=TaskSampler(cfg.benchmark, cfg.eval_split, cfg.seed),

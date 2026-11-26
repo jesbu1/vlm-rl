@@ -120,6 +120,29 @@ or two sentences (where the gripper, the object and the goal are, what to do nex
 Native thinking (`chat_template_kwargs.enable_thinking=true`) is the other option; Qwen3.5-4B's thinking often runs
 past 2048 tokens.
 
+## Observability: is it an MDP?
+
+Metaworld's ML1 / ML10 / ML45 hide the goal only in the 39-number **state vector** (`_partially_observable` zeros its last
+three entries). The VLM never sees that vector: it sees the camera crop, the gripper state and its last move. Goals are
+drawn as markers (sites named `*goal*`, opaque in every task's XML) and are placed at the true target on reset (47 of 50
+tasks; door-lock / door-unlock only from the first step) and after every step. Whether the VLM faces an MDP is therefore
+whether the goal is visible in the 224×224 crop. Measured by hiding the markers and counting changed pixels (3 variations
+per task, the image after one step):
+
+| Group | Tasks | Changed pixels (centre crop, markers ×1) |
+|---|---|---|
+| clearly visible goal | reach(-wall), push(-back/-wall), pick-place(-wall), shelf-place, soccer, basketball, box-close, coffee-*, lever-pull, pick-out-of-hole, plate-slide(-back, -back-side), window-*, door-open/close, drawer-open, sweep-into, peg-unplug-side, handle-*, faucet-* | 25–450 |
+| goal given by the scene (no marker) | assembly, disassemble, bin-picking, button-press(-*) | — |
+| marker hidden inside/behind an object that shows the goal | drawer-close, hammer, peg-insert-side (the hole), hand-insert (the hole), door-lock / door-unlock (the lock) | 0 |
+| **goal varies but is hardly visible** | dial-turn (17), plate-slide-side (7–19), stick-push (6–13), stick-pull (0–53: outside the crop in some variations) | small |
+| **never visible** | sweep (goal at the table edge, varies ±2.9 cm) | 0 |
+
+`env_kwargs.goal_marker_scale=2.0` (draws the goal markers twice as large) makes the small ones clearly visible (dial-turn
+293+, plate-slide-side 72+, stick-push 109+ pixels) without shrinking the objects; `crop=resize` (the whole frame, scaled)
+is the only setting that keeps stick-pull's goal in view in every variation, but it shrinks everything about 4×. Sweep's
+marker is not visible in any setting. Runs so far used markers ×1 and the centre crop. A single frame with no history is
+also not strictly Markov (depth from one view, no velocities), a milder gap than a hidden goal.
+
 ## Install
 
 Metaworld 3.1.1 is **incompatible with mujoco 4** (its mocap-weld setup writes 11 values into mujoco 4's 12-value
