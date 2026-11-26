@@ -107,7 +107,13 @@ goals are drawn as markers in the image. Hiding the markers and counting changed
 implied by a visible object) in almost every task. The exceptions: sweep's goal is never visible, and dial-turn,
 plate-slide-side, stick-push and stick-pull's are a few pixels or sometimes outside the crop (POMDP or nearly). Drawing the
 markers twice as large (\code{env\_kwargs.goal\_marker\_scale=2.0}) fixes most of them; all runs here used Metaworld's
-size. Our clones' zeros on sweep and stick-pull may partly come from this.
+size. Our clones' zeros on sweep and stick-pull may partly come from this. Does the policy use the markers? With every
+marker hidden, the 400-step ML45 clone falls from 0.49 to 0.40 on the training tasks: the point-goal tasks collapse
+(pick-out-of-hole 0.80 $\to$ 0, reach-wall 1.00 $\to$ 0.40, push-wall, pick-place, reach $\to$ 0), and so do the
+\emph{opening} and \emph{pulling} tasks (drawer-open 1.00 $\to$ 0.33, window-open 0.50 $\to$ 0, faucet-open, sweep-into), whose
+marker shows how far to go; closing and pressing tasks, which end at a physical stop, do not change, nor do the held-out
+tasks (0.12). So for about half the tasks the marker, or an equivalent goal stated in text, is information the policy
+needs.
 
 \paragraph{Scope.} Runs affected by bugs that were fixed during the project are left out; every figure uses runs
 from after the fixes. Appendix~\ref{app:runs} lists every run used.

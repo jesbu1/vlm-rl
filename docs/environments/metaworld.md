@@ -145,7 +145,13 @@ per task, the image after one step):
 `env_kwargs.goal_marker_scale=2.0` (draws the goal markers twice as large) makes the small ones clearly visible (dial-turn
 293+, plate-slide-side 72+, stick-push 109+ pixels) without shrinking the objects; `crop=resize` (the whole frame, scaled)
 is the only setting that keeps stick-pull's goal in view in every variation, but it shrinks everything about 4×. Sweep's
-marker is not visible in any setting. Runs so far used markers ×1 and the centre crop. A single frame with no history is
+marker is not visible in any setting. Runs so far used markers ×1 and the centre crop.
+
+**The policy uses the markers.** With them hidden (`goal_marker_scale=0`), the 400-step ML45 clone's training-task success
+falls 0.49 → 0.40: point-goal tasks collapse (pick-out-of-hole 0.80 → 0, reach-wall 1.00 → 0.40, push-wall, pick-place,
+reach → 0), and so do opening / pulling tasks (drawer-open 1.00 → 0.33, window-open 0.50 → 0, faucet-open, sweep-into),
+where the marker shows how far to go. Closing and pressing tasks (a physical stop ends them) and the held-out tasks do not
+change. A single frame with no history is
 also not strictly Markov (depth from one view, no velocities), a milder gap than a hidden goal.
 
 ## Install

@@ -180,3 +180,6 @@ Each GRPO group is 8 rollouts from the same start (same goal position and seed).
   the 4B's 0.49 / 0.12. ML10 9B still training.
 * **Qwen3.5-9B on ML10:** 0.67 / 0.02 (4B: 0.61 / 0.02; drawer-open and door-close unchanged at 0.05 / 0.04). Scale buys a
   little training-task fit and no transfer on either benchmark.
+* **Goal markers hidden** (ML45 400-step clone): training tasks 0.49 → 0.40; point-goal tasks collapse (pick-out-of-hole
+  0.80 → 0, reach-wall 1.00 → 0.40) and so do opening/pulling tasks (drawer-open 1.00 → 0.33, window-open 0.50 → 0);
+  closing/pressing tasks and held-out tasks (0.12) unchanged.
