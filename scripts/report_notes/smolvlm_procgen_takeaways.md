@@ -1190,6 +1190,8 @@
       steps 1-40 are the seed-3 run. Question: does the KL-anchored run keep improving past step 40, or is ~40% the ceiling?
       Resumed cleanly ('continuing after step 40'). Step 45: 37.5% (train 11x11 35.9, held-out 11x11 40.6, 15x15 35.9;
       rollouts 50%) -- down 2.6 from step 40, within eval noise.
+    - Step 50: 40.1% (train 11x11 37.5, held-out 11x11 45.3, 15x15 37.5; rollouts 48%) -- back to the
+      step-40 level. Flat at ~38-40 so far: no gain past step 40, but no slide either.
     * (A second frame is not the loop fix: `max_frames=2` on 256M, above, swapped wall-loops for copying its own previous
       reply, and collapsed at the same step.)
     * The loop also explains the sampled-vs-greedy gap in every run: under greedy decoding, any move that leaves the state
