@@ -1175,6 +1175,14 @@
       Step 30: 39.6% (train 11x11 34.4, held-out 11x11 46.9, 15x15 37.5; rollouts 55%); seeds 0 / 1 / 2 at step 30: 35.9 / 41.1 / 32.3%.
       Step 35: 41.1% (train 11x11 37.5, held-out 11x11 42.2, 15x15 43.8; rollouts 55%); seeds 0 / 1 / 2 at step 35: 38.5 / 41.1 / 34.9%.
       Up at every eval so far; 15x15 43.8% is the best 15x15 eval of any run.
+      Step 40: 40.1% (train 11x11 37.5, held-out 11x11 43.8, 15x15 39.1; rollouts 45%). **Mean over steps 30-40: 40.3%**.
+    * **KL 0.01-to-clone, 4 seeds: 38.1%** (37.2 / 42.2 / 32.8 / 40.3) vs BC-30 35.9% over seeds 0-2 (38.7 / 36.5 / 32.5);
+      seed-paired over seeds 0-2: KL 37.4 vs BC-30 35.9 (+1.5; per seed -1.5 / +5.7 / +0.3). BC-30 seed 3 is running (GPU1).
+      Consistent pattern across all 4 KL seeds: no late slide (steps 30-40 within +-3 points of each other, BC-30 seeds lose
+      5-8 points from their step-20 peak) and the greedy-vs-rollout gap narrows (from ~20 to ~5-10 points).
+    * **Next on GPU0: seed 3 continued to 80 steps** (`smolvlm_procgen_v2_terminate_500m_bc30_klclone0p01_seed3_steps80_gpu0.yaml`):
+      its run dir was copied (without the wandb id) to `..._seed=3__steps=80` and resumes from the step-40 checkpoint, so
+      steps 1-40 are the seed-3 run. Question: does the KL-anchored run keep improving past step 40, or is ~40% the ceiling?
     * (A second frame is not the loop fix: `max_frames=2` on 256M, above, swapped wall-loops for copying its own previous
       reply, and collapsed at the same step.)
     * The loop also explains the sampled-vs-greedy gap in every run: under greedy decoding, any move that leaves the state
