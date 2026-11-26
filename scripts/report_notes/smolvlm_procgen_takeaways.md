@@ -1150,6 +1150,7 @@
       `smolvlm_procgen_v2_terminate_500m_bc30_klclone0p01_seed3_gpu0.yaml`, queued) will decide.
     * Seed 3 (GPU0, started 16:44): clone eval **19.3%** (training 17.2, held-out 11x11 18.8, 15x15 21.9), tied for the
       best clone so far (seed 2's was 8.9%).
+      Step 5: 21.4% (train 11x11 21.9, held-out 11x11 20.3, 15x15 21.9; rollouts 31%); seeds 0 / 1 / 2 at step 5: 18.2 / 18.8 / 14.6%.
     * (A second frame is not the loop fix: `max_frames=2` on 256M, above, swapped wall-loops for copying its own previous
       reply, and collapsed at the same step.)
     * The loop also explains the sampled-vs-greedy gap in every run: under greedy decoding, any move that leaves the state
