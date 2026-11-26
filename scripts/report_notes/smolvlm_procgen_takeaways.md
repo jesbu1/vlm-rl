@@ -1178,8 +1178,10 @@
       Step 40: 40.1% (train 11x11 37.5, held-out 11x11 43.8, 15x15 39.1; rollouts 45%). **Mean over steps 30-40: 40.3%**.
     * **KL 0.01-to-clone, 4 seeds: 38.1%** (37.2 / 42.2 / 32.8 / 40.3) vs BC-30 35.9% over seeds 0-2 (38.7 / 36.5 / 32.5);
       seed-paired over seeds 0-2: KL 37.4 vs BC-30 35.9 (+1.5; per seed -1.5 / +5.7 / +0.3). BC-30 seed 3 is running (GPU1).
-      Consistent pattern across all 4 KL seeds: no late slide (steps 30-40 within +-3 points of each other, BC-30 seeds lose
-      5-8 points from their step-20 peak) and the greedy-vs-rollout gap narrows (from ~20 to ~5-10 points).
+      Consistent across all 4 KL seeds: no late slide (steps 30-40 within +-3 points of each other; BC-30 seeds lose 5-8
+      points from their step-20 peak). The greedy-vs-rollout gap is smaller for three of the four seeds, not all: seeds 0 / 1 /
+      3 trail rollouts by 10-15 points at steps 30-35 (0-5 at step 40 for seeds 1 and 3), but seed 2 by 15-23, close to
+      BC-30 seed 2's 23-27. (Corrected: an earlier version of this bullet said the gap narrowed for all four seeds.)
     * **Next on GPU0: seed 3 continued to 80 steps** (`smolvlm_procgen_v2_terminate_500m_bc30_klclone0p01_seed3_steps80_gpu0.yaml`):
       its run dir was copied (without the wandb id) to `..._seed=3__steps=80` and resumes from the step-40 checkpoint, so
       steps 1-40 are the seed-3 run. Question: does the KL-anchored run keep improving past step 40, or is ~40% the ceiling?
