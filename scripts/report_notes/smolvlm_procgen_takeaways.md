@@ -1278,6 +1278,8 @@
     * **lr sweep under KL 0.01 to the clone (seed 0, steps 30-40 means): lr=2.5e-6 37.2 / 5e-6 37.2 / 1e-5 39.2%.**
       Flat within noise across a 4x lr range; lr changes how fast the run gets there (step 15: 20.3 / 29.2 / 32.8%), not
       where it ends. None slid. lr=1e-5 seed 1 is running (GPU 0) for a second lr=1e-5 point.
+    * **Fifth seed pair** for KL-to-clone vs BC-30 (lr=5e-6): KL seed 4 on GPU 1, BC-30 seed 4 queued on GPU 0.
+      KL seed 4 clone (step 0): 11.5% (train 11x11 15.6, held-out 11x11 10.9, 15x15 7.8).
     * (A second frame is not the loop fix: `max_frames=2` on 256M, above, swapped wall-loops for copying its own previous
       reply, and collapsed at the same step.)
     * The loop also explains the sampled-vs-greedy gap in every run: under greedy decoding, any move that leaves the state
