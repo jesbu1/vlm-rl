@@ -1263,6 +1263,7 @@
       lr=5e-6 KL seed 1: 33.9.
       Step 25: 39.6% (train 11x11 45.3, held-out 11x11 34.4, 15x15 39.1; rollouts 46%). lr=5e-6 KL seed 1: 42.7.
       Step 30: 43.2% (train 11x11 46.9, held-out 11x11 39.1, 15x15 43.8; rollouts 55%). lr=5e-6 KL seed 1: 41.1.
+      Step 35: 41.7% (train 11x11 45.3, held-out 11x11 35.9, 15x15 43.8; rollouts 49%).
     * lr=2.5e-6 + KL (GPU 1) clone (step 0): 11.5% (train 11x11 14.1, held-out 11x11 7.8, 15x15 12.5); the lr=1e-5
       run's seed-0 clone was 15.1% -- same seed and recipe, different clone (clones are not bit-identical).
       Step 5: 12.5% (train 11x11 15.6, held-out 11x11 7.8, 15x15 14.1; rollouts 26%).
