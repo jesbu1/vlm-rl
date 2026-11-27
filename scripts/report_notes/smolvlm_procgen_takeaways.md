@@ -1238,6 +1238,10 @@
       step 15: 29.2%. Ahead so far, but the gain is on the training layouts (42.2) more than held-out (28.1).
     - Step 20: 31.2% (train 11x11 39.1, held-out 11x11 25.0, 15x15 29.7; rollouts 53%). lr=5e-6 KL seed 0 at
       step 20: 36.5% -- now behind; held-out 11x11 has not moved since step 10 (21.9 -> 28.1 -> 25.0).
+    - Step 25: 31.2% (train 11x11 37.5, held-out 11x11 29.7, 15x15 26.6; rollouts 50%). lr=5e-6 KL seed 0 at
+      step 25: 37.5%. Still 6 behind, so the queued lr=1e-5 seed-1 replicate was dropped (before it started) for
+      **lr=2.5e-6 + KL 0.01 to the clone, seed 0** on GPU 1 (`..._klclone0p01_lr2p5e-6_gpu1.yaml`), completing a
+      3-point lr sweep under the anchor.
     * (A second frame is not the loop fix: `max_frames=2` on 256M, above, swapped wall-loops for copying its own previous
       reply, and collapsed at the same step.)
     * The loop also explains the sampled-vs-greedy gap in every run: under greedy decoding, any move that leaves the state
