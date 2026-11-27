@@ -1273,6 +1273,11 @@
       Step 30: 36.5% (train 11x11 42.2, held-out 11x11 29.7, 15x15 37.5; rollouts 44%). lr=5e-6 / 1e-5 KL seed 0
       at step 30: 35.9 / 41.7% -- caught up despite the weakest clone (11.5%).
       Step 35: 37.5% (train 11x11 42.2, held-out 11x11 34.4, 15x15 35.9; rollouts 53%).
+      Step 40 (final): 37.5% (train 11x11 42.2, held-out 11x11 39.1, 15x15 31.2; rollouts 51%). **Mean over steps
+      30-40: 37.2%.**
+    * **lr sweep under KL 0.01 to the clone (seed 0, steps 30-40 means): lr=2.5e-6 37.2 / 5e-6 37.2 / 1e-5 39.2%.**
+      Flat within noise across a 4x lr range; lr changes how fast the run gets there (step 15: 20.3 / 29.2 / 32.8%), not
+      where it ends. None slid. lr=1e-5 seed 1 is running (GPU 0) for a second lr=1e-5 point.
     * (A second frame is not the loop fix: `max_frames=2` on 256M, above, swapped wall-loops for copying its own previous
       reply, and collapsed at the same step.)
     * The loop also explains the sampled-vs-greedy gap in every run: under greedy decoding, any move that leaves the state
