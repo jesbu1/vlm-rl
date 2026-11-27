@@ -1225,6 +1225,8 @@
     * **Next on GPU0: BC-30 + KL 0.01 to the clone at RL lr=1e-5** (seed 0; `..._klclone0p01_lr1e-5_gpu0.yaml`).
       lr=1e-5 collapsed without an anchor and stalled at ~23-25% with KL to the pretrained model; does the clone anchor
       let it climb past ~40%? Clone (step 0): 15.1% (train 11x11 15.6, held-out 11x11 12.5, 15x15 17.2).
+    - Step 5: 16.1% (train 11x11 17.2, held-out 11x11 15.6, 15x15 15.6; rollouts 38%, invalid 0.2%, 64/64 groups
+      with signal). lr=5e-6 KL seed 0 at step 5: 18.2%.
     * (A second frame is not the loop fix: `max_frames=2` on 256M, above, swapped wall-loops for copying its own previous
       reply, and collapsed at the same step.)
     * The loop also explains the sampled-vs-greedy gap in every run: under greedy decoding, any move that leaves the state
