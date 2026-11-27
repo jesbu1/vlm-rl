@@ -1254,6 +1254,7 @@
     * lr=2.5e-6 + KL (GPU 1) clone (step 0): 11.5% (train 11x11 14.1, held-out 11x11 7.8, 15x15 12.5); the lr=1e-5
       run's seed-0 clone was 15.1% -- same seed and recipe, different clone (clones are not bit-identical).
       Step 5: 12.5% (train 11x11 15.6, held-out 11x11 7.8, 15x15 14.1; rollouts 26%).
+      Step 10: 15.6% (train 11x11 20.3, held-out 11x11 10.9, 15x15 15.6; rollouts 38%).
     * (A second frame is not the loop fix: `max_frames=2` on 256M, above, swapped wall-loops for copying its own previous
       reply, and collapsed at the same step.)
     * The loop also explains the sampled-vs-greedy gap in every run: under greedy decoding, any move that leaves the state
