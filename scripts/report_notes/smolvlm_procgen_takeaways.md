@@ -1247,6 +1247,9 @@
       step 25: 37.5%. Still 6 behind, so the queued lr=1e-5 seed-1 replicate was dropped (before it started) for
       **lr=2.5e-6 + KL 0.01 to the clone, seed 0** on GPU 1 (`..._klclone0p01_lr2p5e-6_gpu1.yaml`), completing a
       3-point lr sweep under the anchor.
+    - Step 30: **41.7%** (train 11x11 48.4, held-out 11x11 37.5, 15x15 39.1; rollouts 50%) -- +10.5 in one eval,
+      now ahead of lr=5e-6 KL seed 0 (35.9 at step 30). Rollouts did not move (50%), so much of the swing is greedy-
+      eval noise; the drop of the lr=1e-5 seed-1 replicate was premature on this evidence. Judge on the steps 30-40 mean.
     * lr=2.5e-6 + KL (GPU 1) clone (step 0): 11.5% (train 11x11 14.1, held-out 11x11 7.8, 15x15 12.5); the lr=1e-5
       run's seed-0 clone was 15.1% -- same seed and recipe, different clone (clones are not bit-identical).
     * (A second frame is not the loop fix: `max_frames=2` on 256M, above, swapped wall-loops for copying its own previous
