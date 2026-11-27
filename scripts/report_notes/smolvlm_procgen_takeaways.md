@@ -1251,6 +1251,10 @@
       now ahead of lr=5e-6 KL seed 0 (35.9 at step 30). Rollouts did not move (50%), so much of the swing is greedy-
       eval noise; the drop of the lr=1e-5 seed-1 replicate was premature on this evidence. Judge on the steps 30-40 mean.
     - Step 35: 37.5% (train 11x11 46.9, held-out 11x11 32.8, 15x15 32.8; rollouts 53%). lr=5e-6 KL seed 0: 38.5.
+    - Step 40 (final): 38.5% (train 11x11 46.9, held-out 11x11 31.2, 15x15 37.5; rollouts 55%). **Mean over steps
+      30-40: 39.2%** vs 37.2% for lr=5e-6 KL seed 0 (+2.0, one seed, within noise). Train-vs-held-out 11x11 gap over
+      steps 30-40: 47.4 vs 33.8 -- the faster lr fits the training layouts more than it generalizes. Seed 1 requeued
+      on GPU 0 (`..._klclone0p01_lr1e-5_seed1_gpu0.yaml`).
     * lr=2.5e-6 + KL (GPU 1) clone (step 0): 11.5% (train 11x11 14.1, held-out 11x11 7.8, 15x15 12.5); the lr=1e-5
       run's seed-0 clone was 15.1% -- same seed and recipe, different clone (clones are not bit-identical).
       Step 5: 12.5% (train 11x11 15.6, held-out 11x11 7.8, 15x15 14.1; rollouts 26%).
