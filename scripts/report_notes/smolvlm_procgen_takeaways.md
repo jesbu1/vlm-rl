@@ -1265,6 +1265,7 @@
       Step 15: 20.3% (train 11x11 25.0, held-out 11x11 17.2, 15x15 18.8; rollouts 42%). lr=5e-6 / 1e-5 KL seed 0
       at step 15: 29.2 / 32.8%.
       Step 20: 23.4% (train 11x11 26.6, held-out 11x11 20.3, 15x15 23.4; rollouts 44%).
+      Step 25: 29.2% (train 11x11 35.9, held-out 11x11 21.9, 15x15 29.7; rollouts 46%).
     * (A second frame is not the loop fix: `max_frames=2` on 256M, above, swapped wall-loops for copying its own previous
       reply, and collapsed at the same step.)
     * The loop also explains the sampled-vs-greedy gap in every run: under greedy decoding, any move that leaves the state
