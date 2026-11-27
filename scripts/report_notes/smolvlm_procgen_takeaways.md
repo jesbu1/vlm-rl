@@ -1226,6 +1226,7 @@
       37.2 for steps 30-40: flat, like seed 3.
     - Step 65: 38.5% (train 11x11 43.8, held-out 11x11 35.9, 15x15 35.9; rollouts 50%).
     - Step 70: 38.0% (train 11x11 42.2, held-out 11x11 35.9, 15x15 35.9; rollouts 56%).
+    - Step 75: 40.1% (train 11x11 43.8, held-out 11x11 40.6, 15x15 35.9; rollouts 64%).
     * **Next on GPU0: BC-30 + KL 0.01 to the clone at RL lr=1e-5** (seed 0; `..._klclone0p01_lr1e-5_gpu0.yaml`).
       lr=1e-5 collapsed without an anchor and stalled at ~23-25% with KL to the pretrained model; does the clone anchor
       let it climb past ~40%? Clone (step 0): 15.1% (train 11x11 15.6, held-out 11x11 12.5, 15x15 17.2).
