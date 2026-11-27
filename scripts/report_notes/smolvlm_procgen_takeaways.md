@@ -1235,6 +1235,8 @@
       seed 0 at step 10: 18.8%.
     - Step 15: 32.8% (train 11x11 42.2, held-out 11x11 28.1, 15x15 28.1; rollouts 48%). lr=5e-6 KL seed 0 at
       step 15: 29.2%. Ahead so far, but the gain is on the training layouts (42.2) more than held-out (28.1).
+    - Step 20: 31.2% (train 11x11 39.1, held-out 11x11 25.0, 15x15 29.7; rollouts 53%). lr=5e-6 KL seed 0 at
+      step 20: 36.5% -- now behind; held-out 11x11 has not moved since step 10 (21.9 -> 28.1 -> 25.0).
     * (A second frame is not the loop fix: `max_frames=2` on 256M, above, swapped wall-loops for copying its own previous
       reply, and collapsed at the same step.)
     * The loop also explains the sampled-vs-greedy gap in every run: under greedy decoding, any move that leaves the state
