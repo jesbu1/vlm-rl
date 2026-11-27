@@ -1286,6 +1286,7 @@
       KL seed 4 clone (step 0): 11.5% (train 11x11 15.6, held-out 11x11 10.9, 15x15 7.8).
       KL seed 4 step 5: 16.1% (train 11x11 23.4, held-out 11x11 15.6, 15x15 9.4; rollouts 24%).
       KL seed 4 step 10: 20.3% (train 11x11 29.7, held-out 11x11 20.3, 15x15 10.9; rollouts 34%).
+      KL seed 4 step 15: 31.2% (train 11x11 37.5, held-out 11x11 37.5, 15x15 18.8; rollouts 41%).
       BC30 seed 4 clone (step 0): 14.6% (train 11x11 21.9, held-out 11x11 14.1, 15x15 7.8).
     * (A second frame is not the loop fix: `max_frames=2` on 256M, above, swapped wall-loops for copying its own previous
       reply, and collapsed at the same step.)
