@@ -128,8 +128,9 @@ reply first states where the goal is relative to the hand, then the move (`Goal:
 {"dx": 3.0, ...}`; the last `{...}` is the move). Behaviour cloning trains the stated goal on the true offset, from the
 simulator state the scripted experts already use; at test time the policy has only the image. Evals log
 `eval/<set>/goal_err_cm` (median distance between the stated and the true offset), `goal_missing_frac` and per-task
-`eval/<set>/task/<env>/goal_err_cm`; training rollouts log `rollout/goal_err_cm`. It tests whether the transfer of the
-goal stated in text (held-out 0.02 → 0.22 on ML10) survives when the policy must find the goal itself.
+`eval/<set>/task/<env>/goal_err_cm`; training rollouts log `rollout/goal_err_cm`. On ML10 it does not transfer: the
+clones' median goal error is 1–3 cm on the training tasks and 26–31 cm on the held-out ones, and held-out success stays
+at 0.01–0.03. Within a training task the goal moves only 0–7 cm, so the policy memorizes each task's goal.
 
 **Reasoning variant** (`env_kwargs.prompt_style=compact_rel_reason`): like `compact_rel`, but each reply first gives one
 or two sentences (where the gripper, the object and the goal are, what to do next) and then the JSON move; the last

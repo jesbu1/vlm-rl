@@ -686,10 +686,12 @@ def fig_goalhist(D):
     import matplotlib.pyplot as plt
     if not all(k in D for k in ("pt_ml10_400", "pt_ml45_400", "gh_ml10", "gh_ml45")):
         return
-    fig, axes = plt.subplots(1, 2, figsize=(7.2, 2.0), sharex=True)
+    fig, axes = plt.subplots(1, 2, figsize=(7.2, 2.4), sharex=True)
     for ax, bench, base, others in (
             (axes[0], "ML10", "pt_ml10_400", [("gh_ml10", C[2], "goal once in text + text history"),
-                                              ("ho_ml10", C[1], "text history only")]),
+                                              ("ho_ml10", C[1], "text history only"),
+                                              ("lo_ml10", C[3], "states the goal itself, one frame"),
+                                              ("loh_ml10", C[4], "states the goal itself, text history")]),
             (axes[1], "ML45", "pt_ml45_400", [("gh_ml45", C[2], "goal once in text + text history")])):
         b = _per_task(D[base], "heldout_tasks")
         names = sorted(b, key=lambda n: -b[n])
@@ -699,7 +701,7 @@ def fig_goalhist(D):
             if k not in D or not series(D[k], "eval/heldout_tasks/success")[0]:
                 continue
             ev = _per_task_evals(D[k], "heldout_tasks")
-            off = 0.18 * (j + 1)
+            off = 0.15 * (j + 1)
             for i, n in enumerate(names):
                 v = ev.get(n, [0])
                 ax.plot([min(v), max(v)], [i + off] * 2, color=col, lw=1.4, alpha=0.55, solid_capstyle="round")
@@ -716,7 +718,7 @@ def fig_goalhist(D):
         for hh, ll in zip(*ax.get_legend_handles_labels()):
             if ll not in l:
                 h.append(hh); l.append(ll)
-    fig.legend(h, l, loc="lower center", ncol=3, bbox_to_anchor=(0.5, -0.16), fontsize=7)
+    fig.legend(h, l, loc="lower center", ncol=3, bbox_to_anchor=(0.5, -0.2), fontsize=7)
     fig.tight_layout(w_pad=3)
     save(fig, "goalhist.pdf")
 

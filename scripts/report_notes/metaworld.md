@@ -194,3 +194,8 @@ Each GRPO group is 8 rollouts from the same start (same goal position and seed).
   tasks 0.66 (reach 0.85), held-out 0.01 (door-close 0/20). Goal + history, final over steps 0–60: ML10 held-out 0.22
   (door-close 0.81), training 0.71; ML45 held-out 0.03 → 0.12 by step 60 (one-frame clone 0.12), training 0.61 → 0.67.
   RL alone with 32 groups/step: still 0.08–0.10 at step 110.
+* **The policy states the goal itself (`compact_rel_locate`; the estimate cloned from the true offset):** ML10 clones
+  0.65 / 0.69 on the training tasks (one frame / text history), 0.03 / 0.01 on the held-out tasks. Median goal error
+  3.4 / 1.3 cm on the training tasks but 31 / 26 cm on the held-out ones: within a training task the goal moves only
+  0–7 cm, so the policy memorizes each task's goal rather than learning to find a marker. History-only final (60 RL
+  steps): 0.74 / 0.01. RL alone with 32 groups/step: 0.08–0.10 through step 170.

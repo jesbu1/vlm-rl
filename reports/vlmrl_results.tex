@@ -55,7 +55,9 @@
 \item \textbf{Stating the goal once and keeping the text history gave ML10's first held-out transfer:} 0.22 on the
   held-out tasks (one-frame clone 0.02), almost all on door-close (0.84 vs 0.04), and 0.70 vs 0.61 on the training tasks.
   The policy dead-reckons toward the stated goal; ``move the hand to the goal'' carries over to door-close. The history
-  without the goal text transfers nothing (0.01), and ML45 did not gain (0.07 vs 0.12 held-out). Section~\ref{sec:goalhist}.
+  without the goal text transfers nothing (0.01), and ML45 did not gain (0.07 vs 0.12 held-out). Asked to state the goal
+  itself, the policy finds training-task goals (1--3\,cm) but misses held-out ones by 26--31\,cm, and held-out success
+  stays at 0.01--0.03: goal finding is memorized per task. Section~\ref{sec:goalhist}.
 \item \textbf{RL alone learns one or two ML10 tasks} (drawer-close, some reach; 0.08--0.14 on the training tasks), also
   with twice the groups per step: cloning is needed for motor skills (Section~\ref{sec:rlonly}).
 \item \textbf{RL from a good clone needs a low learning rate and refines rather than generalizes.} At lr 1e-5 it erodes
@@ -596,7 +598,7 @@ starting model was not included (with LoRA our KL reference is the base model, n
 \label{fig:rlonly}
 \end{figure}
 Without cloning, RL has learned one or two ML10 tasks: drawer-close (1.00 by step 40) and a little reach (0.10--0.25).
-Doubling the groups per step to 32 (about three per task) has not changed that through step 110 (training tasks
+Doubling the groups per step to 32 (about three per task) has not changed that through step 170 of 300 (training tasks
 0.08--0.10 from step 40 on, the same as with 16 groups; held-out 0--0.01), so the plateau is not for lack of samples. The base model scores
 $\approx$0 everywhere, and multi-phase motions (grasp, then place) are never sampled. This run continues to 300 steps.
 On ML45, RL from the base model got no signal at all. So far cloning, or another source of motor skills, is necessary.
@@ -650,7 +652,8 @@ recipe: 400 cloning steps, then RL at lr 2e-6.
 \centering\includegraphics[width=\linewidth]{figures/goalhist.pdf}
 \caption{Held-out tasks, per task: the one-frame 400-step clones (one per-task eval, 20 episodes per task) against
 clones that see the goal once in text and keep the text history (mean of the seven evals at RL steps 0--60, 20
-episodes per task each; the bar spans them), and on ML10 the same history without the goal in text (its clone's eval).}
+episodes per task each; the bar spans them). ML10 also: the history without the goal in text, and policies that state
+the goal themselves (goal estimate cloned from the true offset; evals so far).}
 \label{fig:goalhist}
 \end{figure}
 
@@ -673,13 +676,28 @@ came from look-alike tasks, and the stated goal did not add to them.
 
 \textbf{The stated goal does the work, not the history.} The same text history without the goal in text
 (\code{prompt\_style=compact\_rel}, \code{max\_frames=null}, \code{max\_images=1}): ML10's clone scores 0.66 on the
-training tasks (reach 0.85) and 0.01 on the held-out tasks, door-close 0/20. Remembering its own moves helps the policy
-fit (0.61 $\to$ 0.66) but transfers nothing; transfer appears only when it is told where the goal is.
+training tasks (reach 0.85) and 0.01 on the held-out tasks, door-close 0/20 (0.74 and 0.01 after 60 RL steps).
+Remembering its own moves helps the policy fit (0.61 $\to$ 0.66) but transfers nothing; transfer appears only when it
+is told where the goal is.
+
+\textbf{Can the policy find the goal itself? Only on the training tasks.} Here nothing about the goal is given
+(\code{prompt\_style=compact\_rel\_locate}): each reply first states where the goal is relative to the hand, then the move
+(\code{Goal: dx=+12.0, dy=-3.5, dz=+4.0. \{"dx": 3.0, \dots\}}), and cloning trains the stated goal on the true offset,
+from the simulator state the scripted experts already use. On the training tasks the estimate is good: median error
+3.4\,cm with one frame, 1.3\,cm with the text history. On the held-out tasks it is 31 / 26\,cm off (door-close 70 / 85,
+drawer-open 26 / 28, lever-pull 29 / 26, shelf-place 20 / 8, sweep-into 24 / 6), and held-out success stays at 0.01--0.03
+(training tasks 0.65 / 0.69; RL at lr 2e-6 changes neither through step 20). The held-out estimates jump from turn to
+turn and resemble the training tasks' offsets: the policy learned where each training task's goal usually is, not how to
+find a goal marker. Here that is easy: within a training task the goal varies by only 0--7\,cm per axis (standard
+deviation over variations, often 0 vertically), so the task nearly determines the offset. The markers do show these
+held-out goals: each sits at the goal, and door-close's 71\,cm offset is real (its hand starts 50\,cm left of the door).
 
 \takeaway{Stating the goal once and keeping the text history raised ML10's held-out tasks from 0.02 to 0.22, almost all
 on door-close, by turning ``move the hand to the goal'' into a skill that carries over. The history alone does not
-transfer: the gain is the stated goal, which is more precise than the marker (it includes depth). From the image alone,
-the clones do not find held-out goals.}
+transfer: the gain is the stated goal, which is more precise than the marker (it includes depth). Asked to state the
+goal themselves, clones find training-task goals within 1--3\,cm and miss held-out ones by 26--31\,cm: with ten tasks
+whose goals barely move, goal finding is memorized per task. Even with the goal given, ML45's held-out tasks did not
+improve, so for most held-out tasks the missing piece is the motion, not the goal.}
 
 \section{Methodology lessons}
 \label{sec:noise}
@@ -715,7 +733,8 @@ RL from the memorized clone & held-out flat or down & sharpens the memorized beh
 RL (lr 1e-5) from good clones & push held-out falls, ML10 level & sharpens on its own samples \\
 ML10 held-out tasks, one frame & $\approx$0 everywhere & too few training tasks for task transfer \\
 Text history without the goal & ML10 held-out 0.01 & memory alone does not find held-out goals \\
-RL alone on ML10, 32 groups/step & 0.08--0.10 (steps 40--110) & same plateau as 16 groups: multi-phase motions never sampled \\
+Policy states the goal itself (cloned) & ML10 held-out 0.01--0.03 & estimates memorized per task: 26--31\,cm off on held-out tasks \\
+RL alone on ML10, 32 groups/step & 0.08--0.10 (steps 40--170) & same plateau as 16 groups: multi-phase motions never sampled \\
 \bottomrule
 \end{tabular}\par}
 
@@ -729,8 +748,9 @@ RL alone on ML10, 32 groups/step & 0.08--0.10 (steps 40--110) & same plateau as 
   object-first reward gives a signal before any success) need no new code.
 \item Reach plateaus at 0.6--0.8 on held-out positions while training positions reach 0.9--1.0: more positions (as for push)
   should narrow that gap.
-\item The goal-in-text gain (Section~\ref{sec:goalhist}) is the stated goal, not the history. Without stating it, held-out
-  transfer needs the policy to read the goal from the image as precisely as the text gives it.
+\item The goal-in-text gain (Section~\ref{sec:goalhist}) is the stated goal, not the history, and a policy trained to state
+  the goal itself memorizes it per task. Goal finding that transfers would need training tasks whose goals move a lot
+  (or many more tasks); even then, the goal-given ceiling is small (ML10 0.22, mostly door-close; ML45 no gain).
 \item A larger eval (128+ episodes) or pooled evals would make step-to-step comparisons meaningful.
 \end{itemize}
 

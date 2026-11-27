@@ -26,7 +26,8 @@
   0.04 at step 40 while the training tasks kept improving.
 * **Stating the goal once and keeping the text history** raised ML10's held-out tasks from 0.02 to 0.22 (door-close
   0.81): the policy dead-reckons toward the stated goal. The history without the goal text transfers nothing (0.01).
-  ML45 did not gain.
+  ML45 did not gain. Trained to state the goal itself, the policy finds training-task goals (1–3 cm) but misses
+  held-out ones by 26–31 cm: goal finding is memorized per task.
 * **RL alone** learns one or two ML10 tasks (~0.10), also with twice the groups per step; cloning supplies the motor skills.
 * **Most "collapses" were bugs**, all fixed:
   * Trained a template token the model never generates.
