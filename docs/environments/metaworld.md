@@ -123,6 +123,14 @@ training tasks from 0.61 to 0.70: the clone replies with the remaining offset ea
 hand to the goal also closes the door. The same history without the goal in text gives 0.01 on held-out tasks, so the
 stated goal does the work. ML45 did not gain on held-out tasks (0.07 vs 0.12).
 
+**Goal read from the image** (`env_kwargs.prompt_style=compact_rel_locate`): nothing about the goal is given. Each
+reply first states where the goal is relative to the hand, then the move (`Goal: dx=+12.0, dy=-3.5, dz=+4.0.
+{"dx": 3.0, ...}`; the last `{...}` is the move). Behaviour cloning trains the stated goal on the true offset, from the
+simulator state the scripted experts already use; at test time the policy has only the image. Evals log
+`eval/<set>/goal_err_cm` (median distance between the stated and the true offset), `goal_missing_frac` and per-task
+`eval/<set>/task/<env>/goal_err_cm`; training rollouts log `rollout/goal_err_cm`. It tests whether the transfer of the
+goal stated in text (held-out 0.02 → 0.22 on ML10) survives when the policy must find the goal itself.
+
 **Reasoning variant** (`env_kwargs.prompt_style=compact_rel_reason`): like `compact_rel`, but each reply first gives one
 or two sentences (where the gripper, the object and the goal are, what to do next) and then the JSON move; the last
 `{...}` in the reply is parsed, so axis names in the reasoning are never read as the move. Use `max_new_tokens` ≈ 256.

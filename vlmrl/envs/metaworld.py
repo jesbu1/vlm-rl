@@ -372,6 +372,7 @@ def vec_action_scale(vec: MetaWorldVecEnv, k: int) -> float:
 _NUM = r"[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?"
 _COMPACT = {q: re.compile(rf'"?{q}"?\s*[:=]\s*({_NUM})', re.IGNORECASE) for q in ("x", "y", "z")}
 _COMPACT_REL = {q: re.compile(rf'"?d{q}"?\s*[:=]\s*({_NUM})', re.IGNORECASE) for q in ("x", "y", "z")}
+_GOAL_EST = re.compile(rf"goal\W*dx\s*[:=]\s*({_NUM})\W+dy\s*[:=]\s*({_NUM})\W+dz\s*[:=]\s*({_NUM})", re.IGNORECASE)
 _COMPACT_GRIP = re.compile(r'"?(?:grip|gripper)"?\s*[:=]\s*"?(open|close|closed|' + _NUM + r')"?', re.IGNORECASE)
 
 
@@ -383,15 +384,20 @@ class MetaWorldTextInterface:
     image, and each turn reports how far the hand actually moved last turn. The goal is only in the image (unlike
     PointMaze's ``compact_rel``, no goal offset is given). ``"compact_rel_reason"``: ``compact_rel`` with one or two
     sentences of reasoning first (where the gripper, the object and the goal are, what to do next), then the JSON move;
-    the last ``{...}`` in the reply is the action, so axis names inside the reasoning are never read as the move."""
+    the last ``{...}`` in the reply is the action, so axis names inside the reasoning are never read as the move.
+    ``"compact_rel_locate"``: ``compact_rel`` where each reply first states where the task's goal is relative to the
+    hand (``Goal: dx=+12.0, dy=-3.5, dz=+4.0.``), then the JSON move. Nothing about the goal is given: the policy reads
+    it from the image. Behaviour cloning supervises the estimate with the true offset (``expert_reply``), the
+    simulator state the scripted experts already use; at test time only the image is there."""
 
     SCHEMA = {"hand": ["x", "y", "z"], "gripper": ["opening"]}
 
     def __init__(self, max_delta: float = 10.0, prompt_style: str = "pear", include_state: bool = True,
                  swap_instructions: bool = False):
-        assert prompt_style in ("pear", "compact", "compact_rel", "compact_rel_reason", "compact_rel_goal"), prompt_style
+        assert prompt_style in ("pear", "compact", "compact_rel", "compact_rel_reason", "compact_rel_goal",
+                                "compact_rel_locate"), prompt_style
         self.max_delta, self.prompt_style, self.include_state = max_delta, prompt_style, include_state
-        self.rel = prompt_style in ("compact_rel", "compact_rel_reason", "compact_rel_goal")
+        self.rel = prompt_style in ("compact_rel", "compact_rel_reason", "compact_rel_goal", "compact_rel_locate")
         self.swap_instructions = swap_instructions
 
     def environment_section(self) -> str:
@@ -420,6 +426,15 @@ class MetaWorldTextInterface:
                     'the hand, in centimeters, as JSON, for example {"dx": 3.0, "dy": -2.0, "dz": -1.0, "grip": "open"}. '
                     "These are changes, not positions: in the image, +dx moves the hand to the right, +dy to the left, "
                     f"both slightly away from the camera; +dz moves it up. At most {self.max_delta:g} cm per turn. "
+                    '"grip": "close" closes the gripper, "open" opens it.')
+        if self.prompt_style == "compact_rel_locate":
+            return ("You control a robot arm with a gripper above a table, seen from a fixed camera. "
+                    f"Task: {task_text(start_state['env_name'], self.swap_instructions)} "
+                    "Each turn, first say where the task's goal is relative to the hand, in centimeters and in the same "
+                    "dx/dy/dz directions as the moves, then how far to move the hand, as JSON, for example "
+                    'Goal: dx=+12.0, dy=-3.5, dz=+4.0. {"dx": 3.0, "dy": -2.0, "dz": -1.0, "grip": "open"} '
+                    "The moves are changes, not positions: in the image, +dx moves the hand to the right, +dy to the "
+                    f"left, both slightly away from the camera; +dz moves it up. At most {self.max_delta:g} cm per turn. "
                     '"grip": "close" closes the gripper, "open" opens it.')
         if self.prompt_style == "compact_rel_goal":
             return ("You control a robot arm with a gripper above a table, seen from a fixed camera. "
@@ -477,7 +492,7 @@ class MetaWorldTextInterface:
             from vlmrl.envs import protocol
             return protocol.parse_action(text, self.SCHEMA)
         pats = _COMPACT_REL if self.rel else _COMPACT
-        if self.prompt_style == "compact_rel_reason":
+        if self.prompt_style in ("compact_rel_reason", "compact_rel_locate"):
             objs = re.findall(r"\{[^{}]*\}", text)
             if not objs:
                 return None
@@ -504,6 +519,20 @@ class MetaWorldTextInterface:
             return f'{{"dx": {a[0]:.1f}, "dy": {a[1]:.1f}, "dz": {a[2]:.1f}, "grip": "{grip}"}}'
         return f'{{"x": {a[0]:.1f}, "y": {a[1]:.1f}, "z": {a[2]:.1f}, "grip": "{grip}"}}'
 
+    def expert_reply(self, a, obs) -> str:
+        """The scripted expert's reply as training text. ``compact_rel_locate`` prefixes the true goal offset of the
+        observation, so cloning also teaches where the goal is; other styles are just the move."""
+        if self.prompt_style != "compact_rel_locate":
+            return self.format_action(a)
+        g = (obs.extras or {}).get("goal_offset") if obs is not None else None
+        goal = f"Goal: dx={g[0]:+.1f}, dy={g[1]:+.1f}, dz={g[2]:+.1f}." if g is not None else "Goal: unknown."
+        return f"{goal} {self.format_action(a)}"
+
+    def goal_estimate(self, text: str):
+        """The goal offset a ``compact_rel_locate`` reply states (cm, dx/dy/dz), or None."""
+        m = _GOAL_EST.search(text or "")
+        return np.array([float(v) for v in m.groups()]) if m else None
+
     def noop_action(self):
         return np.zeros(4)
 
@@ -514,7 +543,7 @@ class MetaWorldTextInterface:
 class MetaWorldConfig:
     benchmark: str = "ML1:reach-v3"   # ML1:<task> | ML10 | ML45
     eval_split: str = "test"          # test = held-out goals (ML1) / held-out tasks (ML10, ML45) | train
-    prompt_style: str = "pear"        # pear | compact | compact_rel
+    prompt_style: str = "pear"        # pear | compact | compact_rel (| _reason | _goal | _locate)
     include_state: bool = True
     swap_instructions: bool = False   # diagnostic: every task gets the next task's instruction (see task_text)
     image_size: int = 224              # square crop fed to the VLM

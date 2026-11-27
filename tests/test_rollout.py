@@ -245,6 +245,29 @@ def test_expert_rollout_writes_protocol_transcripts(umaze, rng):
     assert len(to_samples(trajs, None, max_frames=1)) == sum(len(t.turns) for t in trajs)
 
 
+def test_expert_rollout_writes_the_interfaces_expert_reply(umaze, rng):
+    """An interface with ``expert_reply`` (e.g. Metaworld's compact_rel_locate, which states the true goal first) writes
+    the training text from the expert's action and the observation it answers."""
+    from vlmrl.rollout import expert_rollout
+
+    class WithReply:
+        def __init__(self, itf):
+            self.itf, self.seen = itf, []
+
+        def __getattr__(self, name):
+            return getattr(self.itf, name)
+
+        def expert_reply(self, a, obs):
+            self.seen.append(obs)
+            return "Goal noted. " + self.itf.format_action(a)
+    itf, act = WithReply(umaze.interface), np.array([0.3, -0.1])
+    trajs = expert_rollout(umaze.make_vec_env(), itf, lambda env, k: act, umaze.train_sampler.sample(2, rng), [0, 1], 3)
+    turns = [t for tr in trajs for t in tr.turns]
+    assert turns and all(t.response.startswith("Goal noted. ") for t in turns)
+    assert all(np.allclose(t.action, umaze.interface.parse_action(t.response)) for t in turns)
+    assert {id(o) for o in itf.seen} == {id(t.obs) for t in turns}                # the observation each reply answers
+
+
 def test_expert_rollout_dagger_executes_the_policy_and_records_the_expert(umaze, rng):
     """DAgger: the policy's reply is executed (the expert's when the policy's is invalid), the expert's reply is what
     the transcript records (and what BC trains on)."""

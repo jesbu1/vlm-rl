@@ -186,6 +186,39 @@ def per_task_success(trajs, prefix: str) -> dict:
     return {f"{prefix}/task/{k}/success": float(np.mean(v)) for k, v in sorted(by.items())}
 
 
+def goal_estimate_error(trajs, interface, prefix: str, per_task: bool = True) -> dict:
+    """For interfaces whose replies state the goal (``interface.goal_estimate``; Metaworld
+    ``prompt_style=compact_rel_locate``): ``{prefix}/goal_err_cm``, the median distance between the stated and the true
+    goal offset over all turns, ``{prefix}/goal_missing_frac`` (replies without a readable estimate) and, with
+    ``per_task``, ``{prefix}/task/<env_name>/goal_err_cm``. ``{}`` for other interfaces."""
+    est = getattr(interface, "goal_estimate", None)
+    if est is None:
+        return {}
+    by: dict[str, list[float]] = {}
+    n = missing = 0
+    for t in trajs:
+        name = str((t.start_state or {}).get("env_name")) if isinstance(t.start_state, dict) else "?"
+        for turn in t.turns:
+            true = (turn.obs.extras or {}).get("goal_offset") if turn.obs is not None else None
+            if true is None:
+                continue
+            n += 1
+            g = est(turn.response)
+            if g is None:
+                missing += 1
+                continue
+            by.setdefault(name, []).append(float(np.linalg.norm(np.asarray(g, float) - np.asarray(true, float))))
+    if n == 0:
+        return {}
+    errs = [e for v in by.values() for e in v]
+    m = {f"{prefix}/goal_missing_frac": missing / n}
+    if errs:
+        m[f"{prefix}/goal_err_cm"] = float(np.median(errs))
+    if per_task and len(by) >= 2:
+        m.update({f"{prefix}/task/{k}/goal_err_cm": float(np.median(v)) for k, v in sorted(by.items())})
+    return m
+
+
 class Trainer:
     def __init__(self, cfg: TrainConfig, policy: HFPolicy | None = None, bundle: EnvBundle | None = None,
                  reward_fn=None):
@@ -472,9 +505,10 @@ class Trainer:
                              max_frames=c.max_frames, thinking=self._thinking)
         by_set = {s["name"]: trajs for s, trajs in zip(self.eval_sets, out)}
         m = {}
-        for name, trajs in by_set.items():
+        for es, (name, trajs) in zip(self.eval_sets, by_set.items()):
             m.update(self.eval_metrics(trajs, name))
             m.update(per_task_success(trajs, name))
+            m.update(goal_estimate_error(trajs, es["bundle"].interface, name))
         if self.cfg.eval_sets:
             per = [self.eval_metrics(trajs, "eval") for trajs in by_set.values()]
             m.update({k: float(np.mean([p[k] for p in per])) for k in per[0]})
@@ -729,6 +763,7 @@ class Trainer:
                 "rollout/resp_chars": float(np.mean([len(x.response) for t in all_trajs for x in t.turns])),
                 "rollout/groups_kept": len(groups), "rollout/rounds": rounds,
                 **end_reason_fracs(all_trajs, "rollout"),
+                **goal_estimate_error(all_trajs, self.bundle.interface, "rollout", per_task=False),
                 "time/rollout": t1 - t0, "time/train": t2 - t1,
             })
             if c.log_samples_every and step % c.log_samples_every == 0:

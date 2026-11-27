@@ -559,6 +559,31 @@ def test_per_task_success_only_for_multi_task_sets():
     assert per_task_success([b, c], "eval/x") == {}
 
 
+def test_goal_estimate_error_compares_stated_and_true_goal_offsets():
+    """Median distance (cm) between the goal a reply states and the true offset, per task and overall; replies
+    without an estimate count as missing; interfaces that never state a goal give nothing."""
+    from conftest import make_traj
+    from vlmrl.trainer import goal_estimate_error
+    from vlmrl.types import Obs
+
+    class Itf:
+        @staticmethod
+        def goal_estimate(text):
+            return np.array([float(v) for v in text.split()]) if text[0].isdigit() else None
+
+    a, b = make_traj(n_turns=2), make_traj(n_turns=1)
+    a.start_state, b.start_state = {"env_name": "reach-v3"}, {"env_name": "push-v3"}
+    for t, (reply, true) in zip(a.turns + b.turns, [("3 4 0", [0, 0, 0]), ("none", [1, 1, 1]), ("1 2 2", [1, 2, 0])]):
+        t.obs, t.response = Obs(extras={"goal_offset": true}), reply
+    m = goal_estimate_error([a, b], Itf(), "eval/train_tasks")
+    assert m["eval/train_tasks/goal_missing_frac"] == pytest.approx(1 / 3)
+    assert m["eval/train_tasks/goal_err_cm"] == pytest.approx(3.5)                     # median of 5 and 2
+    assert m["eval/train_tasks/task/reach-v3/goal_err_cm"] == pytest.approx(5.0)
+    assert m["eval/train_tasks/task/push-v3/goal_err_cm"] == pytest.approx(2.0)
+    assert "eval/x/task/push-v3/goal_err_cm" not in goal_estimate_error([a, b], Itf(), "eval/x", per_task=False)
+    assert goal_estimate_error([a, b], object(), "eval/x") == {}
+
+
 def test_bc_rationale_prefixes_expert_replies_with_a_generated_reason(tmp_path):
     import dataclasses
     seen = []

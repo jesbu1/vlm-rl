@@ -254,3 +254,33 @@ def test_goal_offset_is_target_minus_hand_in_cm(renderable):
     expect = (np.asarray(sim._target_pos)[:3] - env._obs[0][:3]) * 100.0
     assert np.allclose(o.extras["goal_offset"], expect, atol=0.06)
     env.close()
+
+
+def test_compact_rel_locate_states_the_goal_then_the_move():
+    """The policy is told nothing about the goal; its reply states the goal offset, then the move (the last JSON). The
+    expert's training reply carries the true offset of the observation it answers."""
+    from vlmrl.types import Obs
+    itf = M.MetaWorldTextInterface(prompt_style="compact_rel_locate")
+    obs = Obs(image=np.zeros((8, 8, 3), np.uint8), state=np.zeros(4), extras={"goal_offset": [12.0, -3.5, 4.0]})
+    assert "Goal" not in itf.observation_message(obs, 0, None, False)[-1]["text"]
+    assert "say where the task's goal is" in itf.system_prompt({"env_name": "push-v3"})
+    reply = itf.expert_reply(np.array([3.0, -2.0, -1.0, -1.0]), obs)
+    assert reply.startswith("Goal: dx=+12.0, dy=-3.5, dz=+4.0. {")
+    assert np.allclose(itf.parse_action(reply), [3.0, -2.0, -1.0, -1.0])          # the goal's dx/dy/dz are not the move
+    assert np.allclose(itf.goal_estimate(reply), [12.0, -3.5, 4.0])
+    assert itf.parse_action("Goal: dx=+12.0, dy=-3.5, dz=+4.0.") is None           # a goal without a move: invalid
+    assert itf.goal_estimate('{"dx": 1, "dy": 2, "dz": 3}') is None
+    assert itf.expert_reply(np.zeros(4), Obs()).startswith("Goal: unknown. {")
+    assert M.MetaWorldTextInterface(prompt_style="compact_rel").expert_reply(np.zeros(4), obs).startswith("{")
+
+
+def test_expert_rollout_with_compact_rel_locate_states_the_true_goal(renderable):
+    from vlmrl.rollout import expert_rollout
+    b = M.make_metaworld(benchmark="ML1:reach-v3", prompt_style="compact_rel_locate", image_size=32,
+                         render_width=64, render_height=48)
+    env = b.make_vec_env()
+    trajs = expert_rollout(env, b.interface, b.expert, [_state("ML1:reach-v3", "train", "reach-v3")], [0], 3)
+    for t in trajs[0].turns:
+        assert np.allclose(b.interface.goal_estimate(t.response), t.obs.extras["goal_offset"], atol=0.06)
+        assert t.action is not None
+    env.close()

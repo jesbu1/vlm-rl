@@ -182,8 +182,9 @@ def expert_rollout(env: VecEnv, interface: TextInterface, expert: Callable, star
                    thinking: bool = False, noise: float = 0.0,
                    rng: np.random.Generator | None = None) -> list[Trajectory]:
     """Episodes driven by a scripted expert through the text protocol: each turn the expert's action is written as
-    the reply the model would give (``interface.format_action``) and parsed back before it is executed, so the
-    transcripts have exactly the structure of ``rollout``'s and can be trained on (behaviour cloning).
+    the reply the model would give (``interface.expert_reply`` if the interface has one, else ``format_action``) and
+    parsed back before it is executed, so the transcripts have exactly the structure of ``rollout``'s and can be
+    trained on (behaviour cloning).
 
     With ``generate`` (DAgger): the *policy's* reply is executed (the expert's when the policy's is invalid), but the
     transcript records the expert's reply for the state the policy reached. Training on it teaches the clone to
@@ -206,7 +207,8 @@ def expert_rollout(env: VecEnv, interface: TextInterface, expert: Callable, star
     for t in range(max_turns):
         if not active:
             break
-        texts = [interface.format_action(expert(env, k)) for k in active]
+        reply = getattr(interface, "expert_reply", None)       # e.g. a stated goal before the move (Metaworld _locate)
+        texts = [reply(expert(env, k), obs[k]) if reply else interface.format_action(expert(env, k)) for k in active]
         actions = [interface.parse_action(x) for x in texts]
         if generate is not None:
             own = generate([context_view(trajs[k].messages, max_images, max_frames) for k in active])
