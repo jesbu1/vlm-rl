@@ -1281,6 +1281,7 @@
       where it ends. None slid. lr=1e-5 seed 1 is running (GPU 0) for a second lr=1e-5 point.
     * **Fifth seed pair** for KL-to-clone vs BC-30 (lr=5e-6): KL seed 4 on GPU 1, BC-30 seed 4 queued on GPU 0.
       KL seed 4 clone (step 0): 11.5% (train 11x11 15.6, held-out 11x11 10.9, 15x15 7.8).
+      KL seed 4 step 5: 16.1% (train 11x11 23.4, held-out 11x11 15.6, 15x15 9.4; rollouts 24%).
     * (A second frame is not the loop fix: `max_frames=2` on 256M, above, swapped wall-loops for copying its own previous
       reply, and collapsed at the same step.)
     * The loop also explains the sampled-vs-greedy gap in every run: under greedy decoding, any move that leaves the state
