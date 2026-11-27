@@ -1229,6 +1229,8 @@
       let it climb past ~40%? Clone (step 0): 15.1% (train 11x11 15.6, held-out 11x11 12.5, 15x15 17.2).
     - Step 5: 16.1% (train 11x11 17.2, held-out 11x11 15.6, 15x15 15.6; rollouts 38%, invalid 0.2%, 64/64 groups
       with signal). lr=5e-6 KL seed 0 at step 5: 18.2%.
+    - Step 10: 21.4% (train 11x11 23.4, held-out 11x11 21.9, 15x15 18.8; rollouts 39%, invalid 0%). lr=5e-6 KL
+      seed 0 at step 10: 18.8%.
     * (A second frame is not the loop fix: `max_frames=2` on 256M, above, swapped wall-loops for copying its own previous
       reply, and collapsed at the same step.)
     * The loop also explains the sampled-vs-greedy gap in every run: under greedy decoding, any move that leaves the state
