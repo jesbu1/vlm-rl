@@ -190,3 +190,7 @@ Each GRPO group is 8 rollouts from the same start (same goal position and seed).
   (0.12). Live: the same history without the goal text (`metaworld-histonly-q35-ml10`).
 * **RL alone, 32 groups per step (ML10):** 0.08–0.10 on the training tasks through step 60 (drawer-close 1.0, some
   reach), the same plateau as with 16 groups; held-out 0.01. Running to 300 steps.
+* **The stated goal does the work, not the history.** Text history without the goal in text (ML10 400-step clone): training
+  tasks 0.66 (reach 0.85), held-out 0.01 (door-close 0/20). Goal + history, final over steps 0–60: ML10 held-out 0.22
+  (door-close 0.81), training 0.71; ML45 held-out 0.03 → 0.12 by step 60 (one-frame clone 0.12), training 0.61 → 0.67.
+  RL alone with 32 groups/step: still 0.08–0.10 at step 110.

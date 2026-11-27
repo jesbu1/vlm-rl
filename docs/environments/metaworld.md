@@ -120,7 +120,8 @@ information the goal marker draws), and the whole text history stays in context 
 kept, so the offset stays usable and the policy can see what its earlier moves did.
 With 400 cloning steps on ML10 this raised the held-out tasks from 0.02 to 0.22 (door-close 0.84, sweep-into 0.18) and the
 training tasks from 0.61 to 0.70: the clone replies with the remaining offset each turn (dead reckoning), and moving the
-hand to the goal also closes the door. ML45 did not gain on held-out tasks (0.06 vs 0.12).
+hand to the goal also closes the door. The same history without the goal in text gives 0.01 on held-out tasks, so the
+stated goal does the work. ML45 did not gain on held-out tasks (0.07 vs 0.12).
 
 **Reasoning variant** (`env_kwargs.prompt_style=compact_rel_reason`): like `compact_rel`, but each reply first gives one
 or two sentences (where the gripper, the object and the goal are, what to do next) and then the JSON move; the last

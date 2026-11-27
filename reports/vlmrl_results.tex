@@ -54,8 +54,8 @@
   Its 5 held-out tasks stay at $\approx$0 for one-frame policies.
 \item \textbf{Stating the goal once and keeping the text history gave ML10's first held-out transfer:} 0.22 on the
   held-out tasks (one-frame clone 0.02), almost all on door-close (0.84 vs 0.04), and 0.70 vs 0.61 on the training tasks.
-  The policy dead-reckons toward the stated goal; ``move the hand to the goal'' carries over to door-close. ML45 did not
-  gain (0.06 vs 0.12 held-out). Section~\ref{sec:goalhist}.
+  The policy dead-reckons toward the stated goal; ``move the hand to the goal'' carries over to door-close. The history
+  without the goal text transfers nothing (0.01), and ML45 did not gain (0.07 vs 0.12 held-out). Section~\ref{sec:goalhist}.
 \item \textbf{RL alone learns one or two ML10 tasks} (drawer-close, some reach; 0.08--0.14 on the training tasks), also
   with twice the groups per step: cloning is needed for motor skills (Section~\ref{sec:rlonly}).
 \item \textbf{RL from a good clone needs a low learning rate and refines rather than generalizes.} At lr 1e-5 it erodes
@@ -596,8 +596,8 @@ starting model was not included (with LoRA our KL reference is the base model, n
 \label{fig:rlonly}
 \end{figure}
 Without cloning, RL has learned one or two ML10 tasks: drawer-close (1.00 by step 40) and a little reach (0.10--0.25).
-Doubling the groups per step to 32 (about three per task) has not changed that through step 60 (training tasks 0.08--0.10,
-the same as with 16 groups; held-out 0.01), so the plateau is not for lack of samples. The base model scores
+Doubling the groups per step to 32 (about three per task) has not changed that through step 110 (training tasks
+0.08--0.10 from step 40 on, the same as with 16 groups; held-out 0--0.01), so the plateau is not for lack of samples. The base model scores
 $\approx$0 everywhere, and multi-phase motions (grasp, then place) are never sampled. This run continues to 300 steps.
 On ML45, RL from the base model got no signal at all. So far cloning, or another source of motor skills, is necessary.
 
@@ -649,16 +649,16 @@ recipe: 400 cloning steps, then RL at lr 2e-6.
 \begin{figure}[h]
 \centering\includegraphics[width=\linewidth]{figures/goalhist.pdf}
 \caption{Held-out tasks, per task: the one-frame 400-step clones (one per-task eval, 20 episodes per task) against
-clones that see the goal once in text and keep the text history (mean of the evals at RL steps 0--40 or 0--50, 20
-episodes per task each; the bar spans them).}
+clones that see the goal once in text and keep the text history (mean of the seven evals at RL steps 0--60, 20
+episodes per task each; the bar spans them), and on ML10 the same history without the goal in text (its clone's eval).}
 \label{fig:goalhist}
 \end{figure}
 
-\textbf{ML10: held-out 0.02 $\to$ 0.22.} Over five evals (steps 0--40, 100 held-out episodes each) the held-out tasks
-average 0.22 (0.20--0.23), against 0.02 for the one-frame clone: door-close 0.84 (0.04) and sweep-into 0.18 (0). The
-training tasks rise too, 0.70 against 0.61 on the same 200-episode eval, mostly on point-goal tasks (reach 0.30 $\to$
-1.00, door-open 0.24 $\to$ 0.48, window-open 0.82 $\to$ 1.00; push falls 0.94 $\to$ 0.61). RL at lr 2e-6 keeps both
-level.
+\textbf{ML10: held-out 0.02 $\to$ 0.22.} Over seven evals (steps 0--60, 100 held-out episodes each) the held-out tasks
+average 0.22 (0.19--0.25), against 0.02 for the one-frame clone: door-close 0.81 (0.04) and sweep-into 0.20 (0). The
+clone's training tasks rise too, 0.70 against 0.61 on the same 200-episode eval, mostly on point-goal tasks (reach 0.30
+$\to$ 1.00, door-open 0.24 $\to$ 0.48, window-open 0.82 $\to$ 1.00; push falls 0.94 $\to$ 0.61). RL at lr 2e-6 keeps both
+level (training tasks 0.71 over the seven evals).
 
 \textbf{How the policy uses it: dead reckoning.} The transcripts show the clone replying with the \emph{remaining}
 offset each turn (dx 75.2, then 65.5, 56.1, 46.8, \dots, cm), subtracting the moves it has made; the 10 cm cap turns that
@@ -666,16 +666,20 @@ into steady progress. On door-close, moving the hand to the goal point pushes th
 point'', learned from the training tasks, solves it. On lever-pull the policy also reaches the goal, but without hooking
 the lever. The transfer is real but specific: it helps held-out tasks whose goal point is where the hand should go.
 
-\textbf{ML45: no held-out gain.} Training tasks 0.61 against 0.49 (same 270-episode eval), held-out 0.06 over six evals
-(0.03 at the clone, 0.10 at step 50) against 0.12: door-lock 0.28 vs 0.44, door-unlock 0 vs 0.20. ML45's held-out
-gains came from look-alike tasks, and the history did not add to them.
+\textbf{ML45: no held-out gain.} The clone fits the training tasks better, 0.61 against 0.49 (same 270-episode eval;
+0.67 after 60 RL steps), but transfers less: held-out 0.03 at the clone, rising with RL to 0.12 at step 60, 0.07 over the
+seven evals, against the one-frame clone's 0.12 (door-lock 0.32 vs 0.44, door-unlock 0 vs 0.20). ML45's held-out gains
+came from look-alike tasks, and the stated goal did not add to them.
 
-\textbf{Running:} the same with the text history but without the goal in text (\code{metaworld-histonly-q35-ml10}), to
-tell whether the ML10 gain comes from the history or from the stated goal.
+\textbf{The stated goal does the work, not the history.} The same text history without the goal in text
+(\code{prompt\_style=compact\_rel}, \code{max\_frames=null}, \code{max\_images=1}): ML10's clone scores 0.66 on the
+training tasks (reach 0.85) and 0.01 on the held-out tasks, door-close 0/20. Remembering its own moves helps the policy
+fit (0.61 $\to$ 0.66) but transfers nothing; transfer appears only when it is told where the goal is.
 
 \takeaway{Stating the goal once and keeping the text history raised ML10's held-out tasks from 0.02 to 0.22, almost all
-on door-close, by turning ``move the hand to the goal'' into a skill that carries over. The stated offset is more
-precise than the marker (it includes depth), which is also why reach goes to 1.00.}
+on door-close, by turning ``move the hand to the goal'' into a skill that carries over. The history alone does not
+transfer: the gain is the stated goal, which is more precise than the marker (it includes depth). From the image alone,
+the clones do not find held-out goals.}
 
 \section{Methodology lessons}
 \label{sec:noise}
@@ -709,8 +713,9 @@ DART with 2 cm noise & worse clone & the noisy expert itself succeeds only 0.20 
 More cloning on 50 push positions & held-out stays 0.28 & memorizes the training configurations (450 positions: 0.69) \\
 RL from the memorized clone & held-out flat or down & sharpens the memorized behaviour \\
 RL (lr 1e-5) from good clones & push held-out falls, ML10 level & sharpens on its own samples \\
-ML10 held-out tasks, one frame & $\approx$0 everywhere & too few training tasks; no memory of the goal \\
-RL alone on ML10, 32 groups/step & 0.08--0.10 (step 60) & same plateau as 16 groups: multi-phase motions never sampled \\
+ML10 held-out tasks, one frame & $\approx$0 everywhere & too few training tasks for task transfer \\
+Text history without the goal & ML10 held-out 0.01 & memory alone does not find held-out goals \\
+RL alone on ML10, 32 groups/step & 0.08--0.10 (steps 40--110) & same plateau as 16 groups: multi-phase motions never sampled \\
 \bottomrule
 \end{tabular}\par}
 
@@ -724,8 +729,8 @@ RL alone on ML10, 32 groups/step & 0.08--0.10 (step 60) & same plateau as 16 gro
   object-first reward gives a signal before any success) need no new code.
 \item Reach plateaus at 0.6--0.8 on held-out positions while training positions reach 0.9--1.0: more positions (as for push)
   should narrow that gap.
-\item Which part of the goal-in-text gain (Section~\ref{sec:goalhist}) is the history and which is the stated goal?
-  The history-only ablation is running. If the history matters, keeping images in context too is the next step.
+\item The goal-in-text gain (Section~\ref{sec:goalhist}) is the stated goal, not the history. Without stating it, held-out
+  transfer needs the policy to read the goal from the image as precisely as the text gives it.
 \item A larger eval (128+ episodes) or pooled evals would make step-to-step comparisons meaningful.
 \end{itemize}
 

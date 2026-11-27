@@ -19,8 +19,9 @@ code.
   text, and every earlier turn's text stays in context (only the latest image). On ML10 this raised the held-out tasks
   from 0.02 to **0.22** (door-close 0.84, sweep-into 0.18) and the training tasks from 0.61 to 0.70. The policy
   dead-reckons: it replies with the remaining offset each turn, and "move the hand to the goal" carries over to
-  door-close. ML45 did not gain (0.06 held-out vs 0.12). Whether the history or the stated goal does the work is being
-  tested (`metaworld-histonly-q35-ml10`).
+  door-close. **The stated goal does the work:** the same history without the goal in text gives 0.01 on held-out tasks
+  (training 0.66). ML45 did not gain (0.07 held-out vs 0.12). So from the image alone the policy does not find held-out
+  goals precisely enough.
 - **Is cloning necessary? So far yes.** RL alone learns one or two ML10 tasks (drawer-close, a little reach; ~0.10 on
   the training tasks), with 16 or 32 groups per step, and nothing on ML45.
 - **Other lead:** **reasoning learned by RL.** RL from the *base* model (no cloning), with one or two
@@ -192,9 +193,9 @@ Still running when this was written:
 | `metaworld-recipe-q35-9b-ml45`, `-ml10` | Qwen3.5-9B (`policy=qwen35_9b_lora_mlp`) with the same recipe | clones: ML45 0.51 / 0.08 (4B 0.49 / 0.12), ML10 0.67 / 0.02 (4B 0.61 / 0.02): slightly better fit, no transfer gain from scale |
 | `metaworld-swap-ml45-clone400`, `metaworld-swap-ml10-clone400` (done) | the 4B clones evaluated with swapped instructions (`env_kwargs.swap_instructions=true`) | training tasks fell 0.49 → 0.11 (ML45) and 0.61 → 0.28 (ML10): the clones read the instruction |
 
-| `metaworld-goalhist-q35-ml10`, `-ml45` | goal offset in text at the start + text history (only the latest image), 400 cloning steps then RL at lr 2e-6 | ML10: held-out 0.22 over steps 0–40 (one-frame clone 0.02; door-close 0.84), training 0.70 (0.61). ML45: held-out 0.06 (0.12), training 0.61 (0.49). RL keeps both level |
-| `metaworld-histonly-q35-ml10` | the same text history **without** the goal in text | is the ML10 held-out gain from the history or from the stated goal? |
-| `metaworld-rlonly-q35-ml10-g32` | RL only (no cloning) on ML10 with 32 groups per step (~3 per task, twice the usual), temperature 1.2, lr 1e-5, 300 steps | through step 60: training tasks 0.08–0.10 (drawer-close 1.0, reach 0.1–0.25), held-out 0.01, the same plateau as with 16 groups. Watch whether it moves by step 300 |
+| `metaworld-goalhist-q35-ml10`, `-ml45` | goal offset in text at the start + text history (only the latest image), 400 cloning steps then RL at lr 2e-6 | (done) ML10: held-out 0.22 over steps 0–60 (one-frame clone 0.02; door-close 0.81, sweep-into 0.20), training 0.70 at the clone (0.61), 0.71 with RL. ML45: held-out 0.03 at the clone, 0.12 by RL step 60 (one-frame clone 0.12), training 0.61 → 0.67 (0.49) |
+| `metaworld-histonly-q35-ml10` | the same text history **without** the goal in text | clone: training 0.66 (reach 0.85), held-out 0.01 (door-close 0/20): the history alone transfers nothing. RL to step 60 still running |
+| `metaworld-rlonly-q35-ml10-g32` | RL only (no cloning) on ML10 with 32 groups per step (~3 per task, twice the usual), temperature 1.2, lr 1e-5, 300 steps | through step 110: training tasks 0.08–0.10 from step 40 on (drawer-close 1.0, reach 0.1–0.25), held-out 0–0.01, the same plateau as with 16 groups. Watch whether it moves by step 300 |
 | `metaworld-nomarker-ml45-clone400` (done) | the 4B ML45 clone evaluated with the goal markers hidden | training tasks 0.49 → 0.40: point-goal and opening/pulling tasks need the marker, closing/pressing and held-out tasks do not |
 
 Finished just before handoff: cloning with one-sentence reasons (`metaworld-reasonbc2-q35-ml10`, `-ml45`) matched the answer-only clones on training tasks (ML10 0.62, ML45 0.47) but not better on held-out tasks (0.03, 0.05).
@@ -208,14 +209,16 @@ Numbers to reproduce on your machines (Qwen3.5-4B, LoRA on the MLPs):
 | ML10, 400 cloning steps, `train_seeds=10` | 0.69 | 0.00–0.02 |
 | ML45, 400 cloning steps | 0.57 | 0.12 (door-lock 0.44, door-unlock 0.20) |
 | ML45, 800 cloning steps | 0.73 | 0.06 |
-| ML10, goal once in text + text history, 400 cloning steps | 0.70 | 0.22 (door-close 0.84, sweep-into 0.18) |
+| ML10, goal once in text + text history, 400 cloning steps | 0.70 | 0.22 (door-close 0.81, sweep-into 0.20) |
+| ML10, text history without the goal, 400 cloning steps | 0.66 | 0.01 |
 | ML10, RL only with reasoning, step 30 / 40 | 0.07 / 0.10 (drawer-close 0.93 / 1.00) | 0.12 / 0.01 (door-close 0.52 / 0.04) |
 
 ## Suggested next steps
 
-1. **Follow the goal-in-text + history lead.** Read the history-only ablation first. Then: keep the earlier images in
-   context too (memory permitting), RL with reasoning on top of the history clone, and longer cloning on ML45 with the
-   history (ML45 gained on training tasks but not held-out).
+1. **Follow the goal-in-text lead.** The ablation shows the stated goal, not the history, carries the ML10 transfer.
+   Without stating it, the policy has to read the goal from the image as precisely as the text gives it. Options: RL
+   with reasoning on top of the goal-in-text clone; and on ML45 (training tasks gained, held-out not), more cloning
+   with the goal in text.
 2. **Make the RL-reasoning transfer stick.** It appeared (door-close 0.52 at step 30) and vanished by step 40 as RL
    specialized the motion to the training tasks. It is cheap to rerun: no cloning, ~30–60 RL steps on ML10 (~4–8 h;
    `compact_rel_reason`, `lr=1e-5`, `temperature=1.0`, evals every 5 steps with the larger eval sets). Try a lower lr, a
