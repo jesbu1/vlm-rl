@@ -445,6 +445,8 @@ class MetaWorldTextInterface:
         self.rel = prompt_style in ("compact_rel", "compact_rel_reason", "compact_rel_goal", "compact_rel_locate")
         self.swap_instructions = swap_instructions
         self.action_frame = action_frame          # "camera": moves are right / away from the camera / up (MetaWorldVecEnv)
+        # the absolute-position styles (pear, compact) report world coordinates, which camera-frame moves would contradict
+        assert action_frame == "world" or self.rel, f"action_frame={action_frame!r} needs a compact_rel* prompt style"
 
     def environment_section(self) -> str:
         return (

@@ -318,7 +318,8 @@ def test_camera_action_frame_axes_match_the_corner_view(renderable):
 
 
 def test_scripted_expert_solves_push_in_the_camera_frame(renderable):
-    b = M.make_metaworld(benchmark="ML1:push-v3", image_size=32, max_turns=15, action_frame="camera")
+    b = M.make_metaworld(benchmark="ML1:push-v3", image_size=32, max_turns=15, action_frame="camera",
+                         prompt_style="compact_rel")
     env, itf = b.make_vec_env(), b.interface
     assert "away from the camera (toward the back" in itf.system_prompt({"env_name": "push-v3"})
     wins = 0
@@ -331,6 +332,11 @@ def test_scripted_expert_solves_push_in_the_camera_frame(renderable):
         wins += int(r.info["success"])
     assert wins == 3
     env.close()
+
+
+def test_camera_frame_needs_a_relative_prompt_style():
+    with pytest.raises(AssertionError):
+        M.MetaWorldTextInterface(prompt_style="pear", action_frame="camera")
 
 
 def test_only_the_locate_style_states_the_goal():
