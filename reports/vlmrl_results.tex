@@ -58,6 +58,9 @@
   without the goal text transfers nothing (0.01), and ML45 did not gain (0.07 vs 0.12 held-out). Asked to state the goal
   itself, the policy finds training-task goals (1--3\,cm) but misses held-out ones by 26--31\,cm, and held-out success
   stays at 0.01--0.03: goal finding is memorized per task. Section~\ref{sec:goalhist}.
+\item \textbf{More training tasks do not fix held-out tasks.} Clones on 10 random ML45 training tasks transfer as much as on
+  all 45 (0.11 vs 0.12 on ML45's held-out tasks), on 20 less (0.04), on 10 hand-picked look-alikes least (0.01).
+  Section~\ref{sec:whatnext}.
 \item \textbf{RL alone learns one or two ML10 tasks} (drawer-close, some reach; 0.08--0.14 on the training tasks), also
   with twice the groups per step: cloning is needed for motor skills (Section~\ref{sec:rlonly}).
 \item \textbf{RL from a good clone needs a low learning rate and refines rather than generalizes.} At lr 1e-5 it erodes
@@ -710,7 +713,7 @@ Held-out tasks are zero-shot: the policy never trains on them. Everything so far
 \item \emph{Perception.} Asked to state the goal, the clones memorize each task's goal: 1--3\,cm off on training tasks,
   26--31\,cm on held-out ones (Section~\ref{sec:goalhist}).
 \item \emph{Nothing we added changed it}: a larger model (9B), cloned rationales, the text history, RL from the clones
-  (it refines what was cloned), REINFORCE++.
+  (it refines what was cloned), REINFORCE++, and more training tasks (10 random tasks transfer as much as 45).
 \end{itemize}
 This is the regime of $\pi_{0.5}$ in PEAR's comparison: fine-tuned on LIBERO demonstrations it scores 96.9\% on LIBERO
 but 0.75\% on LIBERO-Pro's unseen tasks in training scenes, because it ``replays the motion it was shown''.
@@ -725,9 +728,21 @@ models sometimes succeeded. On Metaworld the 4B base scores $\approx$0, and RL a
 
 \textbf{Would more tasks fix it?} ML10 $\to$ ML45 raised held-out transfer from 0.02 to 0.12, all on look-alikes. If
 transfer is replay of the nearest training motion, it grows with how well the training tasks cover the held-out
-motions, not with their number, and Metaworld has no further tasks to add. Running: clones on 10 and on 20 random ML45
-training tasks, and on 10 chosen look-alikes of the held-out tasks, all evaluated on ML45's held-out tasks. If the
-look-alike 10 match the 45-task clone, coverage, not count, is what transfers.
+motions, not with their number, and Metaworld has no further tasks to add. Tested directly: clones on subsets of
+ML45's training tasks (same 400 cloning steps), all evaluated on ML45's held-out tasks (Fig.~\ref{fig:ntasks}).
+\emph{Ten random tasks transfer as much as all 45} (0.11 vs 0.12: door-lock 0.28, door-unlock 0.25), \emph{twenty
+transfer less} (0.04; the twenty include the ten), and the ten tasks I chose as motion look-alikes (door-open, door-close,
+dial-turn, handle and lever tasks, pick tasks) transfer least (0.01). Transfer does not grow with the number of tasks and
+is not predicted by which tasks look similar to us; within 0--0.12 it moves with which motions happen to dominate the
+clone (with 20 episodes per task, differences below $\sim$0.06 overall are noise). More Metaworld tasks will not fix
+held-out tasks for a cloned policy.
+
+\begin{figure}[h]
+\centering\includegraphics[width=\linewidth]{figures/ntasks.pdf}
+\caption{ML45's held-out tasks for clones on 10 random, 20 random (a superset of the 10) and 10 chosen ML45 training
+tasks (400 cloning steps each, eval right after cloning), and on all 45 (400 and 800 steps).}
+\label{fig:ntasks}
+\end{figure}
 
 \textbf{Would another environment (LIBERO) help?} PEAR's numbers say the method, not the environment, made the
 difference: on the same LIBERO-Pro unseen tasks, cloned $\pi_{0.5}$ gets 0.75\% and PEAR 57.4\%. PEAR is RL only (no
@@ -800,6 +815,7 @@ RL from the memorized clone & held-out flat or down & sharpens the memorized beh
 RL (lr 1e-5) from good clones & push held-out falls, ML10 level & sharpens on its own samples \\
 ML10 held-out tasks, one frame & $\approx$0 everywhere & too few training tasks for task transfer \\
 Text history without the goal & ML10 held-out 0.01 & memory alone does not find held-out goals \\
+More (or similar) training tasks & ML45 held-out 0.11 / 0.04 / 0.12 with 10 / 20 / 45 tasks & not count-driven; 10 chosen look-alikes 0.01 \\
 Policy states the goal itself (cloned) & ML10 held-out 0.01--0.03 & estimates memorized per task: 26--31\,cm off on held-out tasks \\
 RL alone on ML10, 32 groups/step & 0.08--0.10 (steps 40--170) & same plateau as 16 groups: multi-phase motions never sampled \\
 \bottomrule

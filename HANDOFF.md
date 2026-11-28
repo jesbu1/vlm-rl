@@ -27,6 +27,8 @@ code.
   memorizes each task's goal instead of learning to find a marker.
 - **Is cloning necessary? So far yes.** RL alone learns one or two ML10 tasks (drawer-close, a little reach; ~0.10 on
   the training tasks), with 16 or 32 groups per step, and nothing on ML45.
+- **More tasks do not fix it.** Clones on 10 random ML45 training tasks transfer as much as on all 45 (0.11 vs 0.12 on
+  ML45's held-out tasks); 20 random tasks give 0.04, and 10 tasks hand-picked as motion look-alikes 0.01.
 - **Other lead:** **reasoning learned by RL.** RL from the *base* model (no cloning), with one or two
   sentences of reasoning before each move, learned drawer-close in 30 steps and solved the held-out door-close at 0.52
   (answer-only clones: 0.04). It did **not** hold: at step 40 door-close was back to 0.04 while the training tasks kept

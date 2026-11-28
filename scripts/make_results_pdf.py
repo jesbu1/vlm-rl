@@ -760,6 +760,32 @@ def fig_rlonly(D):
     save(fig, "rlonly_ml10.pdf")
 
 
+def fig_ntasks(D):
+    """ML45's held-out tasks, per task, for clones on subsets of ML45's training tasks (400 cloning steps each) and on
+    all 45 (400 and 800 steps)."""
+    import matplotlib.pyplot as plt
+    runs = [("nt_rand10", "10 random tasks"), ("nt_rand20", "20 random tasks (incl. those 10)"),
+            ("nt_near10", "10 chosen look-alikes"), ("pt_ml45_400", "all 45 tasks"), ("pt_ml45_800", "all 45, 800 steps")]
+    runs = [(i, k, n) for i, (k, n) in enumerate(runs) if k in D and _per_task(D[k], "heldout_tasks")]
+    if len(runs) < 3:
+        return
+    names = ["door-lock", "door-unlock", "hand-insert", "box-close", "bin-picking"]
+    fig, ax = plt.subplots(1, 1, figsize=(7.2, 2.3))
+    for j, (i, k, lab) in enumerate(runs):
+        v = _per_task(D[k], "heldout_tasks")
+        tot = at(D[k], "eval/heldout_tasks/success", 0)
+        ax.plot([v.get(n, 0) for n in names], [y + 0.13 * (j - 2) for y in range(len(names))], "o", ms=5, color=C[i],
+                mec="white", mew=0.8, label=f"{lab}: {tot:.2f} overall" if tot is not None else lab)
+    ax.set_yticks(range(len(names)), names, fontsize=7.5)
+    ax.invert_yaxis()
+    ax.set_xlim(-0.03, 0.6)
+    ax.grid(axis="y", visible=False)
+    ax.set_xlabel("Success on the held-out task (20 episodes per task)")
+    ax.legend(loc="lower right", fontsize=6.8)
+    fig.tight_layout()
+    save(fig, "ntasks.pdf")
+
+
 # ----------------------------------------------------------------------------- tables
 
 def tex_escape(s):
@@ -806,7 +832,7 @@ def build():
     style()
     for fn in (fig_maze_procgen, fig_maze_fixed, fig_reach_models, fig_reach_exploration, fig_push_reward,
                fig_push_clones, fig_push_rl, fig_ml10, fig_rl_fixes, fig_recipe, fig_pertask, fig_reasoning, fig_advmode,
-               fig_goalhist, fig_rlonly):
+               fig_goalhist, fig_rlonly, fig_ntasks):
         fn(D)
     fig_expert_gain()
     write_tables(D)
@@ -838,7 +864,7 @@ if __name__ == "__main__":
         style()
         for fn in (fig_maze_procgen, fig_maze_fixed, fig_reach_models, fig_reach_exploration, fig_push_reward,
                    fig_push_clones, fig_push_rl, fig_ml10, fig_rl_fixes, fig_recipe, fig_pertask, fig_reasoning, fig_advmode,
-               fig_goalhist, fig_rlonly):
+               fig_goalhist, fig_rlonly, fig_ntasks):
             fn(D)
         fig_expert_gain()
         write_tables(D)
