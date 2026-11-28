@@ -802,7 +802,10 @@ handle'', with moves sized from the numbers (dx $+$25, then $+$14, $+$8), and on
 lift'', failing on the grasp. (50 episodes per set, about 10 per held-out task: per-task numbers are rough.) Held-out
 is not special for an untrained model, so the question becomes whether RL on the training tasks raises the held-out
 tasks with them, as in PEAR, or specializes as our clones did. Running: RL from the base 9B with short reasoning,
-text history and the object's position, on ML10 (with and without the goal offset) and on ML45.
+text history and the object's position, on ML10 (with and without the goal offset) and on ML45. Their step-0 evals
+(the untrained model, 100 episodes per set) confirm the probes: ML10 0.05 / 0.12 (door-close 0.52), with the goal offset
+0.09 / 0.11, and on ML45 \textbf{0.20 on the 45 training tasks and 0.15 on the held-out ones} (door-lock 0.44,
+door-unlock 0.35), above our best ML45 clone (0.12) without any training.
 
 \begin{table}[h]
 \centering\small
