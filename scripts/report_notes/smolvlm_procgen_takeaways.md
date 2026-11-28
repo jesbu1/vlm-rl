@@ -1302,6 +1302,7 @@
       BC30 seed 4 step 35: 41.1% (train 11x11 46.9, held-out 11x11 45.3, 15x15 31.2; rollouts 49%). KL seed 4 at step 35: 40.1.
     - Sixth seed pair (seed 5) queued behind seed 4: KL 0.01 to clone on GPU 1, BC30 on GPU 0. Configs: `..._bc30_klclone0p01_seed5_gpu1.yaml`, `..._bc30_seed5_gpu0.yaml`.
       KL seed 5 clone (step 0): 12.0% (train 11x11 12.5, held-out 11x11 9.4, 15x15 14.1).
+      KL seed 5 step 5: 18.2% (train 11x11 20.3, held-out 11x11 15.6, 15x15 18.8; rollouts 36%).
     * (A second frame is not the loop fix: `max_frames=2` on 256M, above, swapped wall-loops for copying its own previous
       reply, and collapsed at the same step.)
     * The loop also explains the sampled-vs-greedy gap in every run: under greedy decoding, any move that leaves the state
