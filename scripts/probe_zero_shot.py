@@ -6,7 +6,8 @@ trainer's copy of the model, so models too large to train on one GPU (Qwen3.5-27
 (vLLM tensor parallel). Writes metrics.json (success per set and task, invalid replies, reply length, end reasons) and
 a few transcripts per task.
 
-    scripts/launch_vllm.sh Qwen/Qwen3.5-27B 8011 0,1 --tensor-parallel-size 2 &      # ENABLE_LORA=0
+    ENABLE_LORA=0 scripts/launch_vllm.sh Qwen/Qwen3.5-27B 8011 0,1 --tensor-parallel-size 2 &   # a free port
+                                                       # on shared hosts: other jobs' servers may hold 8011
     python scripts/probe_zero_shot.py --model Qwen/Qwen3.5-27B --vllm_url http://localhost:8011 \\
         --env_kwargs '{"benchmark": "ML10", "prompt_style": "compact_rel"}' --sets train_tasks=train:50,heldout_tasks=test:50 \\
         --thinking --max_new_tokens 8192 --temperature 0.6 --top_p 0.95 --out runs/probe/qwen35-27b
@@ -86,6 +87,7 @@ def main() -> None:
     ap.add_argument("--max_images", type=int, default=None)
     ap.add_argument("--on_invalid", default="noop", choices=("noop", "terminate"))
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--request_timeout", type=float, default=3600.0, help="seconds per generation request")
     ap.add_argument("--out", required=True)
     a = ap.parse_args()
 
@@ -93,7 +95,7 @@ def main() -> None:
     os.makedirs(a.out, exist_ok=True)
     wait_ready(a.vllm_url)
     gen = VLLMServerGenerator(a.vllm_url, a.model, os.path.join(a.out, "unused_adapters"),
-                              chat_template_kwargs={"enable_thinking": bool(a.thinking)})
+                              chat_template_kwargs={"enable_thinking": bool(a.thinking)}, request_timeout=a.request_timeout)
     kw = json.loads(a.env_kwargs)
     tasks, names, itfs = [], [], []
     for name, split, n in parse_sets(a.sets):

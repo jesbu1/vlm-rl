@@ -133,6 +133,8 @@ cloud storage and are not shared**: re-create a clone with the commands here (~9
   --set max_images=1`. Only the latest image is in context; every earlier turn's text stays.
 - Goal read from the image: `env_kwargs.prompt_style=compact_rel_locate`. Each reply states the goal offset, then the
   move; cloning trains the estimate on the true offset, and evals log its error (`eval/<set>/goal_err_cm`).
+- Camera-aligned moves for reasoning models: `+env_kwargs.action_frame=camera` (+dx right in the image, +dy away from the
+  camera, +dz up). With the default world axes, Qwen3.5-9B's thinking loops on the axis description.
 - Fewer training tasks: `+env_kwargs.train_tasks=[door-open,dial-turn,...]` (training and the training-task eval use
   only these; held-out tasks unchanged).
 - Zero-shot probe of any base model, vLLM only (no trainer copy, so 27B+ fits): `scripts/probe_zero_shot.py`.

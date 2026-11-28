@@ -567,6 +567,8 @@ def test_goal_estimate_error_compares_stated_and_true_goal_offsets():
     from vlmrl.types import Obs
 
     class Itf:
+        states_goal = True
+
         @staticmethod
         def goal_estimate(text):
             return np.array([float(v) for v in text.split()]) if text[0].isdigit() else None
@@ -582,6 +584,8 @@ def test_goal_estimate_error_compares_stated_and_true_goal_offsets():
     assert m["eval/train_tasks/task/push-v3/goal_err_cm"] == pytest.approx(2.0)
     assert "eval/x/task/push-v3/goal_err_cm" not in goal_estimate_error([a, b], Itf(), "eval/x", per_task=False)
     assert goal_estimate_error([a, b], object(), "eval/x") == {}
+    Itf.states_goal = False                                                            # e.g. Metaworld compact_rel
+    assert goal_estimate_error([a, b], Itf(), "eval/x") == {}
 
 
 def test_bc_rationale_prefixes_expert_replies_with_a_generated_reason(tmp_path):

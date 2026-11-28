@@ -297,3 +297,42 @@ def test_train_tasks_restricts_training_and_the_training_eval_not_held_out():
     assert sorted(seeded.pool) == ["push-v3", "reach-v3"]
     with pytest.raises(AssertionError):
         M.TaskSampler("ML10", "train", tasks=["door-close"])                 # a held-out task, not a training one
+
+
+def test_camera_action_frame_axes_match_the_corner_view(renderable):
+    """action_frame=camera: +x right in the image, +y away from the camera, +z up. The corner view shows world +x to the
+    right and world +y to the left, both slightly away from the camera (the world-frame prompt's description)."""
+    env = M.MetaWorldVecEnv("ML1:reach-v3", image_size=32, render_size=(64, 48), action_frame="camera")
+    o = env.reset([_state("ML1:reach-v3", "train", "reach-v3")])[0]
+    R = env.frame(0)
+    assert np.allclose(R.T @ R, np.eye(3), atol=1e-6) and np.allclose(R[:, 2], [0, 0, 1])
+    right, away = R[:, 0], R[:, 1]
+    assert right[0] > 0 and right[1] < 0 and away[0] > 0 and away[1] > 0
+    sim = env._envs[0]
+    expect = R.T @ ((np.asarray(sim._target_pos)[:3] - env._obs[0][:3]) * 100.0)
+    assert np.allclose(o.extras["goal_offset"], expect, atol=0.06)                # goal offset in the same frame
+    r = env.step([0], [np.array([4.0, 0.0, 0.0, 0.0])])[0]
+    moved = r.obs.extras["moved"]
+    assert moved[0] > 3.0 and abs(moved[1]) < 1.0 and abs(moved[2]) < 1.0         # +dx: along "right" only
+    env.close()
+
+
+def test_scripted_expert_solves_push_in_the_camera_frame(renderable):
+    b = M.make_metaworld(benchmark="ML1:push-v3", image_size=32, max_turns=15, action_frame="camera")
+    env, itf = b.make_vec_env(), b.interface
+    assert "away from the camera (toward the back" in itf.system_prompt({"env_name": "push-v3"})
+    wins = 0
+    for task in range(3):
+        env.reset([_state("ML1:push-v3", "test", "push-v3", task=task, seed=task)])
+        for _ in range(15):
+            r = env.step([0], [itf.parse_action(itf.format_action(M.oracle_action(env, 0)))])[0]
+            if r.terminated or r.truncated:
+                break
+        wins += int(r.info["success"])
+    assert wins == 3
+    env.close()
+
+
+def test_only_the_locate_style_states_the_goal():
+    assert M.MetaWorldTextInterface(prompt_style="compact_rel_locate").states_goal
+    assert not M.MetaWorldTextInterface(prompt_style="compact_rel").states_goal

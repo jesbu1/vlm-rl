@@ -81,7 +81,7 @@ def to_openai_messages(messages: list[dict]) -> list[dict]:
 
 class VLLMServerGenerator:
     def __init__(self, url: str, base_model: str, adapter_dir: str, max_workers: int = 256,
-                 chat_template_kwargs: dict | None = None):
+                 chat_template_kwargs: dict | None = None, request_timeout: float = 600.0):
         self.url = url.rstrip("/")
         self.base_model = base_model
         self.adapter_dir = adapter_dir
@@ -93,6 +93,7 @@ class VLLMServerGenerator:
         self.tag = uuid.uuid4().hex[:8]
         self.pool = ThreadPoolExecutor(max_workers)
         self.chat_template_kwargs = dict(chat_template_kwargs or {})
+        self.request_timeout = request_timeout    # seconds per generation request (long thinking needs more)
 
     def _one(self, msgs, max_new_tokens, temperature, top_p):
         greedy = temperature <= 0
@@ -101,7 +102,7 @@ class VLLMServerGenerator:
                    "top_k": -1, "n": 1, "logprobs": True, "return_tokens_as_token_ids": True}
         if self.chat_template_kwargs:
             payload["chat_template_kwargs"] = self.chat_template_kwargs
-        r = _post(f"{self.url}/v1/chat/completions", payload)
+        r = _post(f"{self.url}/v1/chat/completions", payload, timeout=getattr(self, "request_timeout", 600.0))
         u = r.get("usage") or {}
         ntok = int(u.get("prompt_tokens", 0)) + int(u.get("completion_tokens", 0))
         # log-probs of the sampled tokens, from the raw model output (vLLM's default logprobs mode, i.e. before

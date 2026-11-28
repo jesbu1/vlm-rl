@@ -182,14 +182,23 @@ class MetaWorldVecEnv:
     def __init__(self, bench_name: str, seed: int = 0, image_size: int = 224, camera: str = "corner",
                  max_delta: float = 10.0, max_substeps: int = 40, pos_tol: float = 0.5, blocked_window: int = 6,
                  blocked_eps: float = 0.05, gain: float = 0.5, grip_steps: int = 12,
-                 render_size: tuple[int, int] = (640, 480), crop: str = "center", goal_marker_scale: float = 1.0):
+                 render_size: tuple[int, int] = (640, 480), crop: str = "center", goal_marker_scale: float = 1.0,
+                 action_frame: str = "world"):
         """Lengths in cm. ``max_delta``: longest hand move per action; ``max_substeps``: simulator steps per turn.
         Frames are rendered at ``render_size`` (width, height) and cropped to ``image_size`` square:
         ``crop="center"`` (default) takes the central ``image_size`` pixels of the full-resolution frame: a zoom on
         the workspace in which goals, objects and the gripper stay in view across task variations and expert
         trajectories (checked on reach / push / pick-place / shelf-place / box-close / basketball);
-        ``crop="resize"`` scales the short side to ``image_size`` first (whole scene, but objects are a few pixels)."""
+        ``crop="resize"`` scales the short side to ``image_size`` first (whole scene, but objects are a few pixels).
+
+        ``action_frame``: the axes of moves, of the reported last move and of the goal offset. ``"world"``: Metaworld's
+        x / y / z (from the corner camera both x and y point diagonally away, one to the right, one to the left).
+        ``"camera"``: +x = right in the image, +y = away from the camera along the table, +z = up, from the camera's
+        pose; a reasoning model can say "move right and back" without decoding diagonal axes."""
         assert crop in ("resize", "center"), crop
+        assert action_frame in ("world", "camera"), action_frame
+        self.action_frame = action_frame
+        self._frames: dict[int, np.ndarray] = {}
         self.render_size, self.crop = tuple(render_size), crop
         self.bench_name, self.bench_seed = bench_name, seed
         self.image_size, self.camera = image_size, camera
@@ -266,7 +275,8 @@ class MetaWorldVecEnv:
         # the task's goal relative to the hand, in cm, in the dx/dy/dz frame of the moves (shown only by
         # prompt_style=compact_rel_goal, once, at the start: the same information the goal marker draws in the image)
         goal = getattr(env, "_target_pos", None)
-        offset = [round(float(v), 1) for v in (np.asarray(goal, dtype=float)[:3] - o[:3]) * 100.0] if goal is not None else None
+        offset = ([round(float(v), 1) for v in self.to_frame(k, (np.asarray(goal, dtype=float)[:3] - o[:3]) * 100.0)]
+                  if goal is not None else None)
         return Obs(image=np.ascontiguousarray(img), state=state,
                    extras={"env_name": self._keys[k][1], "path": int(env.curr_path_length),
                            "mw_progress": self._progress[k], "mw_obj_dist": self._obj_dist[k], "goal_offset": offset,
@@ -297,7 +307,7 @@ class MetaWorldVecEnv:
         for k, a in zip(ids, actions):
             env = self._envs[k]
             a = np.asarray(a, dtype=np.float64)
-            delta = a[:3].copy()
+            delta = self.frame(k) @ a[:3]                    # move in the action frame -> world (identity for "world")
             n = np.linalg.norm(delta)
             if n > self.max_delta:
                 delta *= self.max_delta / n
@@ -333,11 +343,35 @@ class MetaWorldVecEnv:
                     stop = "blocked"
                     break
             truncated = not success and env.curr_path_length >= env.max_path_length
-            moved = self._obs[k][:3] * 100.0 - start
+            moved = self.to_frame(k, self._obs[k][:3] * 100.0 - start)
             out.append(StepResult(obs=self._view(k, {"moved": moved}), reward=float(success), terminated=success, truncated=truncated,
                                   info={"success": success, "stop": stop, "mw_reward": reward_sum,
                                         "low_level_actions": np.stack(low) if low else np.zeros((0, 4))}))
         return out
+
+    def frame(self, k: int) -> np.ndarray:
+        """3x3 matrix whose columns are the action frame's axes in world coordinates (orthonormal)."""
+        if self.action_frame == "world":
+            return np.eye(3)
+        env = self._envs[k]
+        key = id(env)
+        if key not in self._frames:
+            import mujoco
+            cid = mujoco.mj_name2id(env.model, mujoco.mjtObj.mjOBJ_CAMERA, self.camera)
+            mujoco.mj_forward(env.model, env.data)
+            R = np.asarray(env.data.cam_xmat[cid], dtype=float).reshape(3, 3)   # columns: camera x, y, z in world
+            right = -R[:, 0] if self.camera == "corner" else R[:, 0]          # the corner view is rotated 180 degrees
+            away = -R[:, 2]                                                     # the camera looks along its -z
+            away = np.r_[away[:2], 0.0] / np.linalg.norm(away[:2])
+            right = np.r_[right[:2], 0.0]
+            right -= away * (right @ away)
+            right /= np.linalg.norm(right)
+            self._frames[key] = np.stack([right, away, np.array([0.0, 0.0, 1.0])], axis=1)
+        return self._frames[key]
+
+    def to_frame(self, k: int, v) -> np.ndarray:
+        """A world vector (3,) in the action frame."""
+        return self.frame(k).T @ np.asarray(v, dtype=float)
 
     def close(self):
         for e in self._envs + [e for pool in self._pool.values() for e in pool]:
@@ -371,7 +405,7 @@ def oracle_action(vec: MetaWorldVecEnv, k: int) -> np.ndarray:
     finally:
         mod.move = orig
     to_xyz = seen[-1] if seen else o[:3] + np.asarray(act[:3]) * vec_action_scale(vec, k)
-    return np.r_[(to_xyz - o[:3]) * 100.0, -1.0 if float(act[3]) > 0 else 1.0]
+    return np.r_[vec.to_frame(k, (to_xyz - o[:3]) * 100.0), -1.0 if float(act[3]) > 0 else 1.0]
 
 
 def vec_action_scale(vec: MetaWorldVecEnv, k: int) -> float:
@@ -404,12 +438,13 @@ class MetaWorldTextInterface:
     SCHEMA = {"hand": ["x", "y", "z"], "gripper": ["opening"]}
 
     def __init__(self, max_delta: float = 10.0, prompt_style: str = "pear", include_state: bool = True,
-                 swap_instructions: bool = False):
+                 swap_instructions: bool = False, action_frame: str = "world"):
         assert prompt_style in ("pear", "compact", "compact_rel", "compact_rel_reason", "compact_rel_goal",
                                 "compact_rel_locate"), prompt_style
         self.max_delta, self.prompt_style, self.include_state = max_delta, prompt_style, include_state
         self.rel = prompt_style in ("compact_rel", "compact_rel_reason", "compact_rel_goal", "compact_rel_locate")
         self.swap_instructions = swap_instructions
+        self.action_frame = action_frame          # "camera": moves are right / away from the camera / up (MetaWorldVecEnv)
 
     def environment_section(self) -> str:
         return (
@@ -424,7 +459,20 @@ class MetaWorldTextInterface:
             "Ending:\n"
             "- The episode ends by itself as soon as the task is done: while observations keep coming, the task is not done yet.")
 
+    WORLD_AXES = ("in the image, +dx moves the hand to the right, +dy to the left, both slightly away from the camera; "
+                  "+dz moves it up.")
+    CAMERA_AXES = ("they are relative to the hand's current position: +dx moves the hand to the right in the image, "
+                   "+dy moves it away from the camera (toward the back of the table), +dz moves it up; -dx is left, -dy "
+                   "toward the camera, -dz down. A longer move is shortened to the limit in the same direction.")
+
     def system_prompt(self, start_state):
+        text = self._system_prompt(start_state)
+        if self.action_frame == "camera" and self.rel:
+            assert self.WORLD_AXES in text, "prompt style without the axis sentence"
+            text = text.replace(self.WORLD_AXES, self.CAMERA_AXES)
+        return text
+
+    def _system_prompt(self, start_state):
         if self.prompt_style == "pear":
             from vlmrl.envs import protocol
             return protocol.system_prompt(self.environment_section(), task_text(start_state["env_name"], self.swap_instructions),
@@ -539,6 +587,11 @@ class MetaWorldTextInterface:
         goal = f"Goal: dx={g[0]:+.1f}, dy={g[1]:+.1f}, dz={g[2]:+.1f}." if g is not None else "Goal: unknown."
         return f"{goal} {self.format_action(a)}"
 
+    @property
+    def states_goal(self) -> bool:
+        """Replies state the goal offset (read by ``goal_estimate``; the trainer logs its error)."""
+        return self.prompt_style == "compact_rel_locate"
+
     def goal_estimate(self, text: str):
         """The goal offset a ``compact_rel_locate`` reply states (cm, dx/dy/dz), or None."""
         m = _GOAL_EST.search(text or "")
@@ -564,6 +617,9 @@ class MetaWorldConfig:
     camera: str = "corner"
     max_delta: float = 10.0
     max_substeps: int = 40
+    # axes of moves, last move and goal offset: world (Metaworld x/y/z, diagonal in the corner view) | camera (right in
+    # the image / away from the camera / up, with a plainer description of them in the prompt)
+    action_frame: str = "world"
     # waypoint controller: per-step command = clip(gain * (target - hand) [cm], -1, 1). 0.5 slows down from 2 cm out;
     # 1.0 (the default before 2026-11-22) ran at full speed to 1 cm, overshot and lifted the hand while dragging an
     # object: scripted-expert success push 0.63 -> 0.97, ML10 training tasks 0.85 -> 0.91, held-out tasks 0.42 -> 0.72
@@ -585,8 +641,10 @@ def make_metaworld(cfg: MetaWorldConfig | None = None, **kw) -> EnvBundle:
     return EnvBundle(
         make_vec_env=lambda: MetaWorldVecEnv(cfg.benchmark, cfg.seed, cfg.image_size, cfg.camera, cfg.max_delta,
                                              cfg.max_substeps, render_size=(cfg.render_width, cfg.render_height),
-                                             crop=cfg.crop, gain=cfg.gain, goal_marker_scale=cfg.goal_marker_scale),
-        interface=MetaWorldTextInterface(cfg.max_delta, cfg.prompt_style, cfg.include_state, cfg.swap_instructions),
+                                             crop=cfg.crop, gain=cfg.gain, goal_marker_scale=cfg.goal_marker_scale,
+                                             action_frame=cfg.action_frame),
+        interface=MetaWorldTextInterface(cfg.max_delta, cfg.prompt_style, cfg.include_state, cfg.swap_instructions,
+                                         cfg.action_frame),
         train_sampler=TaskSampler(cfg.benchmark, "train", cfg.seed, n_seeds=cfg.train_seeds, tasks=cfg.train_tasks),
         eval_sampler=TaskSampler(cfg.benchmark, cfg.eval_split, cfg.seed,
                                  tasks=cfg.train_tasks if cfg.eval_split == "train" else None),

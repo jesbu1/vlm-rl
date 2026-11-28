@@ -192,7 +192,7 @@ def goal_estimate_error(trajs, interface, prefix: str, per_task: bool = True) ->
     goal offset over all turns, ``{prefix}/goal_missing_frac`` (replies without a readable estimate) and, with
     ``per_task``, ``{prefix}/task/<env_name>/goal_err_cm``. ``{}`` for other interfaces."""
     est = getattr(interface, "goal_estimate", None)
-    if est is None:
+    if est is None or not getattr(interface, "states_goal", False):
         return {}
     by: dict[str, list[float]] = {}
     n = missing = 0

@@ -123,6 +123,14 @@ training tasks from 0.61 to 0.70: the clone replies with the remaining offset ea
 hand to the goal also closes the door. The same history without the goal in text gives 0.01 on held-out tasks, so the
 stated goal does the work. ML45 did not gain on held-out tasks (0.07 vs 0.12).
 
+**Camera-aligned moves** (`+env_kwargs.action_frame=camera`): moves, the reported last move and the goal offset use
++dx = right in the image, +dy = away from the camera along the table, +dz = up, computed from the camera's pose; the
+prompt says so in plain words and adds that moves are relative to the hand and shortened to the limit. The default
+(`world`) uses Metaworld's axes, which the corner camera shows diagonally ("+dx to the right, +dy to the left, both
+slightly away"): Qwen3.5-9B with native thinking spent most of its 8192-token budget on that sentence (93% of replies
+re-read it, 64% called it a typo; 76% never finished). Clones learn either frame from examples; the plainer frame is for
+policies that reason.
+
 **A subset of the training tasks** (`+env_kwargs.train_tasks=[door-open,dial-turn,...]`): training, cloning and the
 `eval_split=train` eval use only these of the benchmark's training tasks; held-out tasks are unchanged. Used to measure
 how held-out transfer grows with the number (and choice) of training tasks.
