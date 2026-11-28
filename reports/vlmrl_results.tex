@@ -742,6 +742,15 @@ finish (87\% invalid replies). Running: the same RL-only reasoning with Qwen3.5-
 27B and 35B-A3B with native thinking on ML10's training and held-out tasks, to find a base model that acts sensibly and
 finishes its reasoning, the starting point RL from scratch needs.
 
+\textbf{First probe: our axis description blocks reasoning.} Qwen3.5-9B with native thinking (8192 tokens, temperature
+0.6), zero-shot on ML10: 0.02 on the training tasks and 0 on the held-out ones, with 76\% of replies never finishing.
+The reasoning was not about the task: 93\% of replies re-read our description of the axes (``+dx moves the hand to the
+right, +dy to the left, both slightly away from the camera'', true for the diagonal corner view), 88\% called it
+confusing or contradictory and 64\% a typo, and the average reply mentions ``dy'' 143 times. Clones never noticed:
+they learn the mapping from examples. For a policy that reasons, the frame has to be plain, so moves can now be given
+in a camera-aligned frame (\code{env\_kwargs.action\_frame=camera}: +dx right in the image, +dy away from the camera, +dz
+up, computed from the camera's pose). The probes of 9B, 27B and 35B-A3B are rerunning in that frame.
+
 \section{Methodology lessons}
 \label{sec:noise}
 \begin{itemize}
