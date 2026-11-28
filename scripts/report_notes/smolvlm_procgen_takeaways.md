@@ -1198,6 +1198,10 @@
       3 of 4 BC-30 seeds, not all. The greedy-vs-rollout gap is smaller for three of the four seeds, not all: seeds 0 / 1 /
       3 trail rollouts by 10-15 points at steps 30-35 (0-5 at step 40 for seeds 1 and 3), but seed 2 by 15-23, close to
       BC-30 seed 2's 23-27. (Corrected: an earlier version of this bullet said the gap narrowed for all four seeds.)
+    * **Five seeds (seed 4 added): KL 0.01-to-clone 38.5% vs BC-30 37.5%** (KL 37.2 / 42.2 / 32.8 / 40.3 / 40.1, BC-30
+      38.7 / 36.5 / 32.5 / 37.0 / 42.7). Per-seed difference -1.5 / +5.7 / +0.3 / +3.3 / -2.6: mean **+1.0, SE 1.5, t = 0.7**
+      (4 df). The fifth pair went to BC-30, so the KL edge shrank from +1.9 to +1.0 and is **indistinguishable from zero**.
+      Stability edge: BC-30 seeds 3 and 4 held flat too, so 3 of 5 BC-30 seeds slid, 0 of 5 KL seeds. Seed 5 pair running.
     * **Next on GPU0: seed 3 continued to 80 steps** (`smolvlm_procgen_v2_terminate_500m_bc30_klclone0p01_seed3_steps80_gpu0.yaml`):
       its run dir was copied (without the wandb id) to `..._seed=3__steps=80` and resumes from the step-40 checkpoint, so
       steps 1-40 are the seed-3 run. Question: does the KL-anchored run keep improving past step 40, or is ~40% the ceiling?
@@ -1300,6 +1304,7 @@
       BC30 seed 4 step 25: 42.7% (train 11x11 45.3, held-out 11x11 48.4, 15x15 34.4; rollouts 45%). KL seed 4 at step 25: 41.1.
       BC30 seed 4 step 30: 44.3% (train 11x11 48.4, held-out 11x11 48.4, 15x15 35.9; rollouts 51%). KL seed 4 at step 30: 38.5.
       BC30 seed 4 step 35: 41.1% (train 11x11 46.9, held-out 11x11 45.3, 15x15 31.2; rollouts 49%). KL seed 4 at step 35: 40.1.
+      BC30 seed 4 step 40: 42.7% (train 11x11 50.0, held-out 11x11 43.8, 15x15 34.4; rollouts 56%). **Steps 30-40 mean 42.7 vs KL seed 4's 40.1 (-2.6 for KL)**; no late slide in this BC-30 seed either.
     - Sixth seed pair (seed 5) queued behind seed 4: KL 0.01 to clone on GPU 1, BC30 on GPU 0. Configs: `..._bc30_klclone0p01_seed5_gpu1.yaml`, `..._bc30_seed5_gpu0.yaml`.
       KL seed 5 clone (step 0): 12.0% (train 11x11 12.5, held-out 11x11 9.4, 15x15 14.1).
       KL seed 5 step 5: 18.2% (train 11x11 20.3, held-out 11x11 15.6, 15x15 18.8; rollouts 36%).
