@@ -777,6 +777,18 @@ goal spheres, how grasping works; the same information as the image, stated) is 
 reasoning (256 tokens, the length RL can afford: thinking at up to 8192 tokens per move, 15 moves, 128 episodes, is
 up to 15M generated tokens per RL step).
 
+\textbf{With the scene explained, the reasoning is right but the moves are not.} Zero-shot, camera frame, scene notes,
+one frame in context: with short reasoning (256 tokens, greedy) Qwen3.5-4B, 9B and 27B solve nothing but drawer-close
+(0 / 0.02 / 0 on the training tasks), 35B-A3B 0.06 (drawer-close 1.00) with 0.02 on the held-out tasks (door-close
+0.08). With long thinking (no notes) the 27B scores 0.06 and solves held-out drawer-open in 0.10 of episodes, which
+no clone does. The 35B's sentences are now correct (``the green sphere (goal) is to the left of the puck''), but it moves
+1--2\,cm at a time (``slightly to the left''), re-plans from scratch every turn (open, close, open: with one frame in
+context it cannot see that it just did that) and, on reach, still goes for the puck. What a reasoning agent lacks
+here is what PEAR's agent has: the earlier turns in context, and positions in numbers. Next: the same probes with the
+text history, then with the task's object relative to the hand each turn (\code{env\_kwargs.object\_text=true}; the
+ML benchmarks give state-based agents the object's position and hide only the goal), then with the goal offset at the
+first turn as well (\code{goal\_text=true}).
+
 \textbf{Model size alone does not help RL with short reasoning.} The 4B run repeated with Qwen3.5-9B (world frame, same
 settings): at step 40 it has learned drawer-close (0.64) and nothing else (training tasks 0.04; the 4B had 0.10, with
 some reach and window-open), and 0 on every held-out task.
