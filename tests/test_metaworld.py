@@ -284,3 +284,16 @@ def test_expert_rollout_with_compact_rel_locate_states_the_true_goal(renderable)
         assert np.allclose(b.interface.goal_estimate(t.response), t.obs.extras["goal_offset"], atol=0.06)
         assert t.action is not None
     env.close()
+
+
+def test_train_tasks_restricts_training_and_the_training_eval_not_held_out():
+    sub = ["reach", "push-v3"]
+    b = M.make_metaworld(benchmark="ML10", train_tasks=sub)
+    assert b.train_sampler.env_names == ["push-v3", "reach-v3"]
+    assert {s["env_name"] for s in b.train_sampler.sample(40, np.random.default_rng(0))} == {"push-v3", "reach-v3"}
+    assert M.make_metaworld(benchmark="ML10", train_tasks=sub, eval_split="train").eval_sampler.env_names == ["push-v3", "reach-v3"]
+    assert len(M.make_metaworld(benchmark="ML10", train_tasks=sub, eval_split="test").eval_sampler.env_names) == 5
+    seeded = M.TaskSampler("ML10", "train", n_seeds=2, tasks=sub)
+    assert sorted(seeded.pool) == ["push-v3", "reach-v3"]
+    with pytest.raises(AssertionError):
+        M.TaskSampler("ML10", "train", tasks=["door-close"])                 # a held-out task, not a training one

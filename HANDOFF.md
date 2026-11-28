@@ -133,6 +133,9 @@ cloud storage and are not shared**: re-create a clone with the commands here (~9
   --set max_images=1`. Only the latest image is in context; every earlier turn's text stays.
 - Goal read from the image: `env_kwargs.prompt_style=compact_rel_locate`. Each reply states the goal offset, then the
   move; cloning trains the estimate on the true offset, and evals log its error (`eval/<set>/goal_err_cm`).
+- Fewer training tasks: `+env_kwargs.train_tasks=[door-open,dial-turn,...]` (training and the training-task eval use
+  only these; held-out tasks unchanged).
+- Zero-shot probe of any base model, vLLM only (no trainer copy, so 27B+ fits): `scripts/probe_zero_shot.py`.
 - Diagnostics: `+env_kwargs.swap_instructions=true` (each task gets another task's instruction) and
   `+env_kwargs.goal_marker_scale=0` (hides the goal markers; 1.0 is Metaworld's size).
 

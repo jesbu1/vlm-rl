@@ -123,6 +123,15 @@ training tasks from 0.61 to 0.70: the clone replies with the remaining offset ea
 hand to the goal also closes the door. The same history without the goal in text gives 0.01 on held-out tasks, so the
 stated goal does the work. ML45 did not gain on held-out tasks (0.07 vs 0.12).
 
+**A subset of the training tasks** (`+env_kwargs.train_tasks=[door-open,dial-turn,...]`): training, cloning and the
+`eval_split=train` eval use only these of the benchmark's training tasks; held-out tasks are unchanged. Used to measure
+how held-out transfer grows with the number (and choice) of training tasks.
+
+**Zero-shot probe of a base model** (`scripts/probe_zero_shot.py`): serves the model with vLLM only (tensor parallel
+for models too large to train on one GPU) and runs the eval sets through the text protocol, with or without native
+thinking; reports success per set and task, invalid replies and reply length. It tells whether a base model has the
+starting competence RL from scratch needs.
+
 **Goal read from the image** (`env_kwargs.prompt_style=compact_rel_locate`): nothing about the goal is given. Each
 reply first states where the goal is relative to the hand, then the move (`Goal: dx=+12.0, dy=-3.5, dz=+4.0.
 {"dx": 3.0, ...}`; the last `{...}` is the move). Behaviour cloning trains the stated goal on the true offset, from the

@@ -129,11 +129,20 @@ class TaskSampler:
     ``n_seeds > 1`` (training only): pool the split's variations of benchmark seeds ``seed .. seed + n_seeds - 1``, for
     more object / goal positions than the benchmark's 50 per task. Other seeds' *training* variations can be this
     seed's *test* variations (ML1: seed 1's 50 training positions are exactly seed 0's 50 held-out positions), so any
-    variation within ``exclude_cm`` of a held-out one (same task, positions compared) is dropped."""
+    variation within ``exclude_cm`` of a held-out one (same task, positions compared) is dropped.
 
-    def __init__(self, bench_name: str, split: str, seed: int = 0, n_seeds: int = 1, exclude_cm: float = 1.0):
+    ``tasks``: only these of the split's tasks (names with or without ``-v3``), e.g. 10 of ML45's 45 training tasks to
+    measure how held-out transfer grows with the number of training tasks."""
+
+    def __init__(self, bench_name: str, split: str, seed: int = 0, n_seeds: int = 1, exclude_cm: float = 1.0,
+                 tasks: Sequence[str] | None = None):
         self.bench_name, self.split, self.seed = bench_name, split, seed
         self.tasks = split_tasks(benchmark(bench_name, seed), split)
+        if tasks:
+            want = {t if t.endswith("-v3") else f"{t}-v3" for t in tasks}
+            unknown = want - set(self.tasks)
+            assert not unknown, f"not {split} tasks of {bench_name}: {sorted(unknown)}"
+            self.tasks = {k: v for k, v in self.tasks.items() if k in want}
         self.env_names = sorted(self.tasks)
         self.pool: dict[str, list[tuple[int, int]]] | None = None        # env_name -> [(bench seed, variation)]
         if n_seeds > 1:
@@ -142,6 +151,8 @@ class TaskSampler:
             self.pool, self.dropped = {}, 0
             for s in range(seed, seed + n_seeds):
                 for name, tasks in split_tasks(benchmark(bench_name, s), split).items():
+                    if name not in self.tasks:
+                        continue
                     ref = [_rand_vec(t) for t in held.get(name, [])]      # ML10/ML45: held-out tasks differ
                     for i, t in enumerate(tasks):
                         v = _rand_vec(t)
@@ -562,6 +573,9 @@ class MetaWorldConfig:
     # training positions from this many benchmark seeds (1 = the benchmark's own split; > 1 is an ablation outside the
     # ML1/ML10 protocol: more positions, held-out ones excluded, eval unchanged)
     train_seeds: int = 1
+    # train on only these of the benchmark's training tasks (and evaluate eval_split=train on them); held-out tasks are
+    # unchanged. None = all
+    train_tasks: list[str] | None = None
     max_turns: int = 15
     seed: int = 0
 
@@ -573,8 +587,9 @@ def make_metaworld(cfg: MetaWorldConfig | None = None, **kw) -> EnvBundle:
                                              cfg.max_substeps, render_size=(cfg.render_width, cfg.render_height),
                                              crop=cfg.crop, gain=cfg.gain, goal_marker_scale=cfg.goal_marker_scale),
         interface=MetaWorldTextInterface(cfg.max_delta, cfg.prompt_style, cfg.include_state, cfg.swap_instructions),
-        train_sampler=TaskSampler(cfg.benchmark, "train", cfg.seed, n_seeds=cfg.train_seeds),
-        eval_sampler=TaskSampler(cfg.benchmark, cfg.eval_split, cfg.seed),
+        train_sampler=TaskSampler(cfg.benchmark, "train", cfg.seed, n_seeds=cfg.train_seeds, tasks=cfg.train_tasks),
+        eval_sampler=TaskSampler(cfg.benchmark, cfg.eval_split, cfg.seed,
+                                 tasks=cfg.train_tasks if cfg.eval_split == "train" else None),
         max_turns=cfg.max_turns,
         expert=oracle_action,
     )
