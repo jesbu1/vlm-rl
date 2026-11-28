@@ -438,13 +438,14 @@ class MetaWorldTextInterface:
     SCHEMA = {"hand": ["x", "y", "z"], "gripper": ["opening"]}
 
     def __init__(self, max_delta: float = 10.0, prompt_style: str = "pear", include_state: bool = True,
-                 swap_instructions: bool = False, action_frame: str = "world"):
+                 swap_instructions: bool = False, action_frame: str = "world", scene_notes: bool = False):
         assert prompt_style in ("pear", "compact", "compact_rel", "compact_rel_reason", "compact_rel_goal",
                                 "compact_rel_locate"), prompt_style
         self.max_delta, self.prompt_style, self.include_state = max_delta, prompt_style, include_state
         self.rel = prompt_style in ("compact_rel", "compact_rel_reason", "compact_rel_goal", "compact_rel_locate")
         self.swap_instructions = swap_instructions
         self.action_frame = action_frame          # "camera": moves are right / away from the camera / up (MetaWorldVecEnv)
+        self.scene_notes = scene_notes            # explain the scene's conventions (gripper, goal marker, grasping)
         # the absolute-position styles (pear, compact) report world coordinates, which camera-frame moves would contradict
         assert action_frame == "world" or self.rel, f"action_frame={action_frame!r} needs a compact_rel* prompt style"
 
@@ -467,11 +468,22 @@ class MetaWorldTextInterface:
                    "+dy moves it away from the camera (toward the back of the table), +dz moves it up; -dx is left, -dy "
                    "toward the camera, -dz down. A longer move is shortened to the limit in the same direction.")
 
+    SCENE_NOTES = ("Scene: the gripper is the two-finger tool at the end of the arm. When the task has a goal position, a "
+                   "small colored sphere floating in the image marks it (some scenes show a second one, for a related "
+                   "task); a sphere is only a marker and cannot be touched or moved. The "
+                   "objects to act on (a puck, a block, a handle, a button, a door, ...) are on the table. To pick "
+                   "something up: open the gripper, move above it, lower until the fingers are around it, close the "
+                   "gripper, then lift. ")
+
     def system_prompt(self, start_state):
         text = self._system_prompt(start_state)
         if self.action_frame == "camera" and self.rel:
             assert self.WORLD_AXES in text, "prompt style without the axis sentence"
             text = text.replace(self.WORLD_AXES, self.CAMERA_AXES)
+        if self.scene_notes and self.rel:
+            task = f"Task: {task_text(start_state['env_name'], self.swap_instructions)} "
+            assert task in text, "prompt style without the task line"
+            text = text.replace(task, task + self.SCENE_NOTES, 1)
         return text
 
     def _system_prompt(self, start_state):
@@ -622,6 +634,8 @@ class MetaWorldConfig:
     # axes of moves, last move and goal offset: world (Metaworld x/y/z, diagonal in the corner view) | camera (right in
     # the image / away from the camera / up, with a plainer description of them in the prompt)
     action_frame: str = "world"
+    # a paragraph on the scene's conventions (the gripper, the goal marker, how grasping works), for policies that reason
+    scene_notes: bool = False
     # waypoint controller: per-step command = clip(gain * (target - hand) [cm], -1, 1). 0.5 slows down from 2 cm out;
     # 1.0 (the default before 2026-11-22) ran at full speed to 1 cm, overshot and lifted the hand while dragging an
     # object: scripted-expert success push 0.63 -> 0.97, ML10 training tasks 0.85 -> 0.91, held-out tasks 0.42 -> 0.72
@@ -646,7 +660,7 @@ def make_metaworld(cfg: MetaWorldConfig | None = None, **kw) -> EnvBundle:
                                              crop=cfg.crop, gain=cfg.gain, goal_marker_scale=cfg.goal_marker_scale,
                                              action_frame=cfg.action_frame),
         interface=MetaWorldTextInterface(cfg.max_delta, cfg.prompt_style, cfg.include_state, cfg.swap_instructions,
-                                         cfg.action_frame),
+                                         cfg.action_frame, cfg.scene_notes),
         train_sampler=TaskSampler(cfg.benchmark, "train", cfg.seed, n_seeds=cfg.train_seeds, tasks=cfg.train_tasks),
         eval_sampler=TaskSampler(cfg.benchmark, cfg.eval_split, cfg.seed,
                                  tasks=cfg.train_tasks if cfg.eval_split == "train" else None),

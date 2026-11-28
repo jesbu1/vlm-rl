@@ -342,3 +342,11 @@ def test_camera_frame_needs_a_relative_prompt_style():
 def test_only_the_locate_style_states_the_goal():
     assert M.MetaWorldTextInterface(prompt_style="compact_rel_locate").states_goal
     assert not M.MetaWorldTextInterface(prompt_style="compact_rel").states_goal
+
+
+def test_scene_notes_follow_the_task_line():
+    itf = M.MetaWorldTextInterface(prompt_style="compact_rel", action_frame="camera", scene_notes=True)
+    t = itf.system_prompt({"env_name": "reach-v3"})
+    assert t.index("Task: ") < t.index("Scene: the gripper") < t.index("Each turn")
+    assert "Scene:" not in M.MetaWorldTextInterface(prompt_style="compact_rel").system_prompt({"env_name": "reach-v3"})
+    assert M.make_metaworld(benchmark="ML10", prompt_style="compact_rel", scene_notes=True).interface.scene_notes

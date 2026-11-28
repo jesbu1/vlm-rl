@@ -131,6 +131,12 @@ slightly away"): Qwen3.5-9B with native thinking spent most of its 8192-token bu
 re-read it, 64% called it a typo; 76% never finished). Clones learn either frame from examples; the plainer frame is for
 policies that reason.
 
+**Scene notes** (`+env_kwargs.scene_notes=true`, `compact_rel*` styles): a paragraph after the task line on the scene's
+conventions, for policies that reason: what the gripper is, that a small colored sphere marks the goal when there is one
+(green, red or blue; some scenes show a second one for a related task; it cannot be touched), and how grasping works.
+With the camera frame but without these notes, Qwen3.5-35B-A3B's thinking on reach took the floating red sphere for an
+object to avoid and tried to grasp other objects. Same information as the image, stated.
+
 **A subset of the training tasks** (`+env_kwargs.train_tasks=[door-open,dial-turn,...]`): training, cloning and the
 `eval_split=train` eval use only these of the benchmark's training tasks; held-out tasks are unchanged. Used to measure
 how held-out transfer grows with the number (and choice) of training tasks.
