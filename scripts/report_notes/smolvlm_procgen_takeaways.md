@@ -1289,6 +1289,7 @@
       KL seed 4 step 15: 31.2% (train 11x11 37.5, held-out 11x11 37.5, 15x15 18.8; rollouts 41%).
       KL seed 4 step 20: 34.9% (train 11x11 39.1, held-out 11x11 35.9, 15x15 29.7; rollouts 47%).
       KL seed 4 step 25: 41.1% (train 11x11 43.8, held-out 11x11 43.8, 15x15 35.9; rollouts 51%).
+      KL seed 4 step 30: 38.5% (train 11x11 42.2, held-out 11x11 42.2, 15x15 31.2; rollouts 51%).
       BC30 seed 4 clone (step 0): 14.6% (train 11x11 21.9, held-out 11x11 14.1, 15x15 7.8).
       BC30 seed 4 step 5: 16.7% (train 11x11 21.9, held-out 11x11 18.8, 15x15 9.4; rollouts 28%).
       BC30 seed 4 step 10: 18.8% (train 11x11 28.1, held-out 11x11 14.1, 15x15 14.1; rollouts 36%).
