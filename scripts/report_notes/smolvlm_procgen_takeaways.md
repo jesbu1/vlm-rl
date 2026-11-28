@@ -1310,6 +1310,7 @@
       KL seed 5 step 5: 18.2% (train 11x11 20.3, held-out 11x11 15.6, 15x15 18.8; rollouts 36%).
       KL seed 5 step 10: 17.7% (train 11x11 20.3, held-out 11x11 12.5, 15x15 20.3; rollouts 40%).
       BC30 seed 5 clone (step 0): 15.6% (train 11x11 17.2, held-out 11x11 12.5, 15x15 17.2).
+      BC30 seed 5 step 5: 17.2% (train 11x11 20.3, held-out 11x11 12.5, 15x15 18.8; rollouts 37%).
     * (A second frame is not the loop fix: `max_frames=2` on 256M, above, swapped wall-loops for copying its own previous
       reply, and collapsed at the same step.)
     * The loop also explains the sampled-vs-greedy gap in every run: under greedy decoding, any move that leaves the state
