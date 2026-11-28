@@ -699,6 +699,49 @@ goal themselves, clones find training-task goals within 1--3\,cm and miss held-o
 whose goals barely move, goal finding is memorized per task. Even with the goal given, ML45's held-out tasks did not
 improve, so for most held-out tasks the missing piece is the motion, not the goal.}
 
+\section{What would improve held-out tasks?}
+\label{sec:whatnext}
+Held-out tasks are zero-shot: the policy never trains on them. Everything so far points to one diagnosis.
+
+\textbf{Imitation learns to replay, task by task.}
+\begin{itemize}
+\item \emph{Motions.} The clones follow the instruction (the swap test) but fail tasks whose motion no training task
+  showed; ML45 transfers only to look-alikes (door-lock, door-unlock).
+\item \emph{Perception.} Asked to state the goal, the clones memorize each task's goal: 1--3\,cm off on training tasks,
+  26--31\,cm on held-out ones (Section~\ref{sec:goalhist}).
+\item \emph{Nothing we added changed it}: a larger model (9B), cloned rationales, the text history, RL from the clones
+  (it refines what was cloned), REINFORCE++.
+\end{itemize}
+This is the regime of $\pi_{0.5}$ in PEAR's comparison: fine-tuned on LIBERO demonstrations it scores 96.9\% on LIBERO
+but 0.75\% on LIBERO-Pro's unseen tasks in training scenes, because it ``replays the motion it was shown''.
+
+\textbf{What the mazes teach.} Procedural mazes transferred to new layouts, and push to new positions once cloned on
+450 of them (0.28 $\to$ 0.69): within one task family, variety forces the policy to use the observation. Held-out
+\emph{tasks} are new task classes, with no maze analogue. The maze lesson reaches them only through the training tasks'
+own variety, e.g.\ goals that move far enough that they must be read from the image, and that can at most reach the
+goal-given ceiling (ML10 0.22, ML45 no gain). A second maze lesson: RL from sparse success worked because the base
+models sometimes succeeded. On Metaworld the 4B base scores $\approx$0, and RL alone finds only the easiest tasks
+(Section~\ref{sec:rlonly}).
+
+\textbf{Would more tasks fix it?} ML10 $\to$ ML45 raised held-out transfer from 0.02 to 0.12, all on look-alikes. If
+transfer is replay of the nearest training motion, it grows with how well the training tasks cover the held-out
+motions, not with their number, and Metaworld has no further tasks to add. Running: clones on 10 and on 20 random ML45
+training tasks, and on 10 chosen look-alikes of the held-out tasks, all evaluated on ML45's held-out tasks. If the
+look-alike 10 match the 45-task clone, coverage, not count, is what transfers.
+
+\textbf{Would another environment (LIBERO) help?} PEAR's numbers say the method, not the environment, made the
+difference: on the same LIBERO-Pro unseen tasks, cloned $\pi_{0.5}$ gets 0.75\% and PEAR 57.4\%. PEAR is RL only (no
+demonstrations) from a 27B reasoning model, with long reasoning before every move (at low reasoning effort its LIBERO
+score falls from 74.4\% to 21.9\%) and every earlier round in context. LIBERO-Pro's unseen tasks also share scenes and
+objects with training tasks, which makes them closer than Metaworld's new task classes. Our cloning recipe on LIBERO
+would most likely reproduce $\pi_{0.5}$'s pattern; switching environments is worth it once a method transfers.
+
+\textbf{So: the reasoning route, with a base model that can reason.} Our only transfer without a stated goal came from
+RL with reasoning (held-out door-close 0.52 at step 30, lost by step 40), on a 4B model whose native thinking does not
+finish (87\% invalid replies). Running: the same RL-only reasoning with Qwen3.5-9B, and zero-shot probes of Qwen3.5-9B,
+27B and 35B-A3B with native thinking on ML10's training and held-out tasks, to find a base model that acts sensibly and
+finishes its reasoning, the starting point RL from scratch needs.
+
 \section{Methodology lessons}
 \label{sec:noise}
 \begin{itemize}
@@ -748,6 +791,7 @@ RL alone on ML10, 32 groups/step & 0.08--0.10 (steps 40--170) & same plateau as 
   tasks.
 \item Reach plateaus at 0.6--0.8 on held-out positions while training positions reach 0.9--1.0: more positions (as for push)
   should narrow that gap.
+\item Held-out tasks: see Section~\ref{sec:whatnext} for the diagnosis and the experiments running.
 \item The goal-in-text gain (Section~\ref{sec:goalhist}) is the stated goal, not the history, and a policy trained to state
   the goal itself memorizes it per task. Goal finding that transfers would need training tasks whose goals move a lot
   (or many more tasks); even then, the goal-given ceiling is small (ML10 0.22, mostly door-close; ML45 no gain).

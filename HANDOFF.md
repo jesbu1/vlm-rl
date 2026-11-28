@@ -225,10 +225,13 @@ Numbers to reproduce on your machines (Qwen3.5-4B, LoRA on the MLPs):
 
 ## Suggested next steps
 
-1. **Goal finding vs motions.** The stated goal carries the ML10 transfer, but a policy trained to find the goal itself
-   memorizes it per task. Goal finding that transfers would need training goals that move a lot, or many more tasks.
-   Even with the goal given, the ceiling is small (ML10 0.22, mostly door-close; ML45 no gain), so for most held-out
-   tasks the missing piece is the motion, and it has to transfer zero-shot from the training tasks.
+1. **Read "What would improve held-out tasks?" in the PDF first.** Diagnosis: imitation learns to replay, task by task
+   (motions and perception), as π₀.₅ does in PEAR's LIBERO-Pro comparison (0.75% on unseen tasks vs PEAR's 57.4%).
+   The route with evidence of zero-shot task transfer is PEAR's: RL only, from a base model that can reason, with long
+   reasoning. Running at handoff: Qwen3.5-9B RL-only reasoning on ML10 (`metaworld-rlreason-q35-9b-ml10`), zero-shot
+   thinking probes of Qwen3.5-9B / 27B / 35B-A3B (`vlmrl-probe-think-*-ml10`, results in each job's S3 prefix as
+   `metrics.json`), and clones on 10 / 20 random and 10 look-alike ML45 training tasks (`metaworld-ntasks-ml45-*`:
+   does transfer follow the number of tasks or their coverage of the held-out motions?).
 2. **Make the RL-reasoning transfer stick.** It appeared (door-close 0.52 at step 30) and vanished by step 40 as RL
    specialized the motion to the training tasks. It is cheap to rerun: no cloning, ~30–60 RL steps on ML10 (~4–8 h;
    `compact_rel_reason`, `lr=1e-5`, `temperature=1.0`, evals every 5 steps with the larger eval sets). Try a lower lr, a

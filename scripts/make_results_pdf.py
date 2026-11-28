@@ -88,6 +88,10 @@ RUNS = {
     "ho_ml10": (MW, "group:metaworld-histonly-q35-ml10"),
     # the policy states the goal offset (cloned from the true one) before each move; nothing about the goal is given
     "lo_ml10": (MW, "group:metaworld-locate-q35-ml10"), "loh_ml10": (MW, "group:metaworld-locatehist-q35-ml10"),
+    # RL-only reasoning with the 9B (same settings as rr_ml10), and clones on subsets of ML45's training tasks
+    "rr9_ml10": (MW, "group:metaworld-rlreason-q35-9b-ml10"),
+    "nt_rand10": (MW, "group:metaworld-ntasks-ml45-rand10"), "nt_rand20": (MW, "group:metaworld-ntasks-ml45-rand20"),
+    "nt_near10": (MW, "group:metaworld-ntasks-ml45-near10"),
     # RL from good clones: lower lr / only above-average rollouts (adv_min=0); baselines p5_seeds10, m5_bc200 (lr 1e-5)
     "rl_push_lr": (MW, "group:metaworld-rlfix-push450-lr2e-6"), "rl_push_pos": (MW, "group:metaworld-rlfix-push450-posadv"),
     "rl_ml10_lr": (MW, "group:metaworld-rlfix-ml10-lr2e-6"), "rl_ml10_pos": (MW, "group:metaworld-rlfix-ml10-posadv"),
