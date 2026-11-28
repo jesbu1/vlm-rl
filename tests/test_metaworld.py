@@ -350,3 +350,31 @@ def test_scene_notes_follow_the_task_line():
     assert t.index("Task: ") < t.index("Scene: the gripper") < t.index("Each turn")
     assert "Scene:" not in M.MetaWorldTextInterface(prompt_style="compact_rel").system_prompt({"env_name": "reach-v3"})
     assert M.make_metaworld(benchmark="ML10", prompt_style="compact_rel", scene_notes=True).interface.scene_notes
+
+
+def test_object_and_goal_text():
+    from vlmrl.types import Obs
+    itf = M.MetaWorldTextInterface(prompt_style="compact_rel_reason", action_frame="camera", object_text=True, goal_text=True)
+    obs = Obs(image=np.zeros((8, 8, 3), np.uint8), state=np.zeros(4),
+              extras={"goal_offset": [12.0, -3.5, 4.0], "object_offset": [1.5, 2.0, -3.0]})
+    first = itf.observation_message(obs, 0, None, False)[-1]["text"]
+    later = itf.observation_message(obs, 3, None, False)[-1]["text"]
+    assert "Goal: dx=+12.0, dy=-3.5, dz=+4.0 from the hand." in first and "Goal" not in later
+    assert "Object: dx=+1.5, dy=+2.0, dz=-3.0 from the hand." in first and "Object: dx=+1.5" in later
+    sp = itf.system_prompt({"env_name": "push-v3"})
+    assert "where the task's object" in sp and "At the start you are told where the goal is" in sp
+    plain = M.MetaWorldTextInterface(prompt_style="compact_rel").observation_message(obs, 0, None, False)[-1]["text"]
+    assert "Object" not in plain and "Goal" not in plain
+    goal_style = M.MetaWorldTextInterface(prompt_style="compact_rel_goal")
+    assert "Goal: dx=+12.0" in goal_style.observation_message(obs, 0, None, False)[-1]["text"]
+    assert goal_style.system_prompt({"env_name": "push-v3"}).count("told where the goal is") == 1
+
+
+def test_object_offset_is_the_first_object_relative_to_the_hand(renderable):
+    env = M.MetaWorldVecEnv("ML1:push-v3", image_size=32, render_size=(64, 48))
+    o = env.reset([_state("ML1:push-v3", "train", "push-v3")])[0]
+    obs = env._obs[0]
+    assert np.allclose(o.extras["object_offset"], (obs[4:7] - obs[:3]) * 100.0, atol=0.06)
+    puck = env._envs[0]._get_pos_objects()[:3]
+    assert np.allclose(obs[4:7], puck, atol=1e-4)                       # obs[4:7] is push's puck
+    env.close()

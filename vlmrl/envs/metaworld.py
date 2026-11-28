@@ -280,6 +280,9 @@ class MetaWorldVecEnv:
         return Obs(image=np.ascontiguousarray(img), state=state,
                    extras={"env_name": self._keys[k][1], "path": int(env.curr_path_length),
                            "mw_progress": self._progress[k], "mw_obj_dist": self._obj_dist[k], "goal_offset": offset,
+                           # the task's first object (puck, handle, button, ...) relative to the hand: Metaworld's
+                           # observation has its position for every task (ML benchmarks hide only the goal)
+                           "object_offset": [round(float(v), 1) for v in self.to_frame(k, (o[4:7] - o[:3]) * 100.0)],
                            **(extras or {})})
 
     def reset(self, start_states):
@@ -438,7 +441,8 @@ class MetaWorldTextInterface:
     SCHEMA = {"hand": ["x", "y", "z"], "gripper": ["opening"]}
 
     def __init__(self, max_delta: float = 10.0, prompt_style: str = "pear", include_state: bool = True,
-                 swap_instructions: bool = False, action_frame: str = "world", scene_notes: bool = False):
+                 swap_instructions: bool = False, action_frame: str = "world", scene_notes: bool = False,
+                 object_text: bool = False, goal_text: bool = False):
         assert prompt_style in ("pear", "compact", "compact_rel", "compact_rel_reason", "compact_rel_goal",
                                 "compact_rel_locate"), prompt_style
         self.max_delta, self.prompt_style, self.include_state = max_delta, prompt_style, include_state
@@ -446,6 +450,9 @@ class MetaWorldTextInterface:
         self.swap_instructions = swap_instructions
         self.action_frame = action_frame          # "camera": moves are right / away from the camera / up (MetaWorldVecEnv)
         self.scene_notes = scene_notes            # explain the scene's conventions (gripper, goal marker, grasping)
+        self.object_text = object_text            # every turn: the task's object relative to the hand (benchmark obs)
+        self.goal_text = goal_text or prompt_style == "compact_rel_goal"   # turn 0: the goal relative to the hand
+        assert self.rel or not (object_text or goal_text), "object_text / goal_text need a compact_rel* prompt style"
         # the absolute-position styles (pear, compact) report world coordinates, which camera-frame moves would contradict
         assert action_frame == "world" or self.rel, f"action_frame={action_frame!r} needs a compact_rel* prompt style"
 
@@ -480,10 +487,17 @@ class MetaWorldTextInterface:
         if self.action_frame == "camera" and self.rel:
             assert self.WORLD_AXES in text, "prompt style without the axis sentence"
             text = text.replace(self.WORLD_AXES, self.CAMERA_AXES)
-        if self.scene_notes and self.rel:
+        extra = self.SCENE_NOTES if self.scene_notes else ""
+        if self.object_text:
+            extra += ("Each turn you are told where the task's object (the puck, handle, button, ... the task acts on) "
+                      "is relative to the hand, in the same dx/dy/dz directions as the moves. ")
+        if self.goal_text and self.prompt_style != "compact_rel_goal":
+            extra += ("At the start you are told where the goal is relative to the hand, in the same directions; the "
+                      "earlier turns stay in the conversation. ")
+        if extra and self.rel:
             task = f"Task: {task_text(start_state['env_name'], self.swap_instructions)} "
             assert task in text, "prompt style without the task line"
-            text = text.replace(task, task + self.SCENE_NOTES, 1)
+            text = text.replace(task, task + extra, 1)
         return text
 
     def _system_prompt(self, start_state):
@@ -547,8 +561,11 @@ class MetaWorldTextInterface:
         if self.rel:
             text = "No valid move last turn. " if parse_error else ""
             g = obs.extras.get("goal_offset")
-            if self.prompt_style == "compact_rel_goal" and turn == 0 and g is not None:
+            if self.goal_text and turn == 0 and g is not None:
                 text += f"Goal: dx={g[0]:+.1f}, dy={g[1]:+.1f}, dz={g[2]:+.1f} from the hand. "
+            ob = obs.extras.get("object_offset")
+            if self.object_text and ob is not None:
+                text += f"Object: dx={ob[0]:+.1f}, dy={ob[1]:+.1f}, dz={ob[2]:+.1f} from the hand. "
             if self.include_state:
                 text += f"Gripper: {'open' if h[3] > 0.6 else 'closed'}. "
                 m = obs.extras.get("moved")
@@ -636,6 +653,10 @@ class MetaWorldConfig:
     action_frame: str = "world"
     # a paragraph on the scene's conventions (the gripper, the goal marker, how grasping works), for policies that reason
     scene_notes: bool = False
+    # compact_rel* styles: every turn the task's object relative to the hand (Metaworld's observation has it; the ML
+    # benchmarks hide only the goal); goal_text: the goal relative to the hand at the first turn (use with text history)
+    object_text: bool = False
+    goal_text: bool = False
     # waypoint controller: per-step command = clip(gain * (target - hand) [cm], -1, 1). 0.5 slows down from 2 cm out;
     # 1.0 (the default before 2026-11-22) ran at full speed to 1 cm, overshot and lifted the hand while dragging an
     # object: scripted-expert success push 0.63 -> 0.97, ML10 training tasks 0.85 -> 0.91, held-out tasks 0.42 -> 0.72
@@ -660,7 +681,7 @@ def make_metaworld(cfg: MetaWorldConfig | None = None, **kw) -> EnvBundle:
                                              crop=cfg.crop, gain=cfg.gain, goal_marker_scale=cfg.goal_marker_scale,
                                              action_frame=cfg.action_frame),
         interface=MetaWorldTextInterface(cfg.max_delta, cfg.prompt_style, cfg.include_state, cfg.swap_instructions,
-                                         cfg.action_frame, cfg.scene_notes),
+                                         cfg.action_frame, cfg.scene_notes, cfg.object_text, cfg.goal_text),
         train_sampler=TaskSampler(cfg.benchmark, "train", cfg.seed, n_seeds=cfg.train_seeds, tasks=cfg.train_tasks),
         eval_sampler=TaskSampler(cfg.benchmark, cfg.eval_split, cfg.seed,
                                  tasks=cfg.train_tasks if cfg.eval_split == "train" else None),

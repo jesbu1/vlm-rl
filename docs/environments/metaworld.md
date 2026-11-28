@@ -137,6 +137,12 @@ conventions, for policies that reason: what the gripper is, that a small colored
 With the camera frame but without these notes, Qwen3.5-35B-A3B's thinking on reach took the floating red sphere (the goal) for an
 unrelated object and tried to grasp other objects instead. Same information as the image, stated.
 
+**Object and goal in text** (`+env_kwargs.object_text=true`, `+env_kwargs.goal_text=true`, `compact_rel*` styles): every
+turn states where the task's first object (puck, handle, button, ...; Metaworld observation `obs[4:7]`) is relative to
+the hand; `goal_text` states the goal relative to the hand at the first turn (keep the text history with
+`max_frames=null max_images=1`). The object position is part of the observation the ML benchmarks give state-based agents
+(they hide only the goal).
+
 **A subset of the training tasks** (`+env_kwargs.train_tasks=[door-open,dial-turn,...]`): training, cloning and the
 `eval_split=train` eval use only these of the benchmark's training tasks; held-out tasks are unchanged. Used to measure
 how held-out transfer grows with the number (and choice) of training tasks.
