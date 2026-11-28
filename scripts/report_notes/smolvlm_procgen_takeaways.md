@@ -1321,6 +1321,7 @@
       KL seed 5 step 40: 35.4% (train 11x11 40.6, held-out 11x11 34.4, 15x15 31.2; rollouts 58%). Steps 30-40 mean 34.4, the second-lowest KL seed (seed 2: 32.8); flat, no slide.
     - Seventh seed pair (seed 6) queued to keep the GPUs busy: KL on GPU 1 (starting now), BC30 on GPU 0 after BC30 seed 5.
       KL seed 6 clone (step 0): 14.1% (train 11x11 12.5, held-out 11x11 15.6, 15x15 14.1).
+      KL seed 6 step 5: 19.8% (train 11x11 28.1, held-out 11x11 20.3, 15x15 10.9; rollouts 29%).
       BC30 seed 6 clone (step 0): 17.7% (train 11x11 14.1, held-out 11x11 21.9, 15x15 17.2).
       BC30 seed 5 clone (step 0): 15.6% (train 11x11 17.2, held-out 11x11 12.5, 15x15 17.2).
       BC30 seed 5 step 5: 17.2% (train 11x11 20.3, held-out 11x11 12.5, 15x15 18.8; rollouts 37%).
