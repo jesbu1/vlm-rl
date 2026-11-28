@@ -1202,6 +1202,10 @@
       38.7 / 36.5 / 32.5 / 37.0 / 42.7). Per-seed difference -1.5 / +5.7 / +0.3 / +3.3 / -2.6: mean **+1.0, SE 1.5, t = 0.7**
       (4 df). The fifth pair went to BC-30, so the KL edge shrank from +1.9 to +1.0 and is **indistinguishable from zero**.
       Stability edge: BC-30 seeds 3 and 4 held flat too, so 3 of 5 BC-30 seeds slid, 0 of 5 KL seeds. Seed 5 pair running.
+    * **Six seeds (seed 5 added): KL 37.8% vs BC-30 37.2%.** Per-seed difference -1.5 / +5.7 / +0.3 / +3.3 / -2.6 / -1.4:
+      mean **+0.6, SE 1.3, t = 0.5** (5 df). KL wins 3 of 6 pairs. **Verdict: KL 0.01 to the clone does not raise the
+      plateau.** Its one consistent effect is stability: 0 of 6 KL seeds slid late vs 4 of 6 BC-30 seeds (BC-30 seed 5 peaked at
+      42.2 at step 25 and ended at 34.4). With a late-slide-prone baseline, KL buys a predictable endpoint, not a higher one.
     * **Next on GPU0: seed 3 continued to 80 steps** (`smolvlm_procgen_v2_terminate_500m_bc30_klclone0p01_seed3_steps80_gpu0.yaml`):
       its run dir was copied (without the wandb id) to `..._seed=3__steps=80` and resumes from the step-40 checkpoint, so
       steps 1-40 are the seed-3 run. Question: does the KL-anchored run keep improving past step 40, or is ~40% the ceiling?
@@ -1325,6 +1329,7 @@
       BC30 seed 5 step 25: 42.2% (train 11x11 48.4, held-out 11x11 35.9, 15x15 42.2; rollouts 59%). KL seed 5 at step 25: 35.9.
       BC30 seed 5 step 30: 41.1% (train 11x11 46.9, held-out 11x11 37.5, 15x15 39.1; rollouts 57%). KL seed 5 at step 30: 32.8.
       BC30 seed 5 step 35: 31.8% (train 11x11 34.4, held-out 11x11 26.6, 15x15 34.4; rollouts 53%): a 9-point drop in one eval, the late slide again (or a noisy eval). KL seed 5 at step 35: 34.9.
+      BC30 seed 5 step 40: 34.4% (train 11x11 43.8, held-out 11x11 31.2, 15x15 28.1; rollouts 50%). **Steps 30-40 mean 35.8 vs KL seed 5's 34.4 (-1.4 for KL)**. Peaked at 42.2 (step 25), then slid: the fourth of six BC-30 seeds to slide.
     * (A second frame is not the loop fix: `max_frames=2` on 256M, above, swapped wall-loops for copying its own previous
       reply, and collapsed at the same step.)
     * The loop also explains the sampled-vs-greedy gap in every run: under greedy decoding, any move that leaves the state
