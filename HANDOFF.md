@@ -27,6 +27,13 @@ code.
   memorizes each task's goal instead of learning to find a marker.
 - **Is cloning necessary? So far yes.** RL alone learns one or two ML10 tasks (drawer-close, a little reach; ~0.10 on
   the training tasks), with 16 or 32 groups per step, and nothing on ML45.
+- **Newest and most promising: an untrained reasoning model, told where the object is.** Zero-shot, no training:
+  Qwen3.5-9B with a short reason before each move, camera-aligned axes (`env_kwargs.action_frame=camera`), the scene's
+  conventions stated (`scene_notes`), the text history and the task's object relative to the hand each turn
+  (`object_text`; Metaworld's observation has it, the ML benchmarks hide only the goal) scores **0.18 on ML10's held-out
+  tasks** (clones 0.02), including lever-pull and sweep-into, which no clone solves. RL from it on the training tasks
+  is running (`metaworld-rlobj-q35-9b-ml10`, `-ml45`, `metaworld-rlobjgoal-q35-9b-ml10`): does held-out rise with the
+  training tasks (PEAR) or specialize away (our clones)? Probe results: `reports/data/probes.json`, table in the PDF.
 - **More tasks do not fix it.** Clones on 10 random ML45 training tasks transfer as much as on all 45 (0.11 vs 0.12 on
   ML45's held-out tasks); 20 random tasks give 0.04, and 10 tasks hand-picked as motion look-alikes 0.01.
 - **Other lead:** **reasoning learned by RL.** RL from the *base* model (no cloning), with one or two

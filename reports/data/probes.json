@@ -1,0 +1,584 @@
+[
+ {
+  "model": "Qwen3.5-9B",
+  "reasoning": "thinking",
+  "frame": "world",
+  "notes": false,
+  "history": false,
+  "object": false,
+  "goal": false,
+  "job": "vlmrl-probe-think-q35-9b-ml10",
+  "train": 0.02,
+  "heldout": 0.0,
+  "invalid_train": 0.7662857142857143,
+  "invalid_heldout": 0.7639999999999999,
+  "reply_chars": 25256.85714285714,
+  "episodes": [
+   50,
+   50
+  ],
+  "train_tasks": {
+   "basketball-v3": 0.0,
+   "button-press-topdown-v3": 0.0,
+   "door-open-v3": 0.0,
+   "drawer-close-v3": 0.3333333333333333,
+   "peg-insert-side-v3": 0.0,
+   "pick-place-v3": 0.0,
+   "push-v3": 0.0,
+   "reach-v3": 0.0,
+   "sweep-v3": 0.0,
+   "window-open-v3": 0.0
+  },
+  "heldout_tasks": {
+   "door-close-v3": 0.0,
+   "drawer-open-v3": 0.0,
+   "lever-pull-v3": 0.0,
+   "shelf-place-v3": 0.0,
+   "sweep-into-v3": 0.0
+  },
+  "max_new_tokens": 8192,
+  "temperature": 0.6
+ },
+ {
+  "model": "Qwen3.5-9B",
+  "reasoning": "thinking",
+  "frame": "camera",
+  "notes": false,
+  "history": false,
+  "object": false,
+  "goal": false,
+  "job": "vlmrl-probe-think-q35-9b-camera-ml10",
+  "train": 0.06,
+  "heldout": 0.0,
+  "invalid_train": 0.4165714285714286,
+  "invalid_heldout": 0.336,
+  "reply_chars": 19658.725874125874,
+  "episodes": [
+   50,
+   50
+  ],
+  "train_tasks": {
+   "basketball-v3": 0.0,
+   "button-press-topdown-v3": 0.0,
+   "door-open-v3": 0.0,
+   "drawer-close-v3": 1.0,
+   "peg-insert-side-v3": 0.0,
+   "pick-place-v3": 0.0,
+   "push-v3": 0.0,
+   "reach-v3": 0.0,
+   "sweep-v3": 0.0,
+   "window-open-v3": 0.0
+  },
+  "heldout_tasks": {
+   "door-close-v3": 0.0,
+   "drawer-open-v3": 0.0,
+   "lever-pull-v3": 0.0,
+   "shelf-place-v3": 0.0,
+   "sweep-into-v3": 0.0
+  },
+  "max_new_tokens": 8192,
+  "temperature": 0.6
+ },
+ {
+  "model": "Qwen3.5-27B",
+  "reasoning": "thinking",
+  "frame": "camera",
+  "notes": false,
+  "history": false,
+  "object": false,
+  "goal": false,
+  "job": "vlmrl-probe-think-q35-27b-camera-ml10",
+  "train": 0.06,
+  "heldout": 0.02,
+  "invalid_train": 0.36066666666666664,
+  "invalid_heldout": 0.43104761904761907,
+  "reply_chars": 19896.799438990183,
+  "episodes": [
+   50,
+   50
+  ],
+  "train_tasks": {
+   "basketball-v3": 0.0,
+   "button-press-topdown-v3": 0.0,
+   "door-open-v3": 0.0,
+   "drawer-close-v3": 1.0,
+   "peg-insert-side-v3": 0.0,
+   "pick-place-v3": 0.0,
+   "push-v3": 0.0,
+   "reach-v3": 0.0,
+   "sweep-v3": 0.0,
+   "window-open-v3": 0.0
+  },
+  "heldout_tasks": {
+   "door-close-v3": 0.0,
+   "drawer-open-v3": 0.1,
+   "lever-pull-v3": 0.0,
+   "shelf-place-v3": 0.0,
+   "sweep-into-v3": 0.0
+  },
+  "max_new_tokens": 8192,
+  "temperature": 0.6
+ },
+ {
+  "model": "Qwen3.5-35B-A3B",
+  "reasoning": "thinking",
+  "frame": "camera",
+  "notes": false,
+  "history": false,
+  "object": false,
+  "goal": false,
+  "job": "vlmrl-probe-think-q35-35b-a3b-camera-ml10",
+  "train": 0.04,
+  "heldout": 0.0,
+  "invalid_train": 0.35352380952380946,
+  "invalid_heldout": 0.304,
+  "reply_chars": 18351.9780521262,
+  "episodes": [
+   50,
+   50
+  ],
+  "train_tasks": {
+   "basketball-v3": 0.0,
+   "button-press-topdown-v3": 0.0,
+   "door-open-v3": 0.0,
+   "drawer-close-v3": 0.6666666666666666,
+   "peg-insert-side-v3": 0.0,
+   "pick-place-v3": 0.0,
+   "push-v3": 0.0,
+   "reach-v3": 0.0,
+   "sweep-v3": 0.0,
+   "window-open-v3": 0.0
+  },
+  "heldout_tasks": {
+   "door-close-v3": 0.0,
+   "drawer-open-v3": 0.0,
+   "lever-pull-v3": 0.0,
+   "shelf-place-v3": 0.0,
+   "sweep-into-v3": 0.0
+  },
+  "max_new_tokens": 8192,
+  "temperature": 0.6
+ },
+ {
+  "model": "Qwen3.5-9B",
+  "reasoning": "thinking",
+  "frame": "camera",
+  "notes": true,
+  "history": false,
+  "object": false,
+  "goal": false,
+  "job": "vlmrl-probe-think-q35-9b-camera-notes-ml10",
+  "pending": true
+ },
+ {
+  "model": "Qwen3.5-35B-A3B",
+  "reasoning": "thinking",
+  "frame": "camera",
+  "notes": true,
+  "history": false,
+  "object": false,
+  "goal": false,
+  "job": "vlmrl-probe-think-q35-35b-a3b-camera-notes-ml10",
+  "pending": true
+ },
+ {
+  "model": "Qwen3.5-4B",
+  "reasoning": "short",
+  "frame": "camera",
+  "notes": true,
+  "history": false,
+  "object": false,
+  "goal": false,
+  "job": "vlmrl-probe-nothink-q35-4b-camera-notes-ml10",
+  "train": 0.0,
+  "heldout": 0.0,
+  "invalid_train": 0.0,
+  "invalid_heldout": 0.0,
+  "reply_chars": 314.6533333333333,
+  "episodes": [
+   50,
+   50
+  ],
+  "train_tasks": {
+   "basketball-v3": 0.0,
+   "button-press-topdown-v3": 0.0,
+   "door-open-v3": 0.0,
+   "drawer-close-v3": 0.0,
+   "peg-insert-side-v3": 0.0,
+   "pick-place-v3": 0.0,
+   "push-v3": 0.0,
+   "reach-v3": 0.0,
+   "sweep-v3": 0.0,
+   "window-open-v3": 0.0
+  },
+  "heldout_tasks": {
+   "door-close-v3": 0.0,
+   "drawer-open-v3": 0.0,
+   "lever-pull-v3": 0.0,
+   "shelf-place-v3": 0.0,
+   "sweep-into-v3": 0.0
+  },
+  "max_new_tokens": 256,
+  "temperature": 0.0
+ },
+ {
+  "model": "Qwen3.5-9B",
+  "reasoning": "short",
+  "frame": "camera",
+  "notes": true,
+  "history": false,
+  "object": false,
+  "goal": false,
+  "job": "vlmrl-probe-nothink-q35-9b-camera-notes-ml10",
+  "train": 0.02,
+  "heldout": 0.0,
+  "invalid_train": 0.0,
+  "invalid_heldout": 0.0,
+  "reply_chars": 288.6016150740242,
+  "episodes": [
+   50,
+   50
+  ],
+  "train_tasks": {
+   "basketball-v3": 0.0,
+   "button-press-topdown-v3": 0.0,
+   "door-open-v3": 0.0,
+   "drawer-close-v3": 0.3333333333333333,
+   "peg-insert-side-v3": 0.0,
+   "pick-place-v3": 0.0,
+   "push-v3": 0.0,
+   "reach-v3": 0.0,
+   "sweep-v3": 0.0,
+   "window-open-v3": 0.0
+  },
+  "heldout_tasks": {
+   "door-close-v3": 0.0,
+   "drawer-open-v3": 0.0,
+   "lever-pull-v3": 0.0,
+   "shelf-place-v3": 0.0,
+   "sweep-into-v3": 0.0
+  },
+  "max_new_tokens": 256,
+  "temperature": 0.0
+ },
+ {
+  "model": "Qwen3.5-27B",
+  "reasoning": "short",
+  "frame": "camera",
+  "notes": true,
+  "history": false,
+  "object": false,
+  "goal": false,
+  "job": "vlmrl-probe-nothink-q35-27b-camera-notes-ml10",
+  "train": 0.0,
+  "heldout": 0.0,
+  "invalid_train": 0.0,
+  "invalid_heldout": 0.0,
+  "reply_chars": 281.952,
+  "episodes": [
+   50,
+   50
+  ],
+  "train_tasks": {
+   "basketball-v3": 0.0,
+   "button-press-topdown-v3": 0.0,
+   "door-open-v3": 0.0,
+   "drawer-close-v3": 0.0,
+   "peg-insert-side-v3": 0.0,
+   "pick-place-v3": 0.0,
+   "push-v3": 0.0,
+   "reach-v3": 0.0,
+   "sweep-v3": 0.0,
+   "window-open-v3": 0.0
+  },
+  "heldout_tasks": {
+   "door-close-v3": 0.0,
+   "drawer-open-v3": 0.0,
+   "lever-pull-v3": 0.0,
+   "shelf-place-v3": 0.0,
+   "sweep-into-v3": 0.0
+  },
+  "max_new_tokens": 256,
+  "temperature": 0.0
+ },
+ {
+  "model": "Qwen3.5-35B-A3B",
+  "reasoning": "short",
+  "frame": "camera",
+  "notes": true,
+  "history": false,
+  "object": false,
+  "goal": false,
+  "job": "vlmrl-probe-nothink-q35-35b-a3b-camera-notes-ml10",
+  "train": 0.06,
+  "heldout": 0.02,
+  "invalid_train": 0.02,
+  "invalid_heldout": 0.03333333333333333,
+  "reply_chars": 359.03434065934067,
+  "episodes": [
+   50,
+   50
+  ],
+  "train_tasks": {
+   "basketball-v3": 0.0,
+   "button-press-topdown-v3": 0.0,
+   "door-open-v3": 0.0,
+   "drawer-close-v3": 1.0,
+   "peg-insert-side-v3": 0.0,
+   "pick-place-v3": 0.0,
+   "push-v3": 0.0,
+   "reach-v3": 0.0,
+   "sweep-v3": 0.0,
+   "window-open-v3": 0.0
+  },
+  "heldout_tasks": {
+   "door-close-v3": 0.07692307692307693,
+   "drawer-open-v3": 0.0,
+   "lever-pull-v3": 0.0,
+   "shelf-place-v3": 0.0,
+   "sweep-into-v3": 0.0
+  },
+  "max_new_tokens": 256,
+  "temperature": 0.0
+ },
+ {
+  "model": "Qwen3.5-9B",
+  "reasoning": "short",
+  "frame": "camera",
+  "notes": true,
+  "history": true,
+  "object": false,
+  "goal": false,
+  "job": "vlmrl-probe-nothink-q35-9b-camera-notes-hist-ml10",
+  "train": 0.0,
+  "heldout": 0.0,
+  "invalid_train": 0.0,
+  "invalid_heldout": 0.0,
+  "reply_chars": 263.75733333333335,
+  "episodes": [
+   50,
+   50
+  ],
+  "train_tasks": {
+   "basketball-v3": 0.0,
+   "button-press-topdown-v3": 0.0,
+   "door-open-v3": 0.0,
+   "drawer-close-v3": 0.0,
+   "peg-insert-side-v3": 0.0,
+   "pick-place-v3": 0.0,
+   "push-v3": 0.0,
+   "reach-v3": 0.0,
+   "sweep-v3": 0.0,
+   "window-open-v3": 0.0
+  },
+  "heldout_tasks": {
+   "door-close-v3": 0.0,
+   "drawer-open-v3": 0.0,
+   "lever-pull-v3": 0.0,
+   "shelf-place-v3": 0.0,
+   "sweep-into-v3": 0.0
+  },
+  "max_new_tokens": 256,
+  "temperature": 0.0
+ },
+ {
+  "model": "Qwen3.5-35B-A3B",
+  "reasoning": "short",
+  "frame": "camera",
+  "notes": true,
+  "history": true,
+  "object": false,
+  "goal": false,
+  "job": "vlmrl-probe-nothink-q35-35b-a3b-camera-notes-hist-ml10",
+  "train": 0.02,
+  "heldout": 0.0,
+  "invalid_train": 0.0,
+  "invalid_heldout": 0.0,
+  "reply_chars": 289.05405405405406,
+  "episodes": [
+   50,
+   50
+  ],
+  "train_tasks": {
+   "basketball-v3": 0.0,
+   "button-press-topdown-v3": 0.0,
+   "door-open-v3": 0.0,
+   "drawer-close-v3": 0.3333333333333333,
+   "peg-insert-side-v3": 0.0,
+   "pick-place-v3": 0.0,
+   "push-v3": 0.0,
+   "reach-v3": 0.0,
+   "sweep-v3": 0.0,
+   "window-open-v3": 0.0
+  },
+  "heldout_tasks": {
+   "door-close-v3": 0.0,
+   "drawer-open-v3": 0.0,
+   "lever-pull-v3": 0.0,
+   "shelf-place-v3": 0.0,
+   "sweep-into-v3": 0.0
+  },
+  "max_new_tokens": 256,
+  "temperature": 0.0
+ },
+ {
+  "model": "Qwen3.5-9B",
+  "reasoning": "short",
+  "frame": "camera",
+  "notes": true,
+  "history": true,
+  "object": true,
+  "goal": false,
+  "job": "vlmrl-probe-nothink-q35-9b-camera-notes-hist-obj-ml10",
+  "train": 0.1,
+  "heldout": 0.18,
+  "invalid_train": 0.0,
+  "invalid_heldout": 0.0,
+  "reply_chars": 279.4176136363636,
+  "episodes": [
+   50,
+   50
+  ],
+  "train_tasks": {
+   "basketball-v3": 0.0,
+   "button-press-topdown-v3": 0.0,
+   "door-open-v3": 0.0,
+   "drawer-close-v3": 0.6666666666666666,
+   "peg-insert-side-v3": 0.0,
+   "pick-place-v3": 0.0,
+   "push-v3": 0.0,
+   "reach-v3": 0.0,
+   "sweep-v3": 0.0,
+   "window-open-v3": 0.5
+  },
+  "heldout_tasks": {
+   "door-close-v3": 0.6923076923076923,
+   "drawer-open-v3": 0.0,
+   "lever-pull-v3": 0.0,
+   "shelf-place-v3": 0.0,
+   "sweep-into-v3": 0.0
+  },
+  "max_new_tokens": 256,
+  "temperature": 0.0
+ },
+ {
+  "model": "Qwen3.5-35B-A3B",
+  "reasoning": "short",
+  "frame": "camera",
+  "notes": true,
+  "history": true,
+  "object": true,
+  "goal": false,
+  "job": "vlmrl-probe-nothink-q35-35b-a3b-camera-notes-hist-obj-ml10",
+  "train": 0.06,
+  "heldout": 0.04,
+  "invalid_train": 0.0,
+  "invalid_heldout": 0.0,
+  "reply_chars": 326.0083102493075,
+  "episodes": [
+   50,
+   50
+  ],
+  "train_tasks": {
+   "basketball-v3": 0.0,
+   "button-press-topdown-v3": 0.0,
+   "door-open-v3": 0.0,
+   "drawer-close-v3": 0.3333333333333333,
+   "peg-insert-side-v3": 0.0,
+   "pick-place-v3": 0.0,
+   "push-v3": 0.0,
+   "reach-v3": 0.0,
+   "sweep-v3": 0.0,
+   "window-open-v3": 0.3333333333333333
+  },
+  "heldout_tasks": {
+   "door-close-v3": 0.15384615384615385,
+   "drawer-open-v3": 0.0,
+   "lever-pull-v3": 0.0,
+   "shelf-place-v3": 0.0,
+   "sweep-into-v3": 0.0
+  },
+  "max_new_tokens": 256,
+  "temperature": 0.0
+ },
+ {
+  "model": "Qwen3.5-9B",
+  "reasoning": "short",
+  "frame": "camera",
+  "notes": true,
+  "history": true,
+  "object": true,
+  "goal": true,
+  "job": "vlmrl-probe-nothink-q35-9b-camera-notes-hist-obj-goal-ml10",
+  "train": 0.1,
+  "heldout": 0.18,
+  "invalid_train": 0.0,
+  "invalid_heldout": 0.0,
+  "reply_chars": 260.1517341040462,
+  "episodes": [
+   50,
+   50
+  ],
+  "train_tasks": {
+   "basketball-v3": 0.0,
+   "button-press-topdown-v3": 0.0,
+   "door-open-v3": 0.0,
+   "drawer-close-v3": 1.0,
+   "peg-insert-side-v3": 0.0,
+   "pick-place-v3": 0.0,
+   "push-v3": 0.0,
+   "reach-v3": 0.0,
+   "sweep-v3": 0.0,
+   "window-open-v3": 0.3333333333333333
+  },
+  "heldout_tasks": {
+   "door-close-v3": 0.5384615384615384,
+   "drawer-open-v3": 0.0,
+   "lever-pull-v3": 0.1111111111111111,
+   "shelf-place-v3": 0.0,
+   "sweep-into-v3": 0.125
+  },
+  "max_new_tokens": 256,
+  "temperature": 0.0
+ },
+ {
+  "model": "Qwen3.5-35B-A3B",
+  "reasoning": "short",
+  "frame": "camera",
+  "notes": true,
+  "history": true,
+  "object": true,
+  "goal": true,
+  "job": "vlmrl-probe-nothink-q35-35b-a3b-camera-notes-hist-obj-goal-ml10",
+  "train": 0.08,
+  "heldout": 0.22,
+  "invalid_train": 0.02,
+  "invalid_heldout": 0.0,
+  "reply_chars": 357.1107913669065,
+  "episodes": [
+   50,
+   50
+  ],
+  "train_tasks": {
+   "basketball-v3": 0.0,
+   "button-press-topdown-v3": 0.0,
+   "door-open-v3": 0.0,
+   "drawer-close-v3": 0.6666666666666666,
+   "peg-insert-side-v3": 0.0,
+   "pick-place-v3": 0.0,
+   "push-v3": 0.0,
+   "reach-v3": 0.25,
+   "sweep-v3": 0.0,
+   "window-open-v3": 0.16666666666666666
+  },
+  "heldout_tasks": {
+   "door-close-v3": 0.7692307692307693,
+   "drawer-open-v3": 0.0,
+   "lever-pull-v3": 0.1111111111111111,
+   "shelf-place-v3": 0.0,
+   "sweep-into-v3": 0.0
+  },
+  "max_new_tokens": 256,
+  "temperature": 0.0
+ }
+]

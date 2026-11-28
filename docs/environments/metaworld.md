@@ -128,7 +128,7 @@ stated goal does the work. ML45 did not gain on held-out tasks (0.07 vs 0.12).
 prompt says so in plain words and adds that moves are relative to the hand and shortened to the limit. The default
 (`world`) uses Metaworld's axes, which the corner camera shows diagonally ("+dx to the right, +dy to the left, both
 slightly away"): Qwen3.5-9B with native thinking spent most of its 8192-token budget on that sentence (93% of replies
-re-read it, 64% called it a typo; 76% never finished). Clones learn either frame from examples; the plainer frame is for
+re-read it, 64% called it a typo; 77% never finished). Clones learn either frame from examples; the plainer frame is for
 policies that reason.
 
 **Scene notes** (`+env_kwargs.scene_notes=true`, `compact_rel*` styles): a paragraph after the task line on the scene's

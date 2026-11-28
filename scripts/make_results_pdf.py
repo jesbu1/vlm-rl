@@ -92,6 +92,9 @@ RUNS = {
     "rr9_ml10": (MW, "group:metaworld-rlreason-q35-9b-ml10"),
     "nt_rand10": (MW, "group:metaworld-ntasks-ml45-rand10"), "nt_rand20": (MW, "group:metaworld-ntasks-ml45-rand20"),
     "nt_near10": (MW, "group:metaworld-ntasks-ml45-near10"),
+    # RL from the base 9B with short reasoning, text history and the object's position (camera frame, scene notes)
+    "ro9_ml10": (MW, "group:metaworld-rlobj-q35-9b-ml10"), "rog9_ml10": (MW, "group:metaworld-rlobjgoal-q35-9b-ml10"),
+    "ro9_ml45": (MW, "group:metaworld-rlobj-q35-9b-ml45"),
     # RL from good clones: lower lr / only above-average rollouts (adv_min=0); baselines p5_seeds10, m5_bc200 (lr 1e-5)
     "rl_push_lr": (MW, "group:metaworld-rlfix-push450-lr2e-6"), "rl_push_pos": (MW, "group:metaworld-rlfix-push450-posadv"),
     "rl_ml10_lr": (MW, "group:metaworld-rlfix-ml10-lr2e-6"), "rl_ml10_pos": (MW, "group:metaworld-rlfix-ml10-posadv"),
@@ -818,11 +821,32 @@ def table_runs(D):
     return "\n".join(lines)
 
 
+def table_probes():
+    """Zero-shot probes of base models (scripts/probe_zero_shot.py), from reports/data/probes.json."""
+    path = os.path.join(OUT, "data", "probes.json")
+    if not os.path.exists(path):
+        return r"\emph{no probe results}"
+    rows = json.load(open(path))
+    yes = lambda b: r"\textbullet" if b else ""
+    lines = [r"\begin{tabular}{llcccccrrr}", r"\toprule",
+             r"Model & Reasoning & Axes & Notes & History & Object & Goal & Training & Held-out & Unfinished \\", r"\midrule"]
+    for r in rows:
+        if r.get("pending"):
+            continue
+        lines.append(f"{r['model'].replace('Qwen3.5-', '')} & {r['reasoning']} & {r['frame']} & {yes(r['notes'])} & "
+                     f"{yes(r['history'])} & {yes(r['object'])} & {yes(r['goal'])} & {r['train']:.2f} & "
+                     f"{r['heldout']:.2f} & {r['invalid_train']:.2f} \\\\")
+    lines += [r"\bottomrule", r"\end{tabular}"]
+    return "\n".join(lines)
+
+
 def write_tables(D):
     os.makedirs(TAB, exist_ok=True)
     for name, fn in (("clones", table_clones), ("runs", table_runs)):
         with open(os.path.join(TAB, f"{name}.tex"), "w") as f:
             f.write(fn(D) + "\n")
+    with open(os.path.join(TAB, "probes.tex"), "w") as f:
+        f.write(table_probes() + "\n")
 
 
 # ----------------------------------------------------------------------------- build

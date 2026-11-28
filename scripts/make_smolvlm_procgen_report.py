@@ -72,6 +72,7 @@ METAWORLD_PUSH = [("gain 0.5: Qwen3.5-4B, BC (30 steps) then RL", "metaworld-g05
                   ("gain 1.0: Qwen3.5-4B, BC then RL, pref_mw (RL undoes BC)", "metaworld-bc2-q35-push", None),
                   ("gain 1.0: Qwen3.5-4B, BC then RL, pref_mw_obj", "metaworld-bc3-q35-push", None)]
 METAWORLD_ML45 = [("goal offset in text + text history: BC 400 then RL", "metaworld-goalhist-q35-ml45", None),
+                  ("9B RL from base: short reasoning, history, object position", "metaworld-rlobj-q35-9b-ml45", None),
                   ("clone on 10 random training tasks (eval on the 5 held-out)", "metaworld-ntasks-ml45-rand10", None),
                   ("clone on 20 random training tasks", "metaworld-ntasks-ml45-rand20", None),
                   ("clone on 10 look-alike training tasks", "metaworld-ntasks-ml45-near10", None),
@@ -86,6 +87,8 @@ METAWORLD_ML45 = [("goal offset in text + text history: BC 400 then RL", "metawo
                   ("recipe: Qwen3.5-4B, BC 800, RL lr 2e-6", "metaworld-recipe-q35-ml45-bc800", None),
                   ("recipe: Qwen3-VL-4B, BC 400 then RL (train_seeds=10)", "metaworld-recipe-q3vl4b-ml45", None)]
 METAWORLD_ML10 = [("goal offset in text + text history: BC 400 then RL", "metaworld-goalhist-q35-ml10", None),
+                  ("9B RL from base: short reasoning, history, object position", "metaworld-rlobj-q35-9b-ml10", None),
+                  ("9B RL from base: same + goal offset at the start", "metaworld-rlobjgoal-q35-9b-ml10", None),
                   ("Qwen3.5-9B: RL only with reasoning, from the base model", "metaworld-rlreason-q35-9b-ml10", None),
                   ("RL only, 32 groups/step, T 1.2, 300 steps", "metaworld-rlonly-q35-ml10-g32", None),
                   ("text history, no goal in text: BC 400 then RL", "metaworld-histonly-q35-ml10", None),

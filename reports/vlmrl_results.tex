@@ -61,6 +61,10 @@
 \item \textbf{More training tasks do not fix held-out tasks.} Clones on 10 random ML45 training tasks transfer as much as on
   all 45 (0.11 vs 0.12 on ML45's held-out tasks), on 20 less (0.04), on 10 hand-picked look-alikes least (0.01).
   Section~\ref{sec:whatnext}.
+\item \textbf{An untrained reasoning model, told where the object is, transfers as well as our best clone.} With short
+  reasoning, the text history and the task's object relative to the hand each turn (part of Metaworld's observation),
+  the base Qwen3.5-9B scores 0.18 on ML10's held-out tasks zero-shot (clones 0.02; the goal-given clone 0.22), including
+  lever-pull and sweep-into, which no clone solves. RL from it is running (Section~\ref{sec:whatnext}).
 \item \textbf{RL alone learns one or two ML10 tasks} (drawer-close, some reach; 0.08--0.14 on the training tasks), also
   with twice the groups per step: cloning is needed for motor skills (Section~\ref{sec:rlonly}).
 \item \textbf{RL from a good clone needs a low learning rate and refines rather than generalizes.} At lr 1e-5 it erodes
@@ -758,7 +762,7 @@ finish (87\% invalid replies). Running: the same RL-only reasoning with Qwen3.5-
 finishes its reasoning, the starting point RL from scratch needs.
 
 \textbf{First probe: our axis description blocks reasoning.} Qwen3.5-9B with native thinking (8192 tokens, temperature
-0.6), zero-shot on ML10: 0.02 on the training tasks and 0 on the held-out ones, with 76\% of replies never finishing.
+0.6), zero-shot on ML10: 0.02 on the training tasks and 0 on the held-out ones, with 77\% of replies never finishing.
 The reasoning was not about the task: 93\% of replies re-read our description of the axes (``+dx moves the hand to the
 right, +dy to the left, both slightly away from the camera'', true for the diagonal corner view), 88\% called it
 confusing or contradictory and 64\% a typo, and the average reply mentions ``dy'' 143 times. Clones never noticed:
@@ -767,7 +771,7 @@ in a camera-aligned frame (\code{env\_kwargs.action\_frame=camera}: +dx right in
 up, computed from the camera's pose).
 
 \textbf{In the camera frame the reasoning is about the task, but the base models still solve only drawer-close.}
-Unfinished replies fall from 76\% to 34--42\% (9B) and 30--35\% (35B-A3B), and talk of confusion from about 90\% to 30\%
+Unfinished replies fall from 77\% to 34--42\% (9B) and 30--35\% (35B-A3B), and talk of confusion from about 90\% to 30\%
 of replies. Success, zero-shot with thinking: 9B 0.06 on the training tasks (drawer-close 1.00, every other task 0),
 35B-A3B 0.04 (drawer-close 0.67); both 0 on every held-out task. The next obstacle shows in the transcripts: on reach the
 35B sees ``a red ball floating in the air'', which is the goal marker, takes it for an unrelated object and tries to grasp
@@ -784,10 +788,32 @@ one frame in context: with short reasoning (256 tokens, greedy) Qwen3.5-4B, 9B a
 no clone does. The 35B's sentences are now correct (``the green sphere (goal) is to the left of the puck''), but it moves
 1--2\,cm at a time (``slightly to the left''), re-plans from scratch every turn (open, close, open: with one frame in
 context it cannot see that it just did that) and, on reach, still goes for the puck. What a reasoning agent lacks
-here is what PEAR's agent has: the earlier turns in context, and positions in numbers. Next: the same probes with the
-text history, then with the task's object relative to the hand each turn (\code{env\_kwargs.object\_text=true}; the
-ML benchmarks give state-based agents the object's position and hide only the goal), then with the goal offset at the
-first turn as well (\code{goal\_text=true}).
+here is what PEAR's agent has: the earlier turns in context, and positions in numbers.
+
+\textbf{With the history and the object's position, an untrained 9B transfers as well as our best clone.} The text
+history alone does not help (9B 0.00 / 0.00, 35B-A3B 0.02 / 0.00 on training / held-out tasks). Adding, every turn,
+where the task's object is relative to the hand (\code{env\_kwargs.object\_text=true}: Metaworld's observation has the
+object's position for every task, and the ML benchmarks hide only the goal, so this is not privileged) gives the base
+Qwen3.5-9B \textbf{0.18 on ML10's held-out tasks} (door-close 0.69) and 0.10 on the training tasks, with no training at
+all. With the goal offset at the first turn as well: 9B 0.18 (door-close 0.54, lever-pull 0.11, sweep-into 0.12) and
+35B-A3B 0.22 (door-close 0.77, lever-pull 0.11). Lever-pull and sweep-into are held-out tasks no clone has solved. The
+transcripts read like a sensible agent: ``the gripper is open and to the left of the door handle; move toward the
+handle'', with moves sized from the numbers (dx $+$25, then $+$14, $+$8), and on lever-pull ``grasp the handle, then
+lift'', failing on the grasp. (50 episodes per set, about 10 per held-out task: per-task numbers are rough.) Held-out
+is not special for an untrained model, so the question becomes whether RL on the training tasks raises the held-out
+tasks with them, as in PEAR, or specializes as our clones did. Running: RL from the base 9B with short reasoning,
+text history and the object's position, on ML10 (with and without the goal offset) and on ML45.
+
+\begin{table}[h]
+\centering\small
+\input{tables/probes.tex}
+\caption{Zero-shot probes of base models on ML10 (no training; 50 training-task and 50 held-out episodes each).
+Reasoning: native thinking (8192 tokens, temperature 0.6) or a short reason before each move (256 tokens, greedy).
+Axes: Metaworld's world axes or camera-aligned. Notes: the scene's conventions stated. History: earlier turns' text in
+context. Object / goal: the task's object (every turn) / the goal (first turn) relative to the hand. Unfinished: replies
+without a readable move on training tasks.}
+\label{tab:probes}
+\end{table}
 
 \textbf{Model size alone does not help RL with short reasoning.} The 4B run repeated with Qwen3.5-9B (world frame, same
 settings): at step 40 it has learned drawer-close (0.64) and nothing else (training tasks 0.04; the 4B had 0.10, with
