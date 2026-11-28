@@ -749,7 +749,22 @@ right, +dy to the left, both slightly away from the camera'', true for the diago
 confusing or contradictory and 64\% a typo, and the average reply mentions ``dy'' 143 times. Clones never noticed:
 they learn the mapping from examples. For a policy that reasons, the frame has to be plain, so moves can now be given
 in a camera-aligned frame (\code{env\_kwargs.action\_frame=camera}: +dx right in the image, +dy away from the camera, +dz
-up, computed from the camera's pose). The probes of 9B, 27B and 35B-A3B are rerunning in that frame.
+up, computed from the camera's pose).
+
+\textbf{In the camera frame the reasoning is about the task, but the base models still solve only drawer-close.}
+Unfinished replies fall from 76\% to 34--42\% (9B) and 30--35\% (35B-A3B), and talk of confusion from about 90\% to 30\%
+of replies. Success, zero-shot with thinking: 9B 0.06 on the training tasks (drawer-close 1.00, every other task 0),
+35B-A3B 0.04 (drawer-close 0.67); both 0 on every held-out task. The next obstacle shows in the transcripts: on reach the
+35B sees ``a red ball floating in the air'', which is the goal marker, takes it for an unrelated object and tries to grasp
+the objects on the table. Neither our prompt nor Metaworld's instructions (``Move the hand to the goal position'') say
+what marks the goal. A short note on the scene's conventions (\code{env\_kwargs.scene\_notes=true}: the gripper, the
+goal spheres, how grasping works; the same information as the image, stated) is next, with thinking and with short
+reasoning (256 tokens, the length RL can afford: thinking at up to 8192 tokens per move, 15 moves, 128 episodes, is
+up to 15M generated tokens per RL step).
+
+\textbf{Model size alone does not help RL with short reasoning.} The 4B run repeated with Qwen3.5-9B (world frame, same
+settings): at step 40 it has learned drawer-close (0.64) and nothing else (training tasks 0.04; the 4B had 0.10, with
+some reach and window-open), and 0 on every held-out task.
 
 \section{Methodology lessons}
 \label{sec:noise}
