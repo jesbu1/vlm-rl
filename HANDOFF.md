@@ -32,8 +32,8 @@ code.
   (answer-only clones: 0.04). It did **not** hold: at step 40 door-close was back to 0.04 while the training tasks kept
   improving. The reasoning still read the instruction correctly, but the moves drifted toward the training tasks'.
   Making such transfer stick is open.
-- **Decision pending with the project owner:** whether to report held-out tasks after a short adaptation phase (a few RL
-  steps per held-out task, the benchmark's own meta-RL protocol) or zero-shot only, as now.
+- **Protocol: held-out tasks are zero-shot.** No adaptation phase on the held-out tasks (no RL or cloning on them),
+  by the project owner's decision; every held-out number here and in the PDF is zero-shot.
 
 ## The system in one paragraph
 
@@ -225,7 +225,7 @@ Numbers to reproduce on your machines (Qwen3.5-4B, LoRA on the MLPs):
 1. **Goal finding vs motions.** The stated goal carries the ML10 transfer, but a policy trained to find the goal itself
    memorizes it per task. Goal finding that transfers would need training goals that move a lot, or many more tasks.
    Even with the goal given, the ceiling is small (ML10 0.22, mostly door-close; ML45 no gain), so for most held-out
-   tasks the missing piece is the motion. Held-out adaptation (step 5) tackles that directly.
+   tasks the missing piece is the motion, and it has to transfer zero-shot from the training tasks.
 2. **Make the RL-reasoning transfer stick.** It appeared (door-close 0.52 at step 30) and vanished by step 40 as RL
    specialized the motion to the training tasks. It is cheap to rerun: no cloning, ~30–60 RL steps on ML10 (~4–8 h;
    `compact_rel_reason`, `lr=1e-5`, `temperature=1.0`, evals every 5 steps with the larger eval sets). Try a lower lr, a
@@ -235,9 +235,7 @@ Numbers to reproduce on your machines (Qwen3.5-4B, LoRA on the MLPs):
    cloning-with-reasons attempt lost precise manipulation (pick-place 0.73 → 0.13), so watch both.
 4. **ML45 with RL-learned reasoning.** 45 training tasks gave cloning its only held-out transfer; see whether RL
    reasoning adds to it.
-5. **Held-out adaptation** (pending the owner's decision): one ML1 run per held-out task (`env_kwargs.benchmark='ML1:door-lock-v3'`,
-   …) from a saved clone, a few RL steps each; report success against episodes used.
-6. **Bigger, pooled evals** for every claim (`++eval_sets.*.episodes`, eval every 10 steps).
+5. **Bigger, pooled evals** for every claim (`++eval_sets.*.episodes`, eval every 10 steps).
 
 ## Keeping the results current
 

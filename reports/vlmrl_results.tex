@@ -90,7 +90,7 @@
 success (reaching the goal).
 \textbf{Metaworld} (Sawyer arm, v3): ML1 \emph{reach} and \emph{push} (50 training and 50 held-out goal/object positions
 each), and ML10 (10 training tasks, 5 held-out tasks). The model sees a 224$\times$224 crop of a 640$\times$480
-corner-camera frame.
+corner-camera frame. Held-out positions and tasks are always evaluated zero-shot: the policy never trains on them.
 
 \paragraph{Interface (one image per turn).}
 Each turn the model gets the task instruction, the current frame and a short state line, e.g.\ \code{Gripper: open. Last
@@ -742,10 +742,10 @@ RL alone on ML10, 32 groups/step & 0.08--0.10 (steps 40--170) & same plateau as 
 \begin{itemize}
 \item Training tasks: scaling the cloning gets ML45 to 0.73 (expert ceiling 0.82); ML10 saturates at 0.67--0.69 (expert
   0.91). Which tasks stay unsolved, and why? Held-out tasks: ML45 transfers a little, best at 400 cloning steps (0.12), less at 800
-  (0.056); RL does not raise it. A short adaptation phase on each held-out task (the benchmark's own protocol) is the
-  obvious next experiment.
-\item The standard ML10/ML45 protocol allows a short adaptation phase on each held-out task; a few RL steps there (the
-  object-first reward gives a signal before any success) need no new code.
+  (0.056); RL does not raise it.
+\item Held-out tasks are evaluated zero-shot throughout, by choice: no adaptation phase (no RL or cloning on the held-out
+  tasks), although the ML10/ML45 meta-RL protocol would allow one. Held-out motions have to transfer from the training
+  tasks.
 \item Reach plateaus at 0.6--0.8 on held-out positions while training positions reach 0.9--1.0: more positions (as for push)
   should narrow that gap.
 \item The goal-in-text gain (Section~\ref{sec:goalhist}) is the stated goal, not the history, and a policy trained to state
