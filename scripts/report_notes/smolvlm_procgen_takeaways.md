@@ -1299,6 +1299,7 @@
       BC30 seed 4 step 20: 40.1% (train 11x11 45.3, held-out 11x11 46.9, 15x15 28.1; rollouts 49%). KL seed 4 at step 20: 34.9.
       BC30 seed 4 step 25: 42.7% (train 11x11 45.3, held-out 11x11 48.4, 15x15 34.4; rollouts 45%). KL seed 4 at step 25: 41.1.
       BC30 seed 4 step 30: 44.3% (train 11x11 48.4, held-out 11x11 48.4, 15x15 35.9; rollouts 51%). KL seed 4 at step 30: 38.5.
+      BC30 seed 4 step 35: 41.1% (train 11x11 46.9, held-out 11x11 45.3, 15x15 31.2; rollouts 49%). KL seed 4 at step 35: 40.1.
     - Sixth seed pair (seed 5) queued behind seed 4: KL 0.01 to clone on GPU 1, BC30 on GPU 0. Configs: `..._bc30_klclone0p01_seed5_gpu1.yaml`, `..._bc30_seed5_gpu0.yaml`.
       KL seed 5 clone (step 0): 12.0% (train 11x11 12.5, held-out 11x11 9.4, 15x15 14.1).
     * (A second frame is not the loop fix: `max_frames=2` on 256M, above, swapped wall-loops for copying its own previous
